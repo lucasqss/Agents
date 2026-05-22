@@ -1,0 +1,11 @@
+# Ignore everything at the project root except /src
+/*
+!/src
+
+# Ignore all hidden files and folders (starting with .)
+# at any depth, including inside /src
+.*
+**/.*
+
+
+# Remember to change the name of this file to .claudeignore and place it in the root of your project.
