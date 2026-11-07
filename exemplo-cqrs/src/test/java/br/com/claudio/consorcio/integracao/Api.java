@@ -1,0 +1,44 @@
+package br.com.claudio.consorcio.integracao;
+
+import static io.restassured.RestAssured.given;
+
+import io.restassured.http.ContentType;
+import io.restassured.response.ValidatableResponse;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+
+/** Atalhos de RestAssured para os testes de integração. */
+final class Api {
+
+    private static final AtomicLong SEQUENCIA = new AtomicLong(System.nanoTime() % 1_000_000_000L);
+
+    private Api() {
+    }
+
+    static String unico(String prefixo) {
+        return prefixo + SEQUENCIA.incrementAndGet();
+    }
+
+    static long criarCliente(String nome) {
+        return post("/clientes", Map.of("nome", nome, "cpf", unico("CPF"))).statusCode(201)
+                .extract().jsonPath().getLong("id");
+    }
+
+    static long criarCota(long clienteId) {
+        return post("/cotas", Map.of("numero", unico("COTA-"), "valorCredito", 250000, "clienteId", clienteId))
+                .statusCode(201).extract().jsonPath().getLong("id");
+    }
+
+    static long criarProcesso(long cotaId, String tipo) {
+        return post("/processos", Map.of("cotaId", cotaId, "tipo", tipo)).statusCode(201)
+                .extract().jsonPath().getLong("id");
+    }
+
+    static ValidatableResponse acao(long processoId, String acao) {
+        return given().when().post("/processos/" + processoId + "/" + acao).then();
+    }
+
+    static ValidatableResponse post(String path, Object corpo) {
+        return given().contentType(ContentType.JSON).body(corpo).when().post(path).then();
+    }
+}

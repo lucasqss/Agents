@@ -1,0 +1,38 @@
+# Sobe a aplicação empacotada (perfil prod) com um PostgreSQL.
+# Em dev e nos testes não é preciso: o Dev Services do Quarkus sobe o banco sozinho.
+#
+#   ./mvnw package -DskipTests
+#   docker compose up --build
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: src/main/docker/Dockerfile.jvm
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/app
+      DB_USER: app
+      DB_PASSWORD: app
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

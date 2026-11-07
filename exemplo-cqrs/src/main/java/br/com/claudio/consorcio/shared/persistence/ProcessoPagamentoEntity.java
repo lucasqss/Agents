@@ -1,0 +1,71 @@
+package br.com.claudio.consorcio.shared.persistence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+/**
+ * Mapeamento da tabela processo_pagamento. Uma única entidade para todos os tipos:
+ * "tipo" e "estado" são strings, sem herança JPA.
+ */
+@Entity
+@Table(name = "processo_pagamento")
+public class ProcessoPagamentoEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "cota_id")
+    private Long cotaId;
+
+    private String tipo;
+
+    private String estado;
+
+    @Column(name = "protocolo_pagamento")
+    private String protocoloPagamento;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getCotaId() {
+        return cotaId;
+    }
+
+    public void setCotaId(Long cotaId) {
+        this.cotaId = cotaId;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
+    }
+
+    public String getEstado() {
+        return estado;
+    }
+
+    public void setEstado(String estado) {
+        this.estado = estado;
+    }
+
+    public String getProtocoloPagamento() {
+        return protocoloPagamento;
+    }
+
+    public void setProtocoloPagamento(String protocoloPagamento) {
+        this.protocoloPagamento = protocoloPagamento;
+    }
+}
