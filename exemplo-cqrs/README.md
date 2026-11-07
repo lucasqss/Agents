@@ -98,6 +98,26 @@ Qualquer estado não final → CANCELADO
 
 Transições inválidas lançam `TransicaoInvalidaException` (HTTP 409). Cada cota tem no máximo um processo em andamento. No banco existe uma única tabela, `processo_pagamento`, com `tipo` e `estado` em texto. O mapper reconstrói a subclasse e o estado, sem herança JPA.
 
+## Guardrails para IA e revisão
+
+O ArchUnit detecta o erro no build. Estas peças evitam que ele aconteça e impedem que ele entre:
+
+| Camada | Peça | Onde |
+|---|---|---|
+| Orientar | Instruções gerais do Copilot | `.github/copilot-instructions.md` |
+| Orientar | Instruções por pasta (carregadas só quando o Copilot mexe ali) | `.github/instructions/*.instructions.md` |
+| Orientar | Receitas prontas: `/novo-caso-de-uso-escrita`, `/nova-consulta`, `/nova-integracao-externa`, `/novo-endpoint-de-canal` | `.github/prompts/*.prompt.md` |
+| Orientar | O papel e as proibições de cada pacote, lidos pela IA ao abrir a pasta | `package-info.java` |
+| Detectar | Regras ArchUnit, testes de contrato, HQL validado na compilação | `src/test/...` |
+| Bloquear | CI (`./mvnw verify`), donos das partes sensíveis e checklist de PR | `.github/workflows/ci.yml`, `.github/CODEOWNERS`, `.github/pull_request_template.md` |
+
+**Neste repositório, a pasta `.github` é um modelo:** o GitHub só lê `.github` na raiz do repositório. Ao criar um projeto a partir deste exemplo, ela vai para a raiz.
+
+O CODEOWNERS sozinho só **pede** revisão. Para que ele e o CI **bloqueiem** o merge, configure no GitHub, em *Settings → Rules → Rulesets* (ou *Branches → Branch protection*), para a `main`:
+1. *Require a pull request before merging*, com *Require review from Code Owners*.
+2. *Require status checks to pass*, marcando o job `build` do CI.
+3. *Block force pushes* e, se quiser, *Require linear history*.
+
 ## API
 
 | Lado | Método e caminho | Descrição |

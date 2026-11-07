@@ -1,0 +1,12 @@
+---
+applyTo: "**/command/domain/**"
+---
+# Domínio (command/domain)
+
+Aqui mora a regra de negócio. É Java puro: o ArchUnit falha se aparecer import de JPA, Jakarta Data, CDI, JAX-RS, Quarkus, Hibernate, MicroProfile ou de qualquer pacote `shared`, `application`, `persistence`, `entrypoint` ou `gateway`.
+
+- Entidade de domínio protege as próprias invariantes: construtor ou fábrica estática (`novo`, `reconstituir`) que valida e lança `DominioException`. Sem setters públicos.
+- Estados fechados usam o padrão State: `sealed interface` com `record`s (veja `estado/EstadoProcesso`). Transição inválida lança `TransicaoInvalidaException`.
+- Repositório é uma **interface** aqui (`XRepository`), no vocabulário do domínio. A implementação fica em `command/persistence`.
+- Se uma regra do domínio precisar de um sistema externo, declare uma interface aqui; a implementação vai em `command/gateway/` delegando ao Gateway de `shared/gateway`. Nunca importe o Gateway no domínio.
+- Todo comportamento novo ganha teste JUnit puro em `src/test/java/**/command/domain/`.

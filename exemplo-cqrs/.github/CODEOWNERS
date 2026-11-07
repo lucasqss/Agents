@@ -1,0 +1,22 @@
+# Donos das partes que seguram a arquitetura. Um PR que mexe nelas exige a aprovação do dono,
+# desde que a proteção da branch tenha "Require review from Code Owners" ligado (veja o README).
+# Caminhos relativos à raiz do repositório do projeto. Em caso de conflito, vale a última linha que casa.
+
+# Regras de arquitetura (ArchUnit): ninguém afrouxa uma regra para o build passar.
+/src/test/java/**/arquitetura/                  @lucasqss
+
+# Guardrails: CI, instruções do Copilot, prompts, template de PR e este arquivo.
+/.github/                                       @lucasqss
+
+# Build: versões, plugins e dependências.
+/pom.xml                                        @lucasqss
+/.mvn/                                          @lucasqss
+/mvnw                                           @lucasqss
+/mvnw.cmd                                       @lucasqss
+
+# Schema do banco: migration aplicada não muda.
+/src/main/resources/db/migration/               @lucasqss
+
+# Padrão de apresentação dos canais (padrão da empresa) e contratos dos fronts.
+/src/main/java/**/shared/apresentacao/          @lucasqss
+/src/main/java/**/entrypoint/*/*Response.java   @lucasqss
