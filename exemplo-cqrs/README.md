@@ -2,7 +2,7 @@
 
 Projeto didático para validar uma arquitetura CQRS com domínio puro em Quarkus, aplicada a processos de pagamento de consórcio. Ele não implementa o negócio completo.
 
-**Stack:** Java 25, Quarkus 3.33, Hibernate ORM com Panache, Jakarta Data (Hibernate Data Repositories), PostgreSQL (Dev Services), Flyway, JUnit 5, RestAssured e ArchUnit.
+**Stack:** Java 25, Quarkus 3.33, Hibernate ORM com Jakarta Data (Hibernate Data Repositories) na escrita e na leitura, PostgreSQL (Dev Services), Flyway, JUnit 5, RestAssured e ArchUnit.
 
 ## Arquitetura
 
@@ -19,7 +19,7 @@ command/
   entrypoint/           REST de escrita + tradução de exceções para HTTP
   application/          use cases (Service Layer): transação e orquestração; chamam repositórios e gateways
   domain/               Domain Model puro: Cliente, Cota, ProcessoPagamento (+ estados) e interfaces de repositório
-  persistence/          repositórios Panache + Data Mappers domínio <-> JPA escritos à mão
+  persistence/          repositórios Jakarta Data + Data Mappers domínio <-> JPA escritos à mão
 query/
   entrypoint/           REST de leitura neutro (sem formatação)
     web/ mobile/ taa/   um BFF por canal: Resource + Response (contrato) + Assembler
@@ -29,6 +29,12 @@ query/
 
 - **Escrita:** `entrypoint → application → domain ← persistence`. A persistência implementa as interfaces que o domínio declara (Separated Interface), então o use case não vê JPA. Quando a escrita precisa consultar algo (existe? está ativo?), o método entra nessa interface do domínio; nunca num repositório do query.
 - **Leitura:** `entrypoint → application → persistence`. Não há domínio para proteger, então também não há porta. O repositório Jakarta Data já é uma interface, com a implementação gerada, e projeta direto no record.
+
+### Persistência com Jakarta Data nos dois lados
+
+Escrita e leitura usam repositórios Jakarta Data: toda consulta é um `@Query` em HQL, **validado na compilação** pelo Hibernate Processor, inclusive as consultas de existência da escrita (`existeNumero`, `existeAtivoPorCota`).
+
+O Jakarta Data do Hibernate usa **stateless session**: não há *dirty checking*. Alterar um objeto carregado não grava nada; gravar é sempre explícito. Por isso o `XRepositoryAdapter` monta a entidade a partir do domínio (`XMapper.paraEntidade`) e chama `inserir` (id nulo) ou `atualizar`. No nosso desenho isso já era assim, porque o domínio nunca toca na entidade JPA.
 
 ### Dois tipos de infraestrutura
 
@@ -61,7 +67,7 @@ Os combinados acima são verificados a cada build, em `src/test/java/.../arquite
 | `RegrasQuery` | `query` nunca importa `command`; direção `entrypoint → application → persistence`; o entrypoint não usa repositório Jakarta Data, só os records. |
 | `RegrasShared` | `shared` não conhece os lados (por isso um gateway nunca importa o domínio); entidades só com getters/setters; client e DTOs externos não saem de `shared.gateway`; gateways só em use cases, no entrypoint (exceção → HTTP) e em `command.gateway`; um sistema externo não depende de outro. |
 | `RegrasCanais` | Sem lista de canais: o subpacote é o canal, e um canal novo herda tudo. Canais e padrões não se conhecem; o padrão do canal X só é usado por `entrypoint.X`; formatação só no entrypoint; base comum neutra; use case sem canal; resource de canal nunca devolve tipo de `persistence`; Assembler e padrões são funções puras. |
-| `RegrasTecnologia` | Onde cada tecnologia mora: `@Entity` em `shared.persistence`; Panache em `command.persistence`; Jakarta Data em `query.persistence`; REST client e Fault Tolerance em `shared.gateway`; `@Path` e exception mappers no entrypoint; `@Transactional` só em use case. |
+| `RegrasTecnologia` | Onde cada tecnologia mora: `@Entity` em `shared.persistence`; sem Panache; Jakarta Data só em `command.persistence` e `query.persistence`; REST client e Fault Tolerance em `shared.gateway`; `@Path` e exception mappers no entrypoint; `@Transactional` só em use case. |
 | `RegrasNomes` | O nome diz onde a classe mora: `*UseCase`, `*Resource`, `*Assembler`, `*Gateway`, `*Entity`, `*Mapper`/`*RepositoryAdapter`, `Padrao*`. |
 | `ArquiteturaTest` | Sem ciclos entre os pacotes de segundo nível. |
 

@@ -14,34 +14,35 @@ public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepo
 
     private static final List<String> ESTADOS_FINAIS = List.of(Pago.NOME, Cancelado.NOME);
 
-    private final ProcessoPagamentoPanacheRepository panache;
+    private final ProcessoPagamentoDataRepository dados;
 
-    public ProcessoPagamentoRepositoryAdapter(ProcessoPagamentoPanacheRepository panache) {
-        this.panache = panache;
+    public ProcessoPagamentoRepositoryAdapter(ProcessoPagamentoDataRepository dados) {
+        this.dados = dados;
     }
 
     @Override
     public ProcessoPagamento salvar(ProcessoPagamento processo) {
-        ProcessoPagamentoEntity entity = processo.id() == null
-                ? new ProcessoPagamentoEntity()
-                : panache.findById(processo.id());
-        ProcessoPagamentoMapper.copiarParaEntidade(processo, entity);
-        panache.persist(entity);
+        ProcessoPagamentoEntity entity = ProcessoPagamentoMapper.paraEntidade(processo);
+        if (processo.id() == null) {
+            dados.inserir(entity);
+        } else {
+            dados.atualizar(entity);
+        }
         return ProcessoPagamentoMapper.paraDominio(entity);
     }
 
     @Override
     public Optional<ProcessoPagamento> buscarPorId(Long id) {
-        return panache.findByIdOptional(id).map(ProcessoPagamentoMapper::paraDominio);
+        return dados.buscarPorId(id).map(ProcessoPagamentoMapper::paraDominio);
     }
 
     @Override
     public boolean existePorCota(Long cotaId) {
-        return panache.count("cotaId", cotaId) > 0;
+        return dados.contarPorCota(cotaId) > 0;
     }
 
     @Override
     public boolean existeAtivoPorCota(Long cotaId) {
-        return panache.count("cotaId = ?1 and estado not in ?2", cotaId, ESTADOS_FINAIS) > 0;
+        return dados.contarAtivosPorCota(cotaId, ESTADOS_FINAIS) > 0;
     }
 }

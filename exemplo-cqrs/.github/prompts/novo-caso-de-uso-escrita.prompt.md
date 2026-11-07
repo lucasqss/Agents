@@ -8,7 +8,7 @@ Operação: ${input:operacao:Descreva a operação, ex.: "suspender a cota quand
 
 Siga esta ordem e pare se algum passo exigir quebrar uma regra:
 1. **Domínio** (`command/domain`): implemente a regra como método da entidade de domínio (ou novo estado, se for transição). Lance `DominioException`/`TransicaoInvalidaException` quando a regra for violada. Escreva antes os testes JUnit puros em `src/test/java/**/command/domain/`.
-2. **Repositório**: se precisar de uma consulta nova para a escrita, acrescente o método na interface do domínio e implemente em `command/persistence` (Panache + mapper à mão).
+2. **Repositório**: se precisar de uma consulta nova para a escrita, acrescente o método na interface do domínio e implemente em `command/persistence` (método `@Query` em HQL no `XDataRepository` + adapter + mapper à mão).
 3. **Banco**: se o estado novo precisar ser gravado, crie a migration `V<n+1>__...sql`, o campo na `*Entity` e ajuste o mapper.
 4. **Use case** (`command/application`): `@Transactional`, busca -> método de negócio -> salvar. Sem regra de negócio aqui.
 5. **Entrypoint** (`command/entrypoint`): endpoint que chama o use case. Exceções novas entram em `ExceptionMappers`.

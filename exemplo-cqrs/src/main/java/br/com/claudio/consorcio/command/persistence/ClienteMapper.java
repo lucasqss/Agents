@@ -12,8 +12,11 @@ final class ClienteMapper {
         return Cliente.reconstituir(entity.getId(), entity.getNome(), entity.getCpf());
     }
 
-    static void copiarParaEntidade(Cliente cliente, ClienteEntity entity) {
+    static ClienteEntity paraEntidade(Cliente cliente) {
+        ClienteEntity entity = new ClienteEntity();
+        entity.setId(cliente.id());
         entity.setNome(cliente.nome());
         entity.setCpf(cliente.cpf());
+        return entity;
     }
 }
