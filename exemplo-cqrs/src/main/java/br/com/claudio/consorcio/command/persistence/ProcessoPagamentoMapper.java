@@ -27,11 +27,14 @@ final class ProcessoPagamentoMapper {
         };
     }
 
-    static void copiarParaEntidade(ProcessoPagamento processo, ProcessoPagamentoEntity entity) {
+    static ProcessoPagamentoEntity paraEntidade(ProcessoPagamento processo) {
+        ProcessoPagamentoEntity entity = new ProcessoPagamentoEntity();
+        entity.setId(processo.id());
         entity.setCotaId(processo.cotaId());
         entity.setTipo(processo.tipo().name());
         entity.setEstado(processo.estado().nome());
         entity.setProtocoloPagamento(processo.protocoloPagamento());
+        return entity;
     }
 
     private static EstadoProcesso estado(String nome) {

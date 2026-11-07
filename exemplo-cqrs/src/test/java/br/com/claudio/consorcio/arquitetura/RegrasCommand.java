@@ -2,6 +2,8 @@ package br.com.claudio.consorcio.arquitetura;
 
 import static br.com.claudio.consorcio.arquitetura.Condicoes.implementaInterfaceDoDominio;
 import static br.com.claudio.consorcio.arquitetura.Condicoes.usamGateway;
+import static com.tngtech.archunit.base.DescribedPredicate.not;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
@@ -17,7 +19,8 @@ final class RegrasCommand {
     @ArchTest
     static final ArchRule escritaIndependenteDaLeitura = noClasses()
             .that().resideInAPackage("..command..")
-            .should().dependOnClassesThat().resideInAPackage("..query..")
+            // org.hibernate.query também casa com "..query.."; é a API que o código gerado pelo Jakarta Data usa.
+            .should().dependOnClassesThat(resideInAPackage("..query..").and(not(resideInAPackage("org.hibernate.."))))
             .because("a escrita decide com o domínio; projeções do query mudam conforme as telas e podem estar numa réplica");
 
     @ArchTest

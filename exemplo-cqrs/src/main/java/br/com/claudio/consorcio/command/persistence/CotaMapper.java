@@ -12,9 +12,12 @@ final class CotaMapper {
         return Cota.reconstituir(entity.getId(), entity.getNumero(), entity.getValorCredito(), entity.getClienteId());
     }
 
-    static void copiarParaEntidade(Cota cota, CotaEntity entity) {
+    static CotaEntity paraEntidade(Cota cota) {
+        CotaEntity entity = new CotaEntity();
+        entity.setId(cota.id());
         entity.setNumero(cota.numero());
         entity.setValorCredito(cota.valorCredito());
         entity.setClienteId(cota.clienteId());
+        return entity;
     }
 }

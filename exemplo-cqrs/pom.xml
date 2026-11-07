@@ -61,10 +61,10 @@
             <artifactId>quarkus-smallrye-fault-tolerance</artifactId>
         </dependency>
 
-        <!-- Persistência: Panache (escrita) e Jakarta Data (leitura) sobre PostgreSQL, schema via Flyway -->
+        <!-- Persistência: Hibernate ORM + Jakarta Data (escrita e leitura) sobre PostgreSQL, schema via Flyway -->
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-hibernate-orm-panache</artifactId>
+            <artifactId>quarkus-hibernate-orm</artifactId>
         </dependency>
         <dependency>
             <groupId>jakarta.data</groupId>

@@ -14,7 +14,7 @@ command/                     ESCRITA
   entrypoint/                REST de escrita + ExceptionMappers (exceção -> HTTP)
   application/               use cases (*UseCase): transação (@Transactional) e orquestração
   domain/                    regras de negócio em Java puro + interfaces de repositório
-  persistence/               Panache + Data Mappers escritos à mão (implementam as interfaces do domínio)
+  persistence/               repositórios Jakarta Data + Data Mappers escritos à mão (implementam as interfaces do domínio)
 query/                       LEITURA (nunca importa command)
   entrypoint/                REST neutro (sem formatação)
     <canal>/                 web/, mobile/, taa/: Resource + Response (contrato) + Assembler
@@ -43,7 +43,8 @@ shared/
 - `jakarta.validation` (Bean Validation) fora do entrypoint.
 - `command.domain` importar JPA, Jakarta Data, CDI (`@Inject`, `@ApplicationScoped`), JAX-RS, Bean Validation, Quarkus, Hibernate, MicroProfile ou `shared`.
 - `query` importar qualquer coisa de `command`, e `command` importar qualquer coisa de `query` (CQRS nos dois sentidos).
-- Use case importar Panache, JPA, `*Entity` ou `command/persistence`.
+- Use case importar JPA, Jakarta Data, `*Entity` ou `command/persistence`.
+- Panache. A persistência é só Jakarta Data, com HQL validado na compilação; gravar é sempre explícito (`@Insert`/`@Update`), sem dirty checking.
 - Entidade JPA (`*Entity`) com qualquer método além de getter/setter.
 - Lombok, MapStruct, `@Query(nativeQuery)` ou SQL nativo. Mappers são escritos à mão; consultas são HQL validado na compilação.
 - Herança JPA. Uma tabela por agregado; subtipos são reconstruídos pelo mapper.

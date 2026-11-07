@@ -26,16 +26,15 @@ final class RegrasTecnologia {
             .because("as entidades são o modelo do nosso banco, compartilhado por escrita e leitura");
 
     @ArchTest
-    static final ArchRule panacheSoNaEscrita = noClasses()
-            .that().resideOutsideOfPackage("..command.persistence..")
+    static final ArchRule semPanache = noClasses()
             .should().dependOnClassesThat().resideInAPackage("io.quarkus.hibernate.orm.panache..")
-            .because("Panache é a implementação dos repositórios do domínio");
+            .because("a persistência usa só Jakarta Data, com HQL validado na compilação");
 
     @ArchTest
-    static final ArchRule jakartaDataSoNaLeitura = classes()
+    static final ArchRule jakartaDataSoEmPersistence = classes()
             .that().areAnnotatedWith(Repository.class)
-            .should().resideInAPackage("..query.persistence..")
-            .because("Jakarta Data com @Query HQL é a persistência da leitura");
+            .should().resideInAnyPackage("..command.persistence..", "..query.persistence..")
+            .because("repositórios Jakarta Data são a persistência de cada lado");
 
     @ArchTest
     static final ArchRule restClientSoNoGateway = classes()
