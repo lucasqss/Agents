@@ -7,25 +7,30 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
-/** Estrutura geral do projeto. */
+/** GER: estrutura geral do projeto. */
 final class RegrasGerais {
 
     private RegrasGerais() {
     }
 
     /**
-     * Todo código fica em command, query ou shared. Esta regra NUNCA passa vazia: se a pasta foi copiada
-     * para o pacote errado (e nenhuma classe foi encontrada), ela falha em vez de deixar tudo passar.
+     * Esta regra NUNCA passa vazia: se a pasta foi copiada para o pacote errado (e nenhuma classe foi
+     * encontrada), ela falha em vez de deixar tudo passar.
      */
     @ArchTest
-    static final ArchRule estrutura = classes()
+    static final ArchRule ger001Estrutura = classes()
             .should().resideInAnyPackage(pacote("command"), pacote("query"), pacote("shared"))
             .allowEmptyShould(false)
-            .because("a raiz do projeto só tem command (escrita), query (leitura) e shared");
+            .as("GER-001: TODO CÓDIGO FICA EM COMMAND, QUERY OU SHARED")
+            .because("a raiz do projeto só tem command (escrita), query (leitura) e shared."
+                    + " Corrija: mova a classe para o lado certo; se nenhuma classe foi analisada,"
+                    + " a pasta arquitetura está no pacote errado (deve ser <raiz>.arquitetura)");
 
-    /** Sem ciclos entre os pacotes de segundo nível (command.domain, query.persistence, shared.gateway...). */
     @ArchTest
-    static final ArchRule semCiclos = slices()
+    static final ArchRule ger002SemCiclos = slices()
             .matching(Raiz.PACOTE + ".(*).(*)..")
-            .should().beFreeOfCycles();
+            .should().beFreeOfCycles()
+            .as("GER-002: SEM CICLOS ENTRE PACOTES")
+            .because("ciclo (A usa B e B usa A) impede mudar uma parte sem mexer na outra."
+                    + " Corrija: inverta a dependência com uma interface ou mova a classe compartilhada");
 }

@@ -6,30 +6,81 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
-/** Domain Model puro (PoEAA): Java sem framework e sem conhecer as outras camadas. */
+/** DOM: Domain Model puro (PoEAA). Java sem framework e sem conhecer as outras camadas. */
 final class RegrasDominio {
+
+    private static final String DOMINIO = pacote("command.domain");
 
     private RegrasDominio() {
     }
 
     @ArchTest
-    static final ArchRule dominioPuro = noClasses()
-            .that().resideInAPackage(pacote("command.domain"))
+    static final ArchRule dom001Framework = noClasses()
+            .that().resideInAPackage(DOMINIO)
             .should().dependOnClassesThat().resideInAnyPackage(
-                    "jakarta.persistence..",
-                    "jakarta.data..",
                     "jakarta.enterprise..",
                     "jakarta.inject..",
                     "jakarta.transaction..",
-                    "jakarta.ws.rs..",
-                    "jakarta.validation..",
                     "io.quarkus..",
+                    "org.eclipse.microprofile..")
+            .as("DOM-001: DOMÍNIO NÃO PODE DEPENDER DE FRAMEWORK")
+            .because("o domínio é Java puro, testável sem subir o Quarkus."
+                    + " Corrija: tire @Inject/@ApplicationScoped/@Transactional do domínio;"
+                    + " quem injeta e abre transação é o use case (command.application)");
+
+    @ArchTest
+    static final ArchRule dom002Persistencia = noClasses()
+            .that().resideInAPackage(DOMINIO)
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "jakarta.persistence..",
+                    "jakarta.data..",
                     "org.hibernate..",
-                    "org.eclipse.microprofile..",
-                    pacote("shared"),
-                    pacote("command.application"),
                     pacote("command.persistence"),
-                    pacote("command.entrypoint"),
-                    pacote("command.gateway"))
-            .because("o domínio não conhece framework, banco, HTTP, sistemas externos nem as outras camadas");
+                    pacote("shared.persistence"))
+            .as("DOM-002: DOMÍNIO NÃO PODE DEPENDER DE PERSISTÊNCIA")
+            .because("o domínio não sabe que existe banco."
+                    + " Corrija: declare uma interface de repositório no domínio; a implementação,"
+                    + " a entidade JPA e o Mapper ficam em command.persistence e shared.persistence");
+
+    @ArchTest
+    static final ArchRule dom003Application = noClasses()
+            .that().resideInAPackage(DOMINIO)
+            .should().dependOnClassesThat().resideInAPackage(pacote("command.application"))
+            .as("DOM-003: DOMÍNIO NÃO PODE DEPENDER DE APPLICATION (SERVICE LAYER)")
+            .because("o use case usa o domínio, nunca o contrário."
+                    + " Corrija: passe o dado como parâmetro do método do domínio ou mova a lógica para o use case");
+
+    @ArchTest
+    static final ArchRule dom004Gateway = noClasses()
+            .that().resideInAPackage(DOMINIO)
+            .should().dependOnClassesThat().resideInAnyPackage(pacote("shared.gateway"), pacote("command.gateway"))
+            .as("DOM-004: DOMÍNIO NÃO PODE DEPENDER DE GATEWAY EXTERNO")
+            .because("só use cases chamam sistemas externos."
+                    + " Corrija: o use case chama o Gateway e passa o resultado para o domínio;"
+                    + " se a regra do domínio precisa do sistema, declare a interface no domínio e implemente em command.gateway");
+
+    @ArchTest
+    static final ArchRule dom005Http = noClasses()
+            .that().resideInAPackage(DOMINIO)
+            .should().dependOnClassesThat().resideInAnyPackage("jakarta.ws.rs..", pacote("command.entrypoint"))
+            .as("DOM-005: DOMÍNIO NÃO PODE DEPENDER DE HTTP NEM DO ENTRYPOINT")
+            .because("HTTP é detalhe de entrada."
+                    + " Corrija: lance uma DominioException; o entrypoint traduz para o status HTTP no ExceptionMappers");
+
+    @ArchTest
+    static final ArchRule dom006BeanValidation = noClasses()
+            .that().resideInAPackage(DOMINIO)
+            .should().dependOnClassesThat().resideInAPackage("jakarta.validation..")
+            .as("DOM-006: DOMÍNIO NÃO PODE USAR BEAN VALIDATION")
+            .because("o domínio protege as próprias invariantes."
+                    + " Corrija: valide formato (@NotBlank, @Size) no Request do entrypoint e regra de negócio"
+                    + " no construtor/método do domínio lançando DominioException");
+
+    @ArchTest
+    static final ArchRule dom007Apresentacao = noClasses()
+            .that().resideInAPackage(DOMINIO)
+            .should().dependOnClassesThat().resideInAPackage(pacote("shared.apresentacao"))
+            .as("DOM-007: DOMÍNIO NÃO PODE DEPENDER DE APRESENTAÇÃO DE CANAL")
+            .because("formatação muda por canal; regra de negócio não."
+                    + " Corrija: devolva o valor cru e formate no entrypoint do canal com o Padrao do canal");
 }

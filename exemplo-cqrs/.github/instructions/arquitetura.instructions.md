@@ -9,3 +9,11 @@ Esta pasta é a fitness function da arquitetura e tem dono no CODEOWNERS.
 - Não adicione `allowEmptyShould`, exceções, `FreezingArchRule` nem `@ArchIgnore` sem pedido explícito do dono.
 - Os padrões são sempre montados com `Raiz.pacote(...)`, `Raiz.exato(...)` e `Raiz.emQualquer(...)`, nunca com o nome do projeto escrito à mão: é isso que deixa a pasta pronta para copiar entre projetos.
 - Mudança de regra é decisão de arquitetura: descreva o motivo no PR e espere a revisão do CODEOWNER.
+
+## Criando ou mudando uma regra (só com pedido do dono)
+
+- **Uma regra, um motivo.** Se a frase tem "nem", "ou" ou uma lista de assuntos diferentes, quebre em várias regras.
+- **ID estável:** prefixo do grupo (GER, DOM, CMD, QRY, SHR, CAN, TEC, NOM) + o próximo número livre do arquivo. Um ID nunca é reaproveitado.
+- **Formato:** `.as("DOM-008: TÍTULO EM CAIXA ALTA").because("por quê. Corrija: o que fazer")`. O `.as` vem antes do `.because`, e o `allowEmptyShould`, se houver, vem antes do `.as`.
+- **Nome do campo** começa pelo ID: `dom008Assunto`.
+- Atualize a tabela de regras do README. `CatalogoDeRegrasTest` falha se o formato, o ID ou o prefixo estiverem errados.

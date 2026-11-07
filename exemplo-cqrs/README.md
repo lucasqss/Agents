@@ -63,20 +63,72 @@ Os combinados acima são verificados a cada build, em `src/test/java/<pacote rai
 **Para usar em outro projeto, é só copiar e colar.** Copie a pasta `arquitetura` para `src/test/java/<pacote raiz do projeto>/arquitetura/` e deixe a IDE ajustar a linha `package` ao colar. Nenhum arquivo tem o nome do projeto:
 - `Raiz` descobre o pacote raiz pelo lugar da pasta (`<raiz>.arquitetura`) e ancora todos os padrões nele. `"query"` casa só com `<raiz>.query`, nunca com pacotes de bibliotecas como `org.hibernate.query`.
 - Regras de pastas que o projeto ainda não tem (sem canal, sem gateway, sem `command.gateway`) passam vazias até a primeira classe aparecer.
-- `RegrasGerais.estrutura` nunca passa vazia: se a pasta foi colada no pacote errado e nenhuma classe foi encontrada, o build falha em vez de deixar tudo passar.
+- `GER-001` nunca passa vazia: se a pasta foi colada no pacote errado e nenhuma classe foi encontrada, o build falha em vez de deixar tudo passar.
 
 Pré-requisitos no projeto de destino: a dependência `archunit-junit5` (escopo de teste) e o código organizado em `command`, `query` e `shared` debaixo do pacote raiz.
 
-| Grupo | O que garante |
-|---|---|
-| `RegrasGerais` | Todo código em `command`, `query` ou `shared`; sem ciclos entre os pacotes de segundo nível. |
-| `RegrasDominio` | Domínio puro: sem JPA, Jakarta Data, CDI, transação, JAX-RS, Bean Validation, Quarkus, Hibernate, MicroProfile, `shared` nem as outras camadas do command. |
-| `RegrasCommand` | `command` nunca importa `query` (CQRS nos dois sentidos); use cases e entrypoint sem banco; `command.persistence` só é alcançado pela interface do domínio. **`command.gateway`** (futuro): toda implementação de interface do domínio que chama sistema externo mora lá, só traduz e ninguém a referencia diretamente. |
-| `RegrasQuery` | `query` nunca importa `command`; direção `entrypoint → application → persistence`; o entrypoint não usa repositório Jakarta Data, só os records. |
-| `RegrasShared` | `shared` não conhece os lados (por isso um gateway nunca importa o domínio); entidades só com getters/setters; client e DTOs externos não saem de `shared.gateway`; gateways só em use cases, no entrypoint (exceção → HTTP) e em `command.gateway`; um sistema externo não depende de outro. |
-| `RegrasCanais` | Sem lista de canais: o subpacote é o canal, e um canal novo herda tudo. Canais e padrões não se conhecem; o padrão do canal X só é usado por `entrypoint.X`; formatação só no entrypoint; base comum neutra; use case sem canal; resource de canal nunca devolve tipo de `persistence`; Assembler e padrões são funções puras. |
-| `RegrasTecnologia` | Onde cada tecnologia mora: `@Entity` em `shared.persistence`; sem Panache; Jakarta Data só em `command.persistence` e `query.persistence`; REST client e Fault Tolerance em `shared.gateway`; `@Path`, exception mappers e Bean Validation (`jakarta.validation`) só no entrypoint; `@Transactional` só em use case. |
-| `RegrasNomes` | O nome diz onde a classe mora: `*UseCase`, `*Resource`, `*Assembler`, `*Gateway`, `*Entity`, `*Mapper`/`*RepositoryAdapter`, `Padrao*`. |
+Cada regra tem **um motivo só** e um **ID estável** (`DOM-002`). Quando uma falha, o build mostra o ID, o título, o porquê e como corrigir:
+
+```
+Architecture Violation [Priority: MEDIUM] - Rule 'DOM-002: DOMÍNIO NÃO PODE DEPENDER DE PERSISTÊNCIA, because o domínio não sabe que existe banco. Corrija: declare uma interface de repositório no domínio; ...' was violated (1 times):
+Method <...command.domain.Cota.paraEntidade()> has return type <...shared.persistence.CotaEntity> in (Cota.java:0)
+```
+
+Convenção de cada regra: `.as("ABC-001: TÍTULO EM CAIXA ALTA").because("por quê. Corrija: como")`, com o campo começando pelo ID (`dom002Persistencia`). O prefixo é o do grupo (GER, DOM, CMD, QRY, SHR, CAN, TEC, NOM). Um ID nunca é reaproveitado: se uma regra sair, o número dela fica vago. `CatalogoDeRegrasTest` garante o formato, IDs únicos e um prefixo por grupo.
+
+| ID | Grupo | Regra | Por quê e como corrigir |
+|---|---|---|---|
+| `GER-001` | `RegrasGerais` | TODO CÓDIGO FICA EM COMMAND, QUERY OU SHARED | a raiz do projeto só tem command (escrita), query (leitura) e shared. **Corrija:** mova a classe para o lado certo; se nenhuma classe foi analisada, a pasta arquitetura está no pacote errado (deve ser <raiz>.arquitetura) |
+| `GER-002` | `RegrasGerais` | SEM CICLOS ENTRE PACOTES | ciclo (A usa B e B usa A) impede mudar uma parte sem mexer na outra. **Corrija:** inverta a dependência com uma interface ou mova a classe compartilhada |
+| `DOM-001` | `RegrasDominio` | DOMÍNIO NÃO PODE DEPENDER DE FRAMEWORK | o domínio é Java puro, testável sem subir o Quarkus. **Corrija:** tire @Inject/@ApplicationScoped/@Transactional do domínio; quem injeta e abre transação é o use case (command.application) |
+| `DOM-002` | `RegrasDominio` | DOMÍNIO NÃO PODE DEPENDER DE PERSISTÊNCIA | o domínio não sabe que existe banco. **Corrija:** declare uma interface de repositório no domínio; a implementação, a entidade JPA e o Mapper ficam em command.persistence e shared.persistence |
+| `DOM-003` | `RegrasDominio` | DOMÍNIO NÃO PODE DEPENDER DE APPLICATION (SERVICE LAYER) | o use case usa o domínio, nunca o contrário. **Corrija:** passe o dado como parâmetro do método do domínio ou mova a lógica para o use case |
+| `DOM-004` | `RegrasDominio` | DOMÍNIO NÃO PODE DEPENDER DE GATEWAY EXTERNO | só use cases chamam sistemas externos. **Corrija:** o use case chama o Gateway e passa o resultado para o domínio; se a regra do domínio precisa do sistema, declare a interface no domínio e implemente em command.gateway |
+| `DOM-005` | `RegrasDominio` | DOMÍNIO NÃO PODE DEPENDER DE HTTP NEM DO ENTRYPOINT | HTTP é detalhe de entrada. **Corrija:** lance uma DominioException; o entrypoint traduz para o status HTTP no ExceptionMappers |
+| `DOM-006` | `RegrasDominio` | DOMÍNIO NÃO PODE USAR BEAN VALIDATION | o domínio protege as próprias invariantes. **Corrija:** valide formato (@NotBlank, @Size) no Request do entrypoint e regra de negócio no construtor/método do domínio lançando DominioException |
+| `DOM-007` | `RegrasDominio` | DOMÍNIO NÃO PODE DEPENDER DE APRESENTAÇÃO DE CANAL | formatação muda por canal; regra de negócio não. **Corrija:** devolva o valor cru e formate no entrypoint do canal com o Padrao do canal |
+| `CMD-001` | `RegrasCommand` | COMMAND NÃO PODE DEPENDER DE QUERY | a escrita decide com o domínio; projeções do query mudam conforme as telas e podem estar numa réplica. **Corrija:** busque pelo repositório do domínio (command.domain) e, se faltar método, crie-o lá |
+| `CMD-002` | `RegrasCommand` | USE CASE NÃO PODE USAR A IMPLEMENTAÇÃO DO REPOSITÓRIO | o use case vê o banco só pela interface do domínio (Separated Interface). **Corrija:** injete a interface de command.domain (ex.: CotaRepository), não o *RepositoryAdapter |
+| `CMD-003` | `RegrasCommand` | USE CASE NÃO PODE USAR ENTIDADE JPA NEM JAKARTA DATA | o use case trabalha com objetos do domínio. **Corrija:** use o objeto do domínio; a conversão entidade <-> domínio é do Mapper em command.persistence |
+| `CMD-004` | `RegrasCommand` | ENTRYPOINT DE ESCRITA NÃO PODE ACESSAR O BANCO | o entrypoint só traduz HTTP e chama use case. **Corrija:** crie ou use um use case em command.application |
+| `CMD-005` | `RegrasCommand` | COMMAND.PERSISTENCE SÓ É USADO PELA INTERFACE DO DOMÍNIO | a implementação dos repositórios é encontrada via CDI pela interface do domínio. **Corrija:** dependa da interface em command.domain, nunca da classe de command.persistence |
+| `CMD-006` | `RegrasCommand` | IMPLEMENTAÇÃO DE INTERFACE DO DOMÍNIO QUE CHAMA SISTEMA EXTERNO FICA EM COMMAND.GATEWAY | cada pasta tem um papel só. **Corrija:** mova a classe para command.gateway |
+| `CMD-007` | `RegrasCommand` | COMMAND.GATEWAY SÓ LIGA O DOMÍNIO AO GATEWAY EXTERNO | ele não orquestra nem acessa banco. **Corrija:** deixe só a tradução domínio <-> Gateway; orquestração vai para o use case |
+| `CMD-008` | `RegrasCommand` | COMMAND.GATEWAY SÓ É USADO PELA INTERFACE DO DOMÍNIO | quem precisa usa a interface, nunca a implementação. **Corrija:** injete a interface declarada em command.domain |
+| `QRY-001` | `RegrasQuery` | QUERY NÃO PODE DEPENDER DE COMMAND | leitura e escrita evoluem separadas (CQRS). **Corrija:** crie um record de projeção e a consulta em query.persistence; não reuse o domínio |
+| `QRY-002` | `RegrasQuery` | QUERY.PERSISTENCE NÃO PODE DEPENDER DE APPLICATION NEM ENTRYPOINT | a direção é entrypoint -> application -> persistence. **Corrija:** o repositório devolve records próprios; quem adapta é o use case ou o entrypoint |
+| `QRY-003` | `RegrasQuery` | ENTRYPOINT DE LEITURA NÃO PODE CHAMAR REPOSITÓRIO | o entrypoint chama use cases; dos repositórios ele só vê os records projetados. **Corrija:** crie ou use um *UseCase em query.application |
+| `SHR-001` | `RegrasShared` | SHARED NÃO PODE DEPENDER DE COMMAND NEM QUERY | shared é usado pelos dois lados, nunca o contrário; por isso um gateway nunca importa o domínio. **Corrija:** use tipos próprios do shared (ex.: DTO do gateway) e converta no use case |
+| `SHR-002` | `RegrasShared` | ENTIDADE JPA NÃO TEM REGRA DE NEGÓCIO | entidade é só o formato da tabela. **Corrija:** mova o método para o objeto do domínio em command.domain; na entidade, só get/set/is |
+| `SHR-003` | `RegrasShared` | CLIENT E DTO DE SISTEMA EXTERNO NÃO SAEM DO GATEWAY | se o sistema externo mudar o contrato, só o gateway muda. **Corrija:** fora de shared.gateway use só a classe *Gateway e as *Exception dele |
+| `SHR-004` | `RegrasShared` | SÓ USE CASE CHAMA GATEWAY DE SISTEMA EXTERNO | chamada externa é orquestração, papel do Service Layer; o entrypoint só traduz a exceção para HTTP. **Corrija:** injete o *Gateway no *UseCase e passe o resultado adiante |
+| `SHR-005` | `RegrasShared` | UM GATEWAY NÃO PODE DEPENDER DE OUTRO | cada sistema externo tem o próprio gateway. **Corrija:** quem combina dois sistemas é o use case |
+| `CAN-001` | `RegrasCanais` | UM CANAL NÃO PODE USAR CLASSE DE OUTRO CANAL | cada canal tem o próprio contrato e evolui sozinho. **Corrija:** copie o Response/Assembler para o seu canal; o que for comum vai para o use case |
+| `CAN-002` | `RegrasCanais` | PADRÃO DE APRESENTAÇÃO DE UM CANAL NÃO PODE USAR O DE OUTRO | cada canal segue o padrão da própria plataforma. **Corrija:** o que é comum aos canais vai para a base shared.apresentacao (Formatador, Rotulos) |
+| `CAN-003` | `RegrasCanais` | PADRÃO DO CANAL SÓ É USADO PELO ENTRYPOINT DO MESMO CANAL | o mobile não pode sair formatado no padrão web. **Corrija:** em entrypoint.<canal> use só shared.apresentacao.<canal> (ou a base comum) |
+| `CAN-004` | `RegrasCanais` | FORMATAÇÃO SÓ NO ENTRYPOINT | use case e consulta não formatam nada; o mesmo dado atende todos os canais. **Corrija:** devolva o valor cru e formate no Assembler/Resource do canal |
+| `CAN-005` | `RegrasCanais` | BASE COMUM DE APRESENTAÇÃO NÃO PODE DEPENDER DE UM CANAL | Formatador e Rotulos são a base que todos os canais usam. **Corrija:** mova o que é específico para shared.apresentacao.<canal> |
+| `CAN-006` | `RegrasCanais` | USE CASE NÃO PODE DEPENDER DE ENTRYPOINT | o mesmo use case atende todos os canais. **Corrija:** receba e devolva tipos do application; o entrypoint converte Request/Response |
+| `CAN-007` | `RegrasCanais` | ENDPOINT DE CANAL NÃO PODE DEVOLVER TIPO DE PERSISTENCE | mudar uma projeção não pode mudar o JSON do front. **Corrija:** devolva o *Response do canal, montado pelo Assembler |
+| `CAN-008` | `RegrasCanais` | ASSEMBLER E PADRÃO DE CANAL NÃO PODEM DEPENDER DE FRAMEWORK | são funções puras, testáveis sem Quarkus. **Corrija:** tire @Inject/@ApplicationScoped; use métodos estáticos ou a instância INSTANCIA |
+| `CAN-009` | `RegrasCanais` | ASSEMBLER E PADRÃO DE CANAL NÃO PODEM CONSULTAR O BANCO | montar a resposta não busca dados. **Corrija:** o use case busca tudo que a tela precisa; o Assembler só transforma |
+| `TEC-001` | `RegrasTecnologia` | @ENTITY SÓ EM SHARED.PERSISTENCE | as entidades são o modelo do nosso banco, compartilhado por escrita e leitura. **Corrija:** mova a classe para shared.persistence |
+| `TEC-002` | `RegrasTecnologia` | PANACHE NÃO É USADO | o padrão do projeto é Jakarta Data, com HQL validado na compilação. **Corrija:** crie uma interface @Repository com @Find/@Insert/@Update/@Query |
+| `TEC-003` | `RegrasTecnologia` | @REPOSITORY (JAKARTA DATA) SÓ EM COMMAND.PERSISTENCE OU QUERY.PERSISTENCE | repositório Jakarta Data é detalhe de persistência de cada lado. **Corrija:** mova a interface para o persistence do lado que a usa |
+| `TEC-004` | `RegrasTecnologia` | REST CLIENT SÓ EM SHARED.GATEWAY | chamada HTTP de saída é sempre para um sistema externo, atrás de um Gateway. **Corrija:** mova o client para shared.gateway.<sistema> e exponha um *Gateway |
+| `TEC-005` | `RegrasTecnologia` | TIMEOUT, RETRY E CIRCUIT BREAKER SÓ EM SHARED.GATEWAY | resiliência protege chamadas a sistemas externos. **Corrija:** coloque @Timeout/@Retry/@CircuitBreaker no client do gateway |
+| `TEC-006` | `RegrasTecnologia` | @PATH SÓ NO ENTRYPOINT | só o entrypoint expõe HTTP. **Corrija:** mova o *Resource para command.entrypoint ou query.entrypoint.<canal> |
+| `TEC-007` | `RegrasTecnologia` | BEAN VALIDATION SÓ NO ENTRYPOINT | Bean Validation é o porteiro do formato da entrada; regra de negócio fica no domínio. **Corrija:** anote o *Request do entrypoint; no domínio, lance DominioException |
+| `TEC-008` | `RegrasTecnologia` | @SERVEREXCEPTIONMAPPER SÓ NO ENTRYPOINT | traduzir exceção para HTTP é papel do entrypoint. **Corrija:** adicione o mapeamento em ExceptionMappers do entrypoint |
+| `TEC-009` | `RegrasTecnologia` | @TRANSACTIONAL EM MÉTODO SÓ NO USE CASE | o use case (Service Layer) define a fronteira da transação. **Corrija:** tire a anotação daqui e coloque no método do *UseCase que chama este código |
+| `TEC-010` | `RegrasTecnologia` | @TRANSACTIONAL EM CLASSE SÓ NO USE CASE | o use case (Service Layer) define a fronteira da transação. **Corrija:** tire a anotação da classe e coloque no *UseCase |
+| `NOM-001` | `RegrasNomes` | *USECASE FICA EM APPLICATION | o sufixo diz a camada. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-002` | `RegrasNomes` | *RESOURCE FICA EM ENTRYPOINT | o sufixo diz a camada. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-003` | `RegrasNomes` | *ASSEMBLER FICA EM ENTRYPOINT | montar a resposta do canal é papel do entrypoint. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-004` | `RegrasNomes` | *GATEWAY FICA EM SHARED.GATEWAY OU COMMAND.GATEWAY | Gateway é o acesso a sistema externo. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-005` | `RegrasNomes` | *ENTITY FICA EM SHARED.PERSISTENCE | Entity é o formato da tabela. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-006` | `RegrasNomes` | *MAPPER E *REPOSITORYADAPTER FICAM EM COMMAND.PERSISTENCE | eles convertem entre domínio e banco do lado de escrita. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-007` | `RegrasNomes` | PADRAO* FICA EM SHARED.APRESENTACAO | padrão de apresentação é por canal e compartilhado. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
 
 O HQL dos repositórios Jakarta Data também é validado na compilação, pelo Hibernate Processor.
 

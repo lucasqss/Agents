@@ -23,7 +23,7 @@ public final class Raiz implements LocationProvider {
 
     static {
         // Regras de pastas que o projeto ainda não tem (sem canal, sem gateway...) passam vazias.
-        // RegrasGerais.estrutura garante que as classes do projeto foram mesmo encontradas.
+        // GER-001 (RegrasGerais) garante que as classes do projeto foram mesmo encontradas.
         ArchConfiguration.get().setProperty("archRule.failOnEmptyShould", "false");
     }
 

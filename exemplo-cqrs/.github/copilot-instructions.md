@@ -4,7 +4,7 @@ Serviço Java 25 + Quarkus 3.33 com **CQRS**, **domínio puro** e os padrões do
 
 ## Antes de terminar qualquer tarefa
 1. Rode `./mvnw verify`. Ele compila (o HQL das consultas é validado aqui), roda os testes de domínio, ArchUnit, contrato e integração.
-2. **Se uma regra ArchUnit falhar, corrija o código, nunca a regra.** Não edite, apague nem afrouxe nada em `src/test/java/**/arquitetura/`; essa pasta tem dono (CODEOWNERS). Se achar que a regra está errada, diga isso na resposta e pare.
+2. **Se uma regra ArchUnit falhar, corrija o código, nunca a regra.** Não edite, apague nem afrouxe nada em `src/test/java/**/arquitetura/`; essa pasta tem dono (CODEOWNERS). Se achar que a regra está errada, diga isso na resposta e pare. A falha traz um ID (ex.: `DOM-002`): procure-o em `src/test/java/**/arquitetura/` e na tabela de regras do README e siga o "Corrija:" da mensagem.
 3. Não edite migrations já existentes em `src/main/resources/db/migration/`. Mudança de schema é sempre um arquivo novo `V<n+1>__descricao.sql`.
 
 ## Onde cada coisa mora
