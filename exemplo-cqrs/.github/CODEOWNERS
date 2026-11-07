@@ -3,20 +3,28 @@
 # Caminhos relativos à raiz do repositório do projeto. Em caso de conflito, vale a última linha que casa.
 
 # Regras de arquitetura (ArchUnit): ninguém afrouxa uma regra para o build passar.
-/src/test/java/**/arquitetura/                  @lucasqss
+/arquitetura/                                   @lucasqss
 
 # Guardrails: CI, instruções do Copilot, prompts, template de PR e este arquivo.
 /.github/                                       @lucasqss
 
-# Build: versões, plugins e dependências.
+# Build: módulos, versões, plugins e dependências (inclusive as corporativas de cada canal).
 /pom.xml                                        @lucasqss
+/*/pom.xml                                      @lucasqss
 /.mvn/                                          @lucasqss
 /mvnw                                           @lucasqss
 /mvnw.cmd                                       @lucasqss
 
-# Schema do banco: migration aplicada não muda.
-/src/main/resources/db/migration/               @lucasqss
+# Schema do banco: migration aplicada não muda; todos os canais usam o mesmo banco.
+/nucleo/src/main/resources/db/migration/        @lucasqss
 
-# Padrão de apresentação dos canais (padrão da empresa) e contratos dos fronts.
-/src/main/java/**/shared/apresentacao/          @lucasqss
-/src/main/java/**/entrypoint/*/*Response.java   @lucasqss
+# Regra de negócio por canal e identidade comum.
+/nucleo/src/main/java/**/command/domain/CanalDeAtendimento.java   @lucasqss
+/nucleo/src/main/java/**/shared/identidade/     @lucasqss
+
+# Base dos canais (erro, segurança, apresentação comum), padrões de apresentação e contratos dos fronts.
+/canal-comum/                                   @lucasqss
+/canal-*/src/main/java/**/apresentacao/         @lucasqss
+/canal-*/src/main/java/**/seguranca/            @lucasqss
+/canal-*/src/main/java/**/entrypoint/*Response.java   @lucasqss
+/canal-*/src/main/java/**/package-info.java     @lucasqss

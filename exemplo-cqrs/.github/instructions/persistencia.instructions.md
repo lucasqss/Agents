@@ -13,6 +13,6 @@ applyTo: "**/persistence/**"
 
 `query/persistence`: repositórios Jakarta Data (`@Repository`) com `@Query` em HQL projetando direto em `record` (`select new ...Record(...)`).
 - O HQL é validado na compilação pelo Hibernate Processor; nada de SQL nativo.
-- O record mora aqui, junto do repositório. Não depende de `query/application` nem de `query/entrypoint`.
+- O record mora aqui, junto do repositório. Não depende de `query/application` nem de nenhum canal.
 
-Mudança de schema: nova migration `src/main/resources/db/migration/V<n+1>__descricao.sql`. Nunca edite uma migration existente.
+Mudança de schema: nova migration `nucleo/src/main/resources/db/migration/V<n+1>__descricao.sql`. Nunca edite uma migration existente.

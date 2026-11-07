@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Marca este jar como arquivo de aplicação: o Quarkus indexa os beans, entidades e repositórios daqui. -->
+<beans xmlns="https://jakarta.ee/xml/ns/jakartaee" version="4.0" bean-discovery-mode="annotated"/>

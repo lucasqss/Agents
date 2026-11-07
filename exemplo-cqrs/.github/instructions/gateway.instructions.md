@@ -12,4 +12,4 @@ Regras:
 - O Gateway **não importa nada de `command` nem de `query`**, nem do domínio. Quem converte o retorno para o domínio é o use case.
 - Um sistema externo não depende de outro; quem combina dois sistemas é o use case.
 - Só use cases chamam gateways.
-- Nos testes, nunca chame o sistema real: crie um Service Stub em `src/test/java/**/integracao/` (recurso JAX-RS fake, como `TesourariaFake`) e aponte `%test.quarkus.rest-client.<sistema>.url` para ele.
+- Nos testes, nunca chame o sistema real: crie um Service Stub nos testes do canal que exercita a chamada (`canal-web/src/test/java/**`) (recurso JAX-RS fake, como `TesourariaFake`) e aponte `%test.quarkus.rest-client.<sistema>.url` para ele.
