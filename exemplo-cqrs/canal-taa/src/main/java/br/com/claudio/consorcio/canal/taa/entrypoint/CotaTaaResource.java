@@ -1,6 +1,6 @@
 package br.com.claudio.consorcio.canal.taa.entrypoint;
 
-import br.com.claudio.consorcio.query.application.DetalharCotaUseCase;
+import br.com.claudio.consorcio.query.application.usecase.DetalharCotaUseCase;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;

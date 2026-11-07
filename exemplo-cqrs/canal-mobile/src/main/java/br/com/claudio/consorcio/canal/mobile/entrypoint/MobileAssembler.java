@@ -1,8 +1,8 @@
 package br.com.claudio.consorcio.canal.mobile.entrypoint;
 
-import br.com.claudio.consorcio.query.persistence.ClienteResumo;
-import br.com.claudio.consorcio.query.persistence.CotaDetalhe;
 import br.com.claudio.consorcio.canal.mobile.apresentacao.PadraoMobile;
+import br.com.claudio.consorcio.query.persistence.projection.ClienteResumo;
+import br.com.claudio.consorcio.query.persistence.projection.CotaDetalhe;
 import java.util.List;
 
 /**

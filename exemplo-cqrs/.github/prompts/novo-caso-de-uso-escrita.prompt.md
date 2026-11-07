@@ -7,10 +7,10 @@ Crie a operação de escrita descrita abaixo seguindo `.github/copilot-instructi
 Operação: ${input:operacao:Descreva a operação, ex.: "suspender a cota quando houver atraso"}
 
 Siga esta ordem e pare se algum passo exigir quebrar uma regra:
-1. **Domínio** (`nucleo`, `command/domain`): implemente a regra como método da entidade de domínio (ou novo estado, se for transição). Lance `DominioException`/`TransicaoInvalidaException` quando a regra for violada. Se a regra muda por canal, ela entra em `CanalDeAtendimento`. Escreva antes os testes JUnit puros em `nucleo/src/test/java/**/command/domain/`.
-2. **Repositório**: se precisar de uma consulta nova para a escrita, acrescente o método na interface do domínio e implemente em `command/persistence` (método `@Query` em HQL no `XDataRepository` + adapter + mapper à mão).
+1. **Domínio** (`nucleo`, `command/domain/entity`): implemente a regra como método da entidade de domínio (ou novo estado, se for transição). Lance `DominioException`/`TransicaoInvalidaException` quando a regra for violada. Se a regra muda por canal, ela entra em `CanalDeAtendimento` (`command/domain/enums`). Escreva antes os testes JUnit puros em `nucleo/src/test/java/**/command/domain/`.
+2. **Repositório**: se precisar de uma consulta nova para a escrita, acrescente o método na interface do domínio e implemente em `command/persistence` (método `@Query` em HQL no `repository/XDataRepository` + `adapter/XRepositoryAdapter` + `mapper/XMapper` à mão).
 3. **Banco**: se o estado novo precisar ser gravado, crie a migration `V<n+1>__...sql`, o campo na `*Entity` e ajuste o mapper.
-4. **Use case** (`command/application`): `@Transactional`, busca -> método de negócio -> salvar. Sem regra de negócio aqui. Se a regra depende de quem chama, receba o `Solicitante`.
+4. **Use case** (`command/application/usecase`): `@Transactional`, busca -> método de negócio -> salvar. Sem regra de negócio aqui. Se a regra depende de quem chama, receba o `Solicitante`.
 5. **Canal** (`canal-<canal>`, `canal/<canal>/entrypoint`), em cada canal que escreve: `XRequest` com Bean Validation (formato, tamanhos iguais às colunas) e endpoint `@Valid @NotNull XRequest` que chama o use case passando `SolicitanteDaRequisicao.atual()`. Exceções novas entram em `canal.comum.erro.ExceptionMappers`. Canal `@SomenteLeitura` não ganha endpoint de escrita.
 6. **Teste de API**: `@QuarkusTest` + RestAssured no módulo do canal, com o token do canal, cobrindo o caminho feliz e o erro principal.
 7. Rode `./mvnw verify`. Se uma regra ArchUnit falhar, corrija o código, nunca a regra.

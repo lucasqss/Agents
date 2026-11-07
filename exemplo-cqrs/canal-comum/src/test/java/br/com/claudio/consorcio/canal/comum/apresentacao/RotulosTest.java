@@ -1,7 +1,7 @@
 package br.com.claudio.consorcio.canal.comum.apresentacao;
 
-import br.com.claudio.consorcio.command.domain.TipoProcesso;
-import br.com.claudio.consorcio.command.domain.estado.EstadoProcesso;
+import br.com.claudio.consorcio.command.domain.entity.pagamento.state.EstadoProcesso;
+import br.com.claudio.consorcio.command.domain.enums.TipoProcesso;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

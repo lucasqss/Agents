@@ -11,17 +11,34 @@ Serviço Java 25 + Quarkus 3.33 com **CQRS**, **domínio puro** e os padrões do
 ## Módulos e onde cada coisa mora
 
 ```
-nucleo/                         NÚCLEO (jar, sem HTTP) - nunca conhece canal
+nucleo/                         NÚCLEO (jar, sem HTTP) - nunca conhece canal; cada camada é agrupada por TIPO
   command/                      ESCRITA
-    application/                use cases (*UseCase): transação (@Transactional) e orquestração
-    domain/                     regras de negócio em Java puro + interfaces de repositório + CanalDeAtendimento
-    persistence/                repositórios Jakarta Data + Data Mappers escritos à mão
+    application/
+      usecase/                  *UseCase: transação (@Transactional) e orquestração
+      exception/                NaoEncontradoException (404), ConflitoException (409)
+      dto/                      dados de entrada dos use cases (records sem anotação)
+    domain/                     regras de negócio em Java puro
+      entity/                   agregados (Cliente, Cota); agregado com várias classes ganha subpacote:
+        pagamento/              ProcessoPagamento e subtipos
+          state/                estados (padrão State, sealed)
+      repository/               interfaces de repositório (XRepository)
+      exception/                DominioException (400), TransicaoInvalidaException (409)
+      enums/                    TipoProcesso, CanalDeAtendimento (regra que muda por canal)
+    persistence/
+      repository/               *DataRepository: Jakarta Data (@Find/@Insert/@Update/@Query HQL)
+      mapper/                   *Mapper: domínio <-> *Entity, escritos à mão
+      adapter/                  *RepositoryAdapter: implementa XRepository usando repository + mapper
   query/                        LEITURA (nunca importa command)
-    application/                use cases de leitura (filtros, paginação)
-    persistence/                repositórios Jakarta Data com @Query HQL + records projetados
+    application/
+      usecase/                  use cases de leitura (filtros, paginação)
+      dto/                      Pagina
+    persistence/
+      repository/               *QueryRepository: Jakarta Data com @Query HQL
+      projection/               records projetados (read models)
   shared/
     persistence/                entidades JPA (*Entity): só campos, getters e setters
-    gateway/<sistema>/          sistemas externos: *Gateway + REST client + DTOs externos + resiliência
+    gateway/                    SistemaExternoIndisponivelException
+      <sistema>/                *Gateway + client/ (REST + resiliência) + dto/ (contrato do sistema externo)
     identidade/                 Solicitante: quem chamou, igual para todos os canais
   resources/db/migration/       migrations Flyway (um banco para todos os canais)
 canal-comum/                    BASE DOS CANAIS (jar)
@@ -38,15 +55,15 @@ arquitetura/                    só testes: regras ArchUnit sobre todos os módu
 ## Perguntas frequentes: "onde eu coloco...?"
 | Preciso de... | Coloque em |
 |---|---|
-| Uma regra de negócio, validação ou transição de estado | `nucleo`, `command/domain`, na entidade de domínio. Nunca no use case, no resource nem na entidade JPA. |
-| Uma regra de negócio que **muda por canal** (o app não abre X, o terminal não escreve) | `CanalDeAtendimento` no domínio; o use case recebe o `Solicitante` e chama a regra. Nunca um `if (canal)` no Resource. |
-| Consultar algo para validar ou decidir uma escrita (existe? está ativo?) | método novo na interface de repositório do domínio (`command/domain`), implementado em `command/persistence`. Nunca um repositório do query. |
+| Uma regra de negócio, validação ou transição de estado | `nucleo`, `command/domain/entity`, na entidade de domínio. Nunca no use case, no resource nem na entidade JPA. |
+| Uma regra de negócio que **muda por canal** (o app não abre X, o terminal não escreve) | `CanalDeAtendimento` (`command/domain/enums`); o use case recebe o `Solicitante` e chama a regra. Nunca um `if (canal)` no Resource. |
+| Consultar algo para validar ou decidir uma escrita (existe? está ativo?) | método novo na interface de repositório do domínio (`command/domain/repository`), implementado no `*RepositoryAdapter` (`command/persistence/adapter`) com um `@Query` no `*DataRepository` (`command/persistence/repository`). Nunca um repositório do query. |
 | Validar o formato da entrada (obrigatório, tamanho, faixa) | `XRequest` (record) no `entrypoint` do canal, com Bean Validation (`@NotBlank`, `@Size` igual à coluna, `@Positive`) e `@Valid @NotNull` no parâmetro do resource. Cada canal tem o seu Request. |
-| Gravar algo | um use case em `command/application` (núcleo) e o endpoint no canal que escreve. Canal `@SomenteLeitura` não grava. |
-| Uma tela/listagem nova | record + `@Query` HQL em `query/persistence`, use case em `query/application` (núcleo) e Resource/Response/Assembler no canal |
+| Gravar algo | um use case em `command/application/usecase` (núcleo) e o endpoint no canal que escreve. Canal `@SomenteLeitura` não grava. |
+| Uma tela/listagem nova | record em `query/persistence/projection` + `@Query` HQL em `query/persistence/repository`, use case em `query/application/usecase` (núcleo) e Resource/Response/Assembler no canal |
 | Chamar um sistema de outra área | um `*Gateway` em `shared/gateway/<sistema>/`. Só **use cases** chamam gateways. |
 | Formatar para uma tela (moeda, máscara, rótulo) | o Assembler do canal, usando `Padrao<Canal>` |
-| Um número com significado de negócio (total pago, saldo) | uma consulta em `query/persistence`, não o Assembler |
+| Um número com significado de negócio (total pago, saldo) | uma consulta em `query/persistence/repository`, não o Assembler |
 | Saber quem chamou | `SolicitanteDaRequisicao.atual()` no Resource, passado ao use case |
 | Uma dependência corporativa de canal (segurança, log, utilitário) | `pom.xml` do `canal-<canal>`. Nunca no `nucleo` nem no `canal-comum`. |
 | Mudar o banco | nova migration Flyway (expand/contract) + campo na `*Entity` + mapper (escrita) e/ou HQL (leitura) |
@@ -57,6 +74,8 @@ arquitetura/                    só testes: regras ArchUnit sobre todos os módu
 - `command.domain` importar JPA, Jakarta Data, CDI (`@Inject`, `@ApplicationScoped`), JAX-RS, Bean Validation, Quarkus, Hibernate, MicroProfile, `shared` ou `canal`.
 - `query` importar qualquer coisa de `command`, e `command` importar qualquer coisa de `query` (CQRS nos dois sentidos).
 - Use case importar JPA, Jakarta Data, `*Entity` ou `command/persistence`.
+- Classe solta direto numa camada do núcleo (ex.: em `command/domain`): ela vai para o subpacote do tipo dela.
+- Usar `*Mapper` ou `*DataRepository` fora do `*RepositoryAdapter`.
 - Canal acessar banco (repositório, `*Entity`, JPA) ou devolver record de `persistence`; ele devolve o próprio `*Response`.
 - Canal marcado com `@SomenteLeitura` usar `command`.
 - Panache. A persistência é só Jakarta Data, com HQL validado na compilação; gravar é sempre explícito (`@Insert`/`@Update`), sem dirty checking.
@@ -74,7 +93,7 @@ arquitetura/                    só testes: regras ArchUnit sobre todos os módu
 - Nomes em português no domínio e nos use cases, seguindo o vocabulário já existente.
 
 ## Testes esperados em cada mudança
-- Regra de negócio: teste JUnit puro em `nucleo/src/test/java/**/command/domain/`, sem Quarkus.
+- Regra de negócio: teste JUnit puro em `nucleo/src/test/java/**/command/domain/...`, no mesmo subpacote da classe (ex.: `entity`), sem Quarkus.
 - Endpoint novo: `@QuarkusTest` + RestAssured no módulo do canal, com o token do canal. Conferir os **nomes exatos dos campos** e os textos formatados (veja `ContratoWebTest`, `ContratoMobileTest`, `ContratoTaaTest`).
 - Formato novo de canal: linha nova no `Padrao<Canal>Test` de cada canal.
 - Sistema externo: nunca chamar o real nos testes; use um Service Stub (veja `TesourariaFake` no canal web).

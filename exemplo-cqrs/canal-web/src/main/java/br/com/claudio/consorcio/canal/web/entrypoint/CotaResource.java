@@ -1,8 +1,8 @@
 package br.com.claudio.consorcio.canal.web.entrypoint;
 
 import br.com.claudio.consorcio.canal.comum.erro.IdCriado;
-import br.com.claudio.consorcio.command.application.GerenciarCotaUseCase;
-import br.com.claudio.consorcio.query.application.DetalharCotaUseCase;
+import br.com.claudio.consorcio.command.application.usecase.GerenciarCotaUseCase;
+import br.com.claudio.consorcio.query.application.usecase.DetalharCotaUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.DELETE;

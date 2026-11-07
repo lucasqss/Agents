@@ -1,6 +1,6 @@
 package br.com.claudio.consorcio.canal.web.entrypoint;
 
-import br.com.claudio.consorcio.command.application.DadosCliente;
+import br.com.claudio.consorcio.command.application.dto.DadosCliente;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 

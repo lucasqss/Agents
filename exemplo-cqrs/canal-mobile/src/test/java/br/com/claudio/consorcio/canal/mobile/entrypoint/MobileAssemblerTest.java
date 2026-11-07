@@ -2,8 +2,8 @@ package br.com.claudio.consorcio.canal.mobile.entrypoint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import br.com.claudio.consorcio.query.persistence.ClienteResumo;
-import br.com.claudio.consorcio.query.persistence.CotaDetalhe;
+import br.com.claudio.consorcio.query.persistence.projection.ClienteResumo;
+import br.com.claudio.consorcio.query.persistence.projection.CotaDetalhe;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;

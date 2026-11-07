@@ -1,7 +1,7 @@
 package br.com.claudio.consorcio.canal.taa.entrypoint;
 
-import br.com.claudio.consorcio.query.persistence.CotaDetalhe;
 import br.com.claudio.consorcio.canal.taa.apresentacao.PadraoTaa;
+import br.com.claudio.consorcio.query.persistence.projection.CotaDetalhe;
 
 /** DTO Assembler (PoEAA): read model -> contrato do terminal. */
 final class CotaTaaAssembler {

@@ -1,6 +1,9 @@
 package br.com.claudio.consorcio.shared.gateway.tesouraria;
 
 import br.com.claudio.consorcio.shared.gateway.SistemaExternoIndisponivelException;
+import br.com.claudio.consorcio.shared.gateway.tesouraria.client.TesourariaClient;
+import br.com.claudio.consorcio.shared.gateway.tesouraria.dto.OrdemPagamentoRequest;
+import br.com.claudio.consorcio.shared.gateway.tesouraria.dto.OrdemPagamentoResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 

@@ -1,12 +1,12 @@
 package br.com.claudio.consorcio.canal.taa;
 
-import br.com.claudio.consorcio.command.application.AvancarProcessoUseCase;
-import br.com.claudio.consorcio.command.application.CriarProcessoUseCase;
-import br.com.claudio.consorcio.command.application.DadosCliente;
-import br.com.claudio.consorcio.command.application.DadosCota;
-import br.com.claudio.consorcio.command.application.GerenciarClienteUseCase;
-import br.com.claudio.consorcio.command.application.GerenciarCotaUseCase;
-import br.com.claudio.consorcio.command.domain.TipoProcesso;
+import br.com.claudio.consorcio.command.application.dto.DadosCliente;
+import br.com.claudio.consorcio.command.application.dto.DadosCota;
+import br.com.claudio.consorcio.command.application.usecase.AvancarProcessoUseCase;
+import br.com.claudio.consorcio.command.application.usecase.CriarProcessoUseCase;
+import br.com.claudio.consorcio.command.application.usecase.GerenciarClienteUseCase;
+import br.com.claudio.consorcio.command.application.usecase.GerenciarCotaUseCase;
+import br.com.claudio.consorcio.command.domain.enums.TipoProcesso;
 import br.com.claudio.consorcio.shared.identidade.Solicitante;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.math.BigDecimal;

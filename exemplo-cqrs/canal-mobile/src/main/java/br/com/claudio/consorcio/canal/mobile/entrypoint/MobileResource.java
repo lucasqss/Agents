@@ -2,9 +2,9 @@ package br.com.claudio.consorcio.canal.mobile.entrypoint;
 
 import br.com.claudio.consorcio.canal.comum.erro.IdCriado;
 import br.com.claudio.consorcio.canal.comum.seguranca.SolicitanteDaRequisicao;
-import br.com.claudio.consorcio.command.application.CriarProcessoUseCase;
-import br.com.claudio.consorcio.query.application.DetalharCotaUseCase;
-import br.com.claudio.consorcio.query.application.ListarClientesUseCase;
+import br.com.claudio.consorcio.command.application.usecase.CriarProcessoUseCase;
+import br.com.claudio.consorcio.query.application.usecase.DetalharCotaUseCase;
+import br.com.claudio.consorcio.query.application.usecase.ListarClientesUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.GET;

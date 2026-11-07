@@ -78,4 +78,46 @@ final class RegrasCommand {
             .as("CMD-008: COMMAND.GATEWAY SÓ É USADO PELA INTERFACE DO DOMÍNIO")
             .because("quem precisa usa a interface, nunca a implementação."
                     + " Corrija: injete a interface declarada em command.domain");
+
+    @ArchTest
+    static final ArchRule cmd009ApplicationAgrupadoPorTipo = ArchRuleDefinition.classes()
+            .that().resideInAPackage(Raiz.pacote("command.application"))
+            .and().doNotHaveSimpleName("package-info")
+            .should().resideInAnyPackage(
+                    Raiz.pacote("command.application.usecase"),
+                    Raiz.pacote("command.application.exception"),
+                    Raiz.pacote("command.application.dto"))
+            .as("CMD-009: COMMAND.APPLICATION AGRUPADO POR TIPO (USECASE, EXCEPTION, DTO)")
+            .because("cada tipo de classe tem lugar fixo."
+                    + " Corrija: *UseCase em usecase, exceção em exception, dados de entrada do use case em dto");
+
+    @ArchTest
+    static final ArchRule cmd010PersistenceAgrupadoPorTipo = ArchRuleDefinition.classes()
+            .that().resideInAPackage(Raiz.pacote("command.persistence"))
+            .and().doNotHaveSimpleName("package-info")
+            .should().resideInAnyPackage(
+                    Raiz.pacote("command.persistence.repository"),
+                    Raiz.pacote("command.persistence.mapper"),
+                    Raiz.pacote("command.persistence.adapter"))
+            .as("CMD-010: COMMAND.PERSISTENCE AGRUPADO POR TIPO (REPOSITORY, MAPPER, ADAPTER)")
+            .because("cada tipo de classe tem lugar fixo."
+                    + " Corrija: *DataRepository em repository, *Mapper em mapper, *RepositoryAdapter em adapter");
+
+    @ArchTest
+    static final ArchRule cmd011MapperSoNoAdapter = ArchRuleDefinition.noClasses()
+            .that().resideOutsideOfPackages(
+                    Raiz.pacote("command.persistence.adapter"), Raiz.pacote("command.persistence.mapper"))
+            .should().dependOnClassesThat().resideInAPackage(Raiz.pacote("command.persistence.mapper"))
+            .as("CMD-011: MAPPER SÓ É USADO PELO ADAPTER")
+            .because("o mapper é detalhe de como o adapter grava; ele só é público por estar em outro pacote."
+                    + " Corrija: chame a interface de repositório do domínio; a conversão fica no *RepositoryAdapter");
+
+    @ArchTest
+    static final ArchRule cmd012RepositorioJakartaDataSoNoAdapter = ArchRuleDefinition.noClasses()
+            .that().resideOutsideOfPackages(
+                    Raiz.pacote("command.persistence.adapter"), Raiz.pacote("command.persistence.repository"))
+            .should().dependOnClassesThat().resideInAPackage(Raiz.pacote("command.persistence.repository"))
+            .as("CMD-012: REPOSITÓRIO JAKARTA DATA DA ESCRITA SÓ É USADO PELO ADAPTER")
+            .because("o *DataRepository trabalha com *Entity; o resto da escrita trabalha com o domínio."
+                    + " Corrija: chame a interface de repositório do domínio; o *RepositoryAdapter usa o *DataRepository");
 }

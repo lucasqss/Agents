@@ -15,8 +15,8 @@ final class RegrasNomes {
     @ArchTest
     static final ArchRule nom001UseCases = ArchRuleDefinition.classes()
             .that().haveSimpleNameEndingWith("UseCase")
-            .should().resideInAPackage(Raiz.emQualquer("application"))
-            .as("NOM-001: *USECASE FICA EM APPLICATION")
+            .should().resideInAPackage(Raiz.emQualquer("application.usecase"))
+            .as("NOM-001: *USECASE FICA EM APPLICATION.USECASE")
             .because("o sufixo diz a camada." + RENOMEIE);
 
     @ArchTest
@@ -50,12 +50,12 @@ final class RegrasNomes {
             .because("Entity é o formato da tabela." + RENOMEIE);
 
     @ArchTest
-    static final ArchRule nom006MappersEAdaptersDeRepositorio = ArchRuleDefinition.classes()
-            .that().haveSimpleNameEndingWith("Mapper").or().haveSimpleNameEndingWith("RepositoryAdapter")
-            .should().resideInAPackage(Raiz.pacote("command.persistence"))
+    static final ArchRule nom006Mappers = ArchRuleDefinition.classes()
+            .that().haveSimpleNameEndingWith("Mapper")
+            .should().resideInAPackage(Raiz.pacote("command.persistence.mapper"))
             .allowEmptyShould(true)
-            .as("NOM-006: *MAPPER E *REPOSITORYADAPTER FICAM EM COMMAND.PERSISTENCE")
-            .because("eles convertem entre domínio e banco do lado de escrita." + RENOMEIE);
+            .as("NOM-006: *MAPPER FICA EM COMMAND.PERSISTENCE.MAPPER")
+            .because("o mapper converte entre domínio e banco do lado de escrita." + RENOMEIE);
 
     @ArchTest
     static final ArchRule nom007PadroesDeApresentacao = ArchRuleDefinition.classes()
@@ -72,4 +72,38 @@ final class RegrasNomes {
             .allowEmptyShould(true)
             .as("NOM-008: MAPEADORDETOKEN* FICA EM CANAL.<CANAL>.SEGURANCA")
             .because("o token é de um canal, com a biblioteca corporativa dele." + RENOMEIE);
+
+    @ArchTest
+    static final ArchRule nom009Adapters = ArchRuleDefinition.classes()
+            .that().haveSimpleNameEndingWith("RepositoryAdapter")
+            .should().resideInAPackage(Raiz.pacote("command.persistence.adapter"))
+            .allowEmptyShould(true)
+            .as("NOM-009: *REPOSITORYADAPTER FICA EM COMMAND.PERSISTENCE.ADAPTER")
+            .because("o adapter implementa a interface de repositório do domínio." + RENOMEIE);
+
+    @ArchTest
+    static final ArchRule nom010RepositoriosJakartaData = ArchRuleDefinition.classes()
+            .that().haveSimpleNameEndingWith("DataRepository")
+            .should().resideInAPackage(Raiz.pacote("command.persistence.repository"))
+            .allowEmptyShould(true)
+            .as("NOM-010: *DATAREPOSITORY FICA EM COMMAND.PERSISTENCE.REPOSITORY")
+            .because("é o repositório Jakarta Data da escrita." + RENOMEIE);
+
+    @ArchTest
+    static final ArchRule nom011Excecoes = ArchRuleDefinition.classes()
+            .that().haveSimpleNameEndingWith("Exception")
+            .and().resideInAnyPackage(Raiz.pacote("command"), Raiz.pacote("query"))
+            .should().resideInAPackage(Raiz.emQualquer("exception"))
+            .allowEmptyShould(true)
+            .as("NOM-011: *EXCEPTION DO NÚCLEO FICA NUM PACOTE EXCEPTION")
+            .because("exceção é agrupada por tipo (command.domain.exception, command.application.exception)."
+                    + " A de sistema externo fica na raiz de shared.gateway." + RENOMEIE);
+
+    @ArchTest
+    static final ArchRule nom012EnumsDoDominio = ArchRuleDefinition.classes()
+            .that().areEnums().and().resideInAPackage(Raiz.pacote("command.domain"))
+            .should().resideInAPackage(Raiz.pacote("command.domain.enums"))
+            .allowEmptyShould(true)
+            .as("NOM-012: ENUM DO DOMÍNIO FICA EM COMMAND.DOMAIN.ENUMS")
+            .because("enum é agrupado por tipo." + " Corrija: mova o enum para command.domain.enums");
 }

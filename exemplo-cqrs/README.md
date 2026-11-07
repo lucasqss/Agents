@@ -33,16 +33,32 @@ Pacote raiz `br.com.claudio.consorcio`:
 nucleo
   shared/
     persistence/          entidades JPA: modelo do NOSSO banco, só mapeamento, getters e setters
-    gateway/<sistema>/    Gateway de cada sistema externo + client REST, DTOs externos e resiliência
+    gateway/              SistemaExternoIndisponivelException (comum a todos os sistemas)
+      <sistema>/          *Gateway (o único visível fora) + client/ (REST + resiliência) + dto/ (contrato deles)
     identidade/           Solicitante: quem chamou, na forma comum a todos os canais
   command/
-    application/          use cases (Service Layer): transação e orquestração; chamam repositórios e gateways
-    domain/               Domain Model puro: Cliente, Cota, ProcessoPagamento (+ estados), CanalDeAtendimento
-                          e interfaces de repositório
-    persistence/          repositórios Jakarta Data + Data Mappers domínio <-> JPA escritos à mão
+    domain/               Domain Model puro, agrupado por tipo:
+      entity/             Cliente, Cota; agregado com várias classes ganha subpacote:
+        pagamento/        ProcessoPagamento, ProcessoImobiliario, ProcessoServico
+          state/          EstadoProcesso (sealed) + Aberto, EmAnalise, AguardandoVistoria, Aprovado, Pago, Cancelado
+      repository/         interfaces de repositório (implementadas em persistence/adapter)
+      exception/          DominioException, TransicaoInvalidaException
+      enums/              TipoProcesso, CanalDeAtendimento
+    application/
+      usecase/            use cases (Service Layer): transação e orquestração; chamam repositórios e gateways
+      exception/          NaoEncontradoException, ConflitoException
+      dto/                dados de entrada dos use cases (DadosCliente, DadosCota)
+    persistence/
+      repository/         *DataRepository: Jakarta Data (HQL validado na compilação)
+      mapper/             *Mapper: domínio <-> JPA, escritos à mão
+      adapter/            *RepositoryAdapter: implementa a interface do domínio com o repository e o mapper
   query/
-    application/          use cases de leitura (normalização de filtros, paginação)
-    persistence/          repositórios Jakarta Data com @Query HQL + records projetados (read models)
+    application/
+      usecase/            use cases de leitura (normalização de filtros, paginação)
+      dto/                Pagina
+    persistence/
+      repository/         *QueryRepository: Jakarta Data com @Query HQL
+      projection/         records projetados (read models)
 canal-comum
   canal/comum/            apresentacao/ (Formatador, Rotulos), erro/ (ErroResponse, ExceptionMappers),
                           seguranca/ (FiltroDeToken, MapeadorDeToken), SomenteLeitura
@@ -51,6 +67,7 @@ canal-<canal>
                           seguranca/ (MapeadorDeToken<Canal>)
 ```
 
+- **Por tipo dentro de cada camada:** cada camada do núcleo tem subpacotes fixos por tipo de classe (entity, repository, exception, enums, usecase, dto, mapper, adapter, projection), e uma classe solta direto na camada quebra o build (DOM-008, CMD-009/010, QRY-004/005). Mapper e repositório Jakarta Data da escrita são públicos por estarem em pacotes separados, mas só o adapter pode usá-los (CMD-011/012).
 - **Escrita:** `canal → application → domain ← persistence`. A persistência implementa as interfaces que o domínio declara (Separated Interface), então o use case não vê JPA. Quando a escrita precisa consultar algo (existe? está ativo?), o método entra nessa interface do domínio; nunca num repositório do query.
 - **Leitura:** `canal → application → persistence`. Não há domínio para proteger, então também não há porta. O repositório Jakarta Data já é uma interface, com a implementação gerada, e projeta direto no record.
 
@@ -97,7 +114,7 @@ Só os use cases chamam sistemas externos, por isso eles usam o Gateway direto, 
 
 ### Padrões (PoEAA)
 
-Service Layer (use cases), Domain Model (`command.domain`), Repository + Data Mapper (`command.persistence`), Separated Interface (repositórios do domínio), Gateway e Service Stub (integrações). Num módulo que só orquestra, sem regra de negócio de verdade, um **Transaction Script** no use case basta, sem pasta `domain`.
+Service Layer (use cases), Domain Model (`command.domain`), Repository + Data Mapper (`command.persistence.adapter` e `.mapper`), Separated Interface (repositórios do domínio), Gateway e Service Stub (integrações). Num módulo que só orquestra, sem regra de negócio de verdade, um **Transaction Script** no use case basta, sem pasta `domain`.
 
 ### Regras de arquitetura (ArchUnit)
 
@@ -138,6 +155,7 @@ Convenção de cada regra: `.as("ABC-001: TÍTULO EM CAIXA ALTA").because("por q
 | `DOM-005` | `RegrasDominio` | DOMÍNIO NÃO PODE DEPENDER DE HTTP | HTTP é detalhe de entrada. **Corrija:** lance uma DominioException; o canal traduz para o status HTTP (canal.comum.erro.ExceptionMappers) |
 | `DOM-006` | `RegrasDominio` | DOMÍNIO NÃO PODE USAR BEAN VALIDATION | o domínio protege as próprias invariantes. **Corrija:** valide formato (@NotBlank, @Size) no Request do entrypoint e regra de negócio no construtor/método do domínio lançando DominioException |
 | `DOM-007` | `RegrasDominio` | DOMÍNIO NÃO PODE DEPENDER DE CANAL | formatação, token e contrato mudam por canal; o domínio não. **Corrija:** devolva o valor cru e trate no módulo do canal; regra que muda por canal fica em CanalDeAtendimento, no próprio domínio |
+| `DOM-008` | `RegrasDominio` | DOMÍNIO AGRUPADO POR TIPO (ENTITY, REPOSITORY, EXCEPTION, ENUMS) | achar uma classe do domínio não pode depender de abrir o código. **Corrija:** agregado e estados em entity (agregado grande ganha subpacote, ex.: entity.pagamento), interface de repositório em repository, exceção em exception, enum em enums |
 | `CMD-001` | `RegrasCommand` | COMMAND NÃO PODE DEPENDER DE QUERY | a escrita decide com o domínio; projeções do query mudam conforme as telas e podem estar numa réplica. **Corrija:** busque pelo repositório do domínio (command.domain) e, se faltar método, crie-o lá |
 | `CMD-002` | `RegrasCommand` | USE CASE NÃO PODE USAR A IMPLEMENTAÇÃO DO REPOSITÓRIO | o use case vê o banco só pela interface do domínio (Separated Interface). **Corrija:** injete a interface de command.domain (ex.: CotaRepository), não o *RepositoryAdapter |
 | `CMD-003` | `RegrasCommand` | USE CASE NÃO PODE USAR ENTIDADE JPA NEM JAKARTA DATA | o use case trabalha com objetos do domínio. **Corrija:** use o objeto do domínio; a conversão entidade &lt;-&gt; domínio é do Mapper em command.persistence |
@@ -145,8 +163,14 @@ Convenção de cada regra: `.as("ABC-001: TÍTULO EM CAIXA ALTA").because("por q
 | `CMD-006` | `RegrasCommand` | IMPLEMENTAÇÃO DE INTERFACE DO DOMÍNIO QUE CHAMA SISTEMA EXTERNO FICA EM COMMAND.GATEWAY | cada pasta tem um papel só. **Corrija:** mova a classe para command.gateway |
 | `CMD-007` | `RegrasCommand` | COMMAND.GATEWAY SÓ LIGA O DOMÍNIO AO GATEWAY EXTERNO | ele não orquestra nem acessa banco. **Corrija:** deixe só a tradução domínio &lt;-&gt; Gateway; orquestração vai para o use case |
 | `CMD-008` | `RegrasCommand` | COMMAND.GATEWAY SÓ É USADO PELA INTERFACE DO DOMÍNIO | quem precisa usa a interface, nunca a implementação. **Corrija:** injete a interface declarada em command.domain |
+| `CMD-009` | `RegrasCommand` | COMMAND.APPLICATION AGRUPADO POR TIPO (USECASE, EXCEPTION, DTO) | cada tipo de classe tem lugar fixo. **Corrija:** *UseCase em usecase, exceção em exception, dados de entrada do use case em dto |
+| `CMD-010` | `RegrasCommand` | COMMAND.PERSISTENCE AGRUPADO POR TIPO (REPOSITORY, MAPPER, ADAPTER) | cada tipo de classe tem lugar fixo. **Corrija:** *DataRepository em repository, *Mapper em mapper, *RepositoryAdapter em adapter |
+| `CMD-011` | `RegrasCommand` | MAPPER SÓ É USADO PELO ADAPTER | o mapper é detalhe de como o adapter grava; ele só é público por estar em outro pacote. **Corrija:** chame a interface de repositório do domínio; a conversão fica no *RepositoryAdapter |
+| `CMD-012` | `RegrasCommand` | REPOSITÓRIO JAKARTA DATA DA ESCRITA SÓ É USADO PELO ADAPTER | o *DataRepository trabalha com *Entity; o resto da escrita trabalha com o domínio. **Corrija:** chame a interface de repositório do domínio; o *RepositoryAdapter usa o *DataRepository |
 | `QRY-001` | `RegrasQuery` | QUERY NÃO PODE DEPENDER DE COMMAND | leitura e escrita evoluem separadas (CQRS). **Corrija:** crie um record de projeção e a consulta em query.persistence; não reuse o domínio |
 | `QRY-002` | `RegrasQuery` | QUERY.PERSISTENCE NÃO PODE DEPENDER DE QUERY.APPLICATION | a direção é canal -&gt; application -&gt; persistence. **Corrija:** o repositório devolve records próprios; quem adapta é o use case ou o canal |
+| `QRY-004` | `RegrasQuery` | QUERY.APPLICATION AGRUPADO POR TIPO (USECASE, DTO) | cada tipo de classe tem lugar fixo. **Corrija:** *UseCase em usecase, tipos de saída comuns (ex.: Pagina) em dto |
+| `QRY-005` | `RegrasQuery` | QUERY.PERSISTENCE AGRUPADO POR TIPO (REPOSITORY, PROJECTION) | cada tipo de classe tem lugar fixo. **Corrija:** *QueryRepository em repository, record projetado em projection |
 | `SHR-001` | `RegrasShared` | SHARED NÃO PODE DEPENDER DE COMMAND NEM QUERY | shared é usado pelos dois lados, nunca o contrário; por isso um gateway nunca importa o domínio. **Corrija:** use tipos próprios do shared (ex.: DTO do gateway) e converta no use case |
 | `SHR-002` | `RegrasShared` | ENTIDADE JPA NÃO TEM REGRA DE NEGÓCIO | entidade é só o formato da tabela. **Corrija:** mova o método para o objeto do domínio em command.domain; na entidade, só get/set/is |
 | `SHR-003` | `RegrasShared` | CLIENT E DTO DE SISTEMA EXTERNO NÃO SAEM DO GATEWAY | se o sistema externo mudar o contrato, só o gateway muda. **Corrija:** fora de shared.gateway use só a classe *Gateway e as *Exception dele |
@@ -169,14 +193,18 @@ Convenção de cada regra: `.as("ABC-001: TÍTULO EM CAIXA ALTA").because("por q
 | `TEC-008` | `RegrasTecnologia` | @SERVEREXCEPTIONMAPPER SÓ NOS CANAIS | traduzir exceção para HTTP é papel do canal, igual para todos. **Corrija:** adicione o mapeamento em canal.comum.erro.ExceptionMappers |
 | `TEC-009` | `RegrasTecnologia` | @TRANSACTIONAL EM MÉTODO SÓ NO USE CASE | o use case (Service Layer) define a fronteira da transação. **Corrija:** tire a anotação daqui e coloque no método do *UseCase que chama este código |
 | `TEC-010` | `RegrasTecnologia` | @TRANSACTIONAL EM CLASSE SÓ NO USE CASE | o use case (Service Layer) define a fronteira da transação. **Corrija:** tire a anotação da classe e coloque no *UseCase |
-| `NOM-001` | `RegrasNomes` | *USECASE FICA EM APPLICATION | o sufixo diz a camada. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-001` | `RegrasNomes` | *USECASE FICA EM APPLICATION.USECASE | o sufixo diz a camada. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
 | `NOM-002` | `RegrasNomes` | *RESOURCE FICA EM ENTRYPOINT | o sufixo diz a camada. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
 | `NOM-003` | `RegrasNomes` | *ASSEMBLER FICA EM ENTRYPOINT | montar a resposta do canal é papel do entrypoint. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
 | `NOM-004` | `RegrasNomes` | *GATEWAY FICA EM SHARED.GATEWAY OU COMMAND.GATEWAY | Gateway é o acesso a sistema externo. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
 | `NOM-005` | `RegrasNomes` | *ENTITY FICA EM SHARED.PERSISTENCE | Entity é o formato da tabela. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
-| `NOM-006` | `RegrasNomes` | *MAPPER E *REPOSITORYADAPTER FICAM EM COMMAND.PERSISTENCE | eles convertem entre domínio e banco do lado de escrita. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-006` | `RegrasNomes` | *MAPPER FICA EM COMMAND.PERSISTENCE.MAPPER | o mapper converte entre domínio e banco do lado de escrita. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
 | `NOM-007` | `RegrasNomes` | PADRAO* FICA EM CANAL.&lt;CANAL&gt;.APRESENTACAO | o padrão de apresentação é de um canal (a interface comum fica em canal.comum.apresentacao). **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
 | `NOM-008` | `RegrasNomes` | MAPEADORDETOKEN* FICA EM CANAL.&lt;CANAL&gt;.SEGURANCA | o token é de um canal, com a biblioteca corporativa dele. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-009` | `RegrasNomes` | *REPOSITORYADAPTER FICA EM COMMAND.PERSISTENCE.ADAPTER | o adapter implementa a interface de repositório do domínio. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-010` | `RegrasNomes` | *DATAREPOSITORY FICA EM COMMAND.PERSISTENCE.REPOSITORY | é o repositório Jakarta Data da escrita. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-011` | `RegrasNomes` | *EXCEPTION DO NÚCLEO FICA NUM PACOTE EXCEPTION | exceção é agrupada por tipo (command.domain.exception, command.application.exception). A de sistema externo fica na raiz de shared.gateway. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
+| `NOM-012` | `RegrasNomes` | ENUM DO DOMÍNIO FICA EM COMMAND.DOMAIN.ENUMS | enum é agrupado por tipo. **Corrija:** mova o enum para command.domain.enums |
 
 O HQL dos repositórios Jakarta Data também é validado na compilação, pelo Hibernate Processor.
 
@@ -201,7 +229,7 @@ Os fronts são gerados por low-code e não formatam nada, então o backend entre
 
 ### Processo de pagamento
 
-`ProcessoPagamento` é abstrata, com `ProcessoImobiliario` e `ProcessoServico`. Os estados seguem o padrão State (`command.domain.estado`):
+`ProcessoPagamento` é abstrata, com `ProcessoImobiliario` e `ProcessoServico`. Os estados seguem o padrão State (`command.domain.entity.pagamento.state`):
 
 ```
 Imobiliário: ABERTO → EM_ANALISE → AGUARDANDO_VISTORIA → APROVADO → PAGO

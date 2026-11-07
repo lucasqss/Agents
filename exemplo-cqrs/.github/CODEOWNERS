@@ -19,7 +19,7 @@
 /nucleo/src/main/resources/db/migration/        @lucasqss
 
 # Regra de negócio por canal e identidade comum.
-/nucleo/src/main/java/**/command/domain/CanalDeAtendimento.java   @lucasqss
+/nucleo/src/main/java/**/command/domain/enums/CanalDeAtendimento.java   @lucasqss
 /nucleo/src/main/java/**/shared/identidade/     @lucasqss
 
 # Base dos canais (erro, segurança, apresentação comum), padrões de apresentação e contratos dos fronts.

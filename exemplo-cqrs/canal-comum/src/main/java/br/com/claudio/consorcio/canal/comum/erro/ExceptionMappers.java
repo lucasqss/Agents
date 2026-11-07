@@ -1,9 +1,9 @@
 package br.com.claudio.consorcio.canal.comum.erro;
 
-import br.com.claudio.consorcio.command.application.ConflitoException;
-import br.com.claudio.consorcio.command.application.NaoEncontradoException;
-import br.com.claudio.consorcio.command.domain.DominioException;
-import br.com.claudio.consorcio.command.domain.TransicaoInvalidaException;
+import br.com.claudio.consorcio.command.application.exception.ConflitoException;
+import br.com.claudio.consorcio.command.application.exception.NaoEncontradoException;
+import br.com.claudio.consorcio.command.domain.exception.DominioException;
+import br.com.claudio.consorcio.command.domain.exception.TransicaoInvalidaException;
 import br.com.claudio.consorcio.shared.gateway.SistemaExternoIndisponivelException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;

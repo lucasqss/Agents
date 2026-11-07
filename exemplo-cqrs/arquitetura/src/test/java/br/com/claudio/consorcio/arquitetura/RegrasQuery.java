@@ -28,4 +28,23 @@ final class RegrasQuery {
             .as("QRY-002: QUERY.PERSISTENCE NÃO PODE DEPENDER DE QUERY.APPLICATION")
             .because("a direção é canal -> application -> persistence."
                     + " Corrija: o repositório devolve records próprios; quem adapta é o use case ou o canal");
+
+    @ArchTest
+    static final ArchRule qry004ApplicationAgrupadoPorTipo = ArchRuleDefinition.classes()
+            .that().resideInAPackage(Raiz.pacote("query.application"))
+            .and().doNotHaveSimpleName("package-info")
+            .should().resideInAnyPackage(Raiz.pacote("query.application.usecase"), Raiz.pacote("query.application.dto"))
+            .as("QRY-004: QUERY.APPLICATION AGRUPADO POR TIPO (USECASE, DTO)")
+            .because("cada tipo de classe tem lugar fixo."
+                    + " Corrija: *UseCase em usecase, tipos de saída comuns (ex.: Pagina) em dto");
+
+    @ArchTest
+    static final ArchRule qry005PersistenceAgrupadoPorTipo = ArchRuleDefinition.classes()
+            .that().resideInAPackage(Raiz.pacote("query.persistence"))
+            .and().doNotHaveSimpleName("package-info")
+            .should().resideInAnyPackage(
+                    Raiz.pacote("query.persistence.repository"), Raiz.pacote("query.persistence.projection"))
+            .as("QRY-005: QUERY.PERSISTENCE AGRUPADO POR TIPO (REPOSITORY, PROJECTION)")
+            .because("cada tipo de classe tem lugar fixo."
+                    + " Corrija: *QueryRepository em repository, record projetado em projection");
 }

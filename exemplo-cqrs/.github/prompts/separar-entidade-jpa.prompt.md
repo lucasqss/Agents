@@ -3,9 +3,10 @@ mode: agent
 description: Quebra uma entidade que hoje é JPA e domínio ao mesmo tempo em entidade de domínio pura, entidade JPA, mapper, repositório do domínio e adapter, sem mudar o banco.
 ---
 Refatore a entidade abaixo seguindo `.github/copilot-instructions.md` e o exemplo completo da `Cota` no `nucleo`:
-`command/domain/Cota.java`, `command/domain/CotaRepository.java`, `shared/persistence/CotaEntity.java`,
-`command/persistence/CotaDataRepository.java`, `command/persistence/CotaMapper.java` e `command/persistence/CotaRepositoryAdapter.java`.
-Para subtipos e estados, o exemplo é o `ProcessoPagamento` e o `ProcessoPagamentoMapper`.
+`command/domain/entity/Cota.java`, `command/domain/repository/CotaRepository.java`, `shared/persistence/CotaEntity.java`,
+`command/persistence/repository/CotaDataRepository.java`, `command/persistence/mapper/CotaMapper.java` e
+`command/persistence/adapter/CotaRepositoryAdapter.java`. Para subtipos e estados, o exemplo é o
+`command/domain/entity/pagamento/` (com `state/`) e o `ProcessoPagamentoMapper`.
 
 Entidade atual: ${file}
 Observações: ${input:observacoes:Opcional. Ex.: "o campo situacao é calculado", "não mexer no método X ainda"}
@@ -33,7 +34,7 @@ Se encontrar um dos casos abaixo, **pare e pergunte** antes de seguir:
 - **Callback que faz mais do que preencher data.**
 - **Associação que forma ciclo entre agregados.**
 
-## Passo 1: entidade de domínio (`nucleo`, `command/domain/<Nome>.java`)
+## Passo 1: entidade de domínio (`nucleo`, `command/domain/entity/<Nome>.java`)
 
 - **Java puro:** sem JPA, Jakarta Data, CDI, Bean Validation, Lombok, Quarkus nem Hibernate. Ela não importa nada de `shared`.
 - **Construção:**
@@ -48,15 +49,16 @@ Se encontrar um dos casos abaixo, **pare e pergunte** antes de seguir:
 - **Objeto que pertence ao agregado** (`@Embedded`, ou um filho `@OneToMany` com cascade/orphanRemoval):
   - um `@Embedded` vira um `record` no domínio (Value Object);
   - os filhos viram uma lista dentro do agregado, alterada só por métodos dele.
-- **Enum:** fica um enum de domínio, em `command/domain`.
-- **Estados ou subtipos fechados:** `sealed`, como em `ProcessoPagamento`.
+- **Enum:** fica um enum de domínio, em `command/domain/enums`. Exceção nova vai para `command/domain/exception`.
+- **Agregado com várias classes** (subtipos, estados) ganha subpacote próprio em `entity/` (ex.: `entity/pagamento/state`).
+- **Estados ou subtipos fechados:** `sealed`, como em `entity/pagamento/state/EstadoProcesso`.
 - **Versão:** se havia `@Version`, o domínio carrega `versao` (Long) só para devolvê-la ao mapper.
 
-## Passo 2: interface de repositório no domínio (`command/domain/<Nome>Repository.java`)
+## Passo 2: interface de repositório no domínio (`command/domain/repository/<Nome>Repository.java`)
 
 - Só os métodos que os **use cases de escrita** precisam: `salvar`, `buscarPorId`, `excluir` e consultas de decisão (`existeX(...)`).
 - Usa só tipos do domínio.
-- Buscas que só alimentam **telas** não entram aqui: elas vão para o `query` (record + `@Query` em `query/persistence`).
+- Buscas que só alimentam **telas** não entram aqui: elas vão para o `query` (record em `query/persistence/projection` + `@Query` em `query/persistence/repository`).
 
 ## Passo 3: entidade JPA (`nucleo`, `shared/persistence/<Nome>Entity.java`)
 
@@ -68,18 +70,18 @@ Se encontrar um dos casos abaixo, **pare e pergunte** antes de seguir:
 - **Enum:** `String` (ou `@Enumerated(EnumType.STRING)` se a coluna já guarda o nome); a conversão é do mapper.
 - **Callbacks:** nenhum. O que eles faziam passa a ser explícito (domínio ou adapter).
 
-## Passo 4: repositório Jakarta Data (`command/persistence/<Nome>DataRepository.java`)
+## Passo 4: repositório Jakarta Data (`command/persistence/repository/<Nome>DataRepository.java`)
 
-- Interface **package-private** com `@Repository`, `@Find`, `@Insert`, `@Update` e `@Query` em HQL para deletes e contagens. Sem SQL nativo nem Panache.
+- Interface `public` (só o adapter a usa: CMD-012) com `@Repository`, `@Find`, `@Insert`, `@Update` e `@Query` em HQL para deletes e contagens. Sem SQL nativo nem Panache.
 - **Stateless session:** não há dirty checking, cascade nem lazy loading. Gravar é sempre `@Insert`/`@Update` explícito, e os filhos são gravados e carregados explicitamente pelo adapter.
 
-## Passo 5: mapper (`command/persistence/<Nome>Mapper.java`)
+## Passo 5: mapper (`command/persistence/mapper/<Nome>Mapper.java`)
 
-- Classe `final`, package-private, métodos estáticos `paraDominio(entity)` e `paraEntidade(dominio)`, escrita à mão, sem MapStruct.
+- Classe `public final` (só o adapter a usa: CMD-011), métodos `public static` `paraDominio(entity)` e `paraEntidade(dominio)`, escrita à mão, sem MapStruct.
 - `paraDominio` usa `reconstituir(...)`. Valor inválido vindo do banco (enum desconhecido) lança `IllegalStateException` com a mensagem do valor.
 - Subtipos e estados são reconstruídos com `switch`, como em `ProcessoPagamentoMapper`.
 
-## Passo 6: adapter (`command/persistence/<Nome>RepositoryAdapter.java`)
+## Passo 6: adapter (`command/persistence/adapter/<Nome>RepositoryAdapter.java`)
 
 - `@ApplicationScoped`, `implements <Nome>Repository`, injeção pelo construtor do `<Nome>DataRepository`.
 - `salvar`: `paraEntidade`, depois `inserir` se o id for nulo ou `atualizar` se não, e devolve `paraDominio(entity)`. Com filhos: grave o agregado, depois os filhos (apague os removidos), tudo na transação do use case.
@@ -87,13 +89,13 @@ Se encontrar um dos casos abaixo, **pare e pergunte** antes de seguir:
 ## Passo 7: atualize quem usava a entidade
 
 - **Use cases de escrita** passam a usar `<Nome>Repository` e a entidade de domínio. Nada de `*Entity` fora de `command/persistence` e `shared/persistence`.
-- **Consultas de tela** que usavam a entidade migram para `query/persistence` (record projetado + `@Query` HQL) e `query/application`.
+- **Consultas de tela** que usavam a entidade migram para `query/persistence` (record em `projection/` + `@Query` HQL em `repository/`) e `query/application/usecase`.
 - **Canais:** os Resources que recebiam ou devolviam a entidade passam a usar `*Request`/`*Response` próprios. O formato da entrada (as antigas `@NotNull`/`@Size` da entidade) vai para o `*Request` do canal, com `@Size` igual ao tamanho da coluna.
 
 ## Passo 8: testes
 
-- **Domínio:** JUnit puro em `nucleo/src/test/java/**/command/domain/<Nome>Test.java`, um teste por regra movida, cobrindo o caminho feliz e a violação.
-- **Mapper:** `nucleo/src/test/java/**/command/persistence/<Nome>MapperTest.java`, no mesmo pacote. A ida e volta `paraEntidade(paraDominio(entity))` preserva todos os campos, inclusive enum, subtipo e versão.
+- **Domínio:** JUnit puro em `nucleo/src/test/java/**/command/domain/entity/<Nome>Test.java`, um teste por regra movida, cobrindo o caminho feliz e a violação.
+- **Mapper:** `nucleo/src/test/java/**/command/persistence/mapper/<Nome>MapperTest.java`. A ida e volta `paraEntidade(paraDominio(entity))` preserva todos os campos, inclusive enum, subtipo e versão.
 - **Fluxo:** os testes de API que já existem precisam continuar passando sem alteração de contrato.
 
 ## Passo 9: verificação

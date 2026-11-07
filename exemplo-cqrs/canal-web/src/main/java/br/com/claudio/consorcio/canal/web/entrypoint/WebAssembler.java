@@ -1,10 +1,10 @@
 package br.com.claudio.consorcio.canal.web.entrypoint;
 
 import br.com.claudio.consorcio.canal.web.apresentacao.PadraoWeb;
-import br.com.claudio.consorcio.query.application.Pagina;
-import br.com.claudio.consorcio.query.persistence.ClienteResumo;
-import br.com.claudio.consorcio.query.persistence.CotaDetalhe;
-import br.com.claudio.consorcio.query.persistence.ProcessoResumo;
+import br.com.claudio.consorcio.query.application.dto.Pagina;
+import br.com.claudio.consorcio.query.persistence.projection.ClienteResumo;
+import br.com.claudio.consorcio.query.persistence.projection.CotaDetalhe;
+import br.com.claudio.consorcio.query.persistence.projection.ProcessoResumo;
 import java.util.List;
 
 /** DTO Assembler (PoEAA): read model -> contrato do canal web. Função pura, sem banco. */

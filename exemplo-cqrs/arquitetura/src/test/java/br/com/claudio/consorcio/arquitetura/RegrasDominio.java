@@ -82,4 +82,18 @@ final class RegrasDominio {
             .because("formatação, token e contrato mudam por canal; o domínio não."
                     + " Corrija: devolva o valor cru e trate no módulo do canal; regra que muda por canal"
                     + " fica em CanalDeAtendimento, no próprio domínio");
+
+    @ArchTest
+    static final ArchRule dom008AgrupadoPorTipo = ArchRuleDefinition.classes()
+            .that().resideInAPackage(DOMINIO)
+            .and().doNotHaveSimpleName("package-info")
+            .should().resideInAnyPackage(
+                    Raiz.pacote("command.domain.entity"),
+                    Raiz.pacote("command.domain.repository"),
+                    Raiz.pacote("command.domain.exception"),
+                    Raiz.pacote("command.domain.enums"))
+            .as("DOM-008: DOMÍNIO AGRUPADO POR TIPO (ENTITY, REPOSITORY, EXCEPTION, ENUMS)")
+            .because("achar uma classe do domínio não pode depender de abrir o código."
+                    + " Corrija: agregado e estados em entity (agregado grande ganha subpacote, ex.: entity.pagamento),"
+                    + " interface de repositório em repository, exceção em exception, enum em enums");
 }

@@ -1,6 +1,6 @@
 package br.com.claudio.consorcio.canal.mobile.entrypoint;
 
-import br.com.claudio.consorcio.command.domain.TipoProcesso;
+import br.com.claudio.consorcio.command.domain.enums.TipoProcesso;
 import jakarta.validation.constraints.NotNull;
 
 /**
