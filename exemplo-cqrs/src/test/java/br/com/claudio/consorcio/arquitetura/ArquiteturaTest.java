@@ -1,128 +1,45 @@
 package br.com.claudio.consorcio.arquitetura;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
-import com.tngtech.archunit.base.DescribedPredicate;
-import com.tngtech.archunit.core.domain.JavaClass;
-import com.tngtech.archunit.core.domain.JavaClasses;
-import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.junit.ArchTests;
 import com.tngtech.archunit.lang.ArchRule;
-import java.util.List;
 
+/**
+ * Fitness functions da arquitetura. Este é o único arquivo que conhece o pacote raiz: as regras usam só
+ * padrões relativos ("..command.domain.."), então a pasta {@code arquitetura} pode ser copiada para outro
+ * projeto trocando apenas o pacote raiz em {@code @AnalyzeClasses} e em {@link #semCiclos}.
+ */
 @AnalyzeClasses(packages = "br.com.claudio.consorcio", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArquiteturaTest {
 
-    /** Regra 1: o domínio de escrita é Java puro e não conhece nenhuma outra camada. */
     @ArchTest
-    static final ArchRule dominioPuro = noClasses()
-            .that().resideInAPackage("..command.domain..")
-            .should().dependOnClassesThat().resideInAnyPackage(
-                    "jakarta.persistence..",
-                    "io.quarkus..",
-                    "org.hibernate..",
-                    "..shared..",
-                    "..command.application..",
-                    "..command.persistence..")
-            .because("o domínio não pode conhecer JPA, Quarkus, Hibernate, integrações nem as outras camadas");
-
-    /** Regra 2: entidades JPA só têm getters e setters. */
-    @ArchTest
-    static final ArchRule entidadesSemComportamento = methods()
-            .that().areDeclaredInClassesThat().resideInAPackage("..shared.persistence..")
-            .and().doNotHaveModifier(JavaModifier.SYNTHETIC)
-            .should().haveNameMatching("(get|set|is)[A-Z].*")
-            .because("regra de negócio fica no domínio, não nas entidades JPA");
-
-    /** Regra 3: os use cases de escrita só enxergam o banco pelas interfaces de repositório do domínio. */
-    @ArchTest
-    static final ArchRule useCasesSemBanco = noClasses()
-            .that().resideInAPackage("..command.application..")
-            .should().dependOnClassesThat().resideInAnyPackage(
-                    "..command.persistence..",
-                    "..shared.persistence..",
-                    "jakarta.persistence..",
-                    "io.quarkus.hibernate..")
-            .because("a persistência do comando fica atrás das interfaces de repositório do domínio");
-
-    /** Regra 4: o lado de consulta é independente do lado de comando. */
-    @ArchTest
-    static final ArchRule consultaIndependenteDoComando = noClasses()
-            .that().resideInAPackage("..query..")
-            .should().dependOnClassesThat().resideInAPackage("..command..")
-            .because("query não pode importar nada de command");
-
-    /** Regra 5: o que é compartilhado não conhece nenhum dos lados. */
-    @ArchTest
-    static final ArchRule compartilhadoNaoConheceOsLados = noClasses()
-            .that().resideInAPackage("..shared..")
-            .should().dependOnClassesThat().resideInAnyPackage("..command..", "..query..")
-            .because("shared é usado por command e query, nunca o contrário");
-
-    /** Regra 6: sistemas externos só via Gateway, e só a partir de use cases (ou do mapeamento de erros). */
-    @ArchTest
-    static final ArchRule sistemasExternosSoViaGateway = noClasses()
-            .that().resideOutsideOfPackage("..shared.gateway..")
-            .should().dependOnClassesThat(internoDoGateway())
-            .because("client e DTOs externos não vazam do pacote do gateway");
+    static final ArchTests dominio = ArchTests.in(RegrasDominio.class);
 
     @ArchTest
-    static final ArchRule gatewaysSoNosUseCases = noClasses()
-            .that().resideOutsideOfPackages("..shared.gateway..", "..application..", "..entrypoint..")
-            .should().dependOnClassesThat().resideInAPackage("..shared.gateway..")
-            .because("só use cases chamam sistemas externos; o entrypoint só traduz as exceções");
+    static final ArchTests command = ArchTests.in(RegrasCommand.class);
 
-    /** Regra 7: sem ciclos entre os pacotes. */
+    @ArchTest
+    static final ArchTests query = ArchTests.in(RegrasQuery.class);
+
+    @ArchTest
+    static final ArchTests shared = ArchTests.in(RegrasShared.class);
+
+    @ArchTest
+    static final ArchTests canais = ArchTests.in(RegrasCanais.class);
+
+    @ArchTest
+    static final ArchTests tecnologia = ArchTests.in(RegrasTecnologia.class);
+
+    @ArchTest
+    static final ArchTests nomes = ArchTests.in(RegrasNomes.class);
+
+    /** Sem ciclos entre os pacotes de segundo nível (command.domain, query.persistence, shared.gateway...). */
     @ArchTest
     static final ArchRule semCiclos = slices()
             .matching("br.com.claudio.consorcio.(*).(*)..")
             .should().beFreeOfCycles();
-
-    /** Canais de atendimento. Um canal novo entra nesta lista e ganha as mesmas regras. */
-    private static final List<String> CANAIS = List.of("web", "mobile", "taa");
-
-    /** Regra 8: cada canal é isolado; o padrão de apresentação de um canal só é usado pelo entrypoint dele. */
-    @ArchTest
-    static void canaisIsolados(JavaClasses classes) {
-        for (String canal : CANAIS) {
-            noClasses()
-                    .that().resideOutsideOfPackages("..entrypoint." + canal + "..", "..shared.apresentacao." + canal + "..")
-                    .should().dependOnClassesThat().resideInAnyPackage(
-                            "..entrypoint." + canal + "..", "..shared.apresentacao." + canal + "..")
-                    .because("o canal " + canal + " não é usado por outros canais nem por outras camadas")
-                    .check(classes);
-        }
-    }
-
-    /** Regra 9: apresentação é assunto do entrypoint; use case e consulta não formatam nada. */
-    @ArchTest
-    static final ArchRule apresentacaoSoNoEntrypoint = noClasses()
-            .that().resideOutsideOfPackages("..entrypoint..", "..shared.apresentacao..")
-            .should().dependOnClassesThat().resideInAPackage("..shared.apresentacao..")
-            .because("formatação por canal pertence ao entrypoint");
-
-    /** Regra 10: use cases não conhecem canal nem HTTP. */
-    @ArchTest
-    static final ArchRule useCasesSemCanal = noClasses()
-            .that().resideInAPackage("..application..")
-            .should().dependOnClassesThat().resideInAPackage("..entrypoint..")
-            .because("o mesmo use case atende todos os canais");
-
-    /** Regra 11: o pacote comum de apresentação não conhece os padrões de canal. */
-    @ArchTest
-    static final ArchRule apresentacaoComumSemCanal = noClasses()
-            .that().resideInAPackage("..shared.apresentacao")
-            .should().dependOnClassesThat().resideInAPackage("..shared.apresentacao.*..")
-            .because("Formatador e Rotulos são a base que todos os canais usam");
-
-    private static DescribedPredicate<JavaClass> internoDoGateway() {
-        return DescribedPredicate.describe("são client ou DTO de sistema externo",
-                c -> c.getPackageName().contains(".shared.gateway")
-                        && !c.getSimpleName().endsWith("Gateway")
-                        && !c.getSimpleName().endsWith("Exception"));
-    }
 }

@@ -50,19 +50,22 @@ Só os use cases chamam sistemas externos, por isso eles usam o Gateway direto, 
 
 Service Layer (use cases), Domain Model (`command.domain`), Repository + Data Mapper (`command.persistence`), Separated Interface (repositórios do domínio), Gateway e Service Stub (integrações). Num módulo que só orquestra, sem regra de negócio de verdade, um **Transaction Script** no use case basta, sem pasta `domain`.
 
-### Regras de dependência (`ArquiteturaTest`, ArchUnit)
+### Regras de arquitetura (ArchUnit)
 
-1. **Domínio puro:** `command.domain` não depende de JPA, Quarkus, Hibernate, `shared` nem das outras camadas do command.
-2. **Entidades sem comportamento:** em `shared.persistence` só há campos, mapeamento e getters/setters.
-3. **Use cases sem banco:** `command.application` não depende de `command.persistence`, `shared.persistence`, JPA nem Panache.
-4. **Consulta independente:** `query` nunca importa `command`. O HQL dos repositórios Jakarta Data é validado na compilação pelo Hibernate Processor.
-5. **Shared neutro:** `shared` não depende de `command` nem de `query`.
-6. **Sistemas externos só via Gateway:** fora de `shared.gateway`, só `*Gateway` e `*Exception` são visíveis, e apenas para `application` e `entrypoint`.
-7. **Sem ciclos** entre os pacotes.
-8. **Canais isolados:** `entrypoint.<canal>` e `shared.apresentacao.<canal>` só são usados pelo próprio canal.
-9. **Apresentação só no entrypoint:** nenhum use case nem consulta usa `shared.apresentacao`.
-10. **Use cases sem canal:** `application` não depende de `entrypoint`.
-11. **Base comum neutra:** `Formatador` e `Rotulos` não conhecem os padrões de canal.
+Os combinados acima são verificados a cada build, em `src/test/java/.../arquitetura/`. Cada grupo é uma classe com padrões relativos (`..command.domain..`), e `ArquiteturaTest` só os agrega. **Para outro projeto, copie a pasta e troque o pacote raiz em `ArquiteturaTest`** (em `@AnalyzeClasses` e na regra de ciclos). Regras de pacotes que podem ainda não existir, como `command.gateway`, passam vazias até a primeira classe aparecer.
+
+| Grupo | O que garante |
+|---|---|
+| `RegrasDominio` | Domínio puro: sem JPA, Jakarta Data, CDI, transação, JAX-RS, Quarkus, Hibernate, MicroProfile, `shared` nem as outras camadas do command. |
+| `RegrasCommand` | Use cases e entrypoint sem banco; `command.persistence` só é alcançado pela interface do domínio. **`command.gateway`** (futuro): toda implementação de interface do domínio que chama sistema externo mora lá, só traduz e ninguém a referencia diretamente. |
+| `RegrasQuery` | `query` nunca importa `command`; direção `entrypoint → application → persistence`; o entrypoint não usa repositório Jakarta Data, só os records. |
+| `RegrasShared` | `shared` não conhece os lados (por isso um gateway nunca importa o domínio); entidades só com getters/setters; client e DTOs externos não saem de `shared.gateway`; gateways só em use cases, no entrypoint (exceção → HTTP) e em `command.gateway`; um sistema externo não depende de outro. |
+| `RegrasCanais` | Sem lista de canais: o subpacote é o canal, e um canal novo herda tudo. Canais e padrões não se conhecem; o padrão do canal X só é usado por `entrypoint.X`; formatação só no entrypoint; base comum neutra; use case sem canal; resource de canal nunca devolve tipo de `persistence`; Assembler e padrões são funções puras. |
+| `RegrasTecnologia` | Onde cada tecnologia mora: `@Entity` em `shared.persistence`; Panache em `command.persistence`; Jakarta Data em `query.persistence`; REST client e Fault Tolerance em `shared.gateway`; `@Path` e exception mappers no entrypoint; `@Transactional` só em use case. |
+| `RegrasNomes` | O nome diz onde a classe mora: `*UseCase`, `*Resource`, `*Assembler`, `*Gateway`, `*Entity`, `*Mapper`/`*RepositoryAdapter`, `Padrao*`. |
+| `ArquiteturaTest` | Sem ciclos entre os pacotes de segundo nível. |
+
+O HQL dos repositórios Jakarta Data também é validado na compilação, pelo Hibernate Processor.
 
 ### Canais e apresentação
 
