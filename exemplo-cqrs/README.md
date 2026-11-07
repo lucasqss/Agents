@@ -14,13 +14,15 @@ Pacote raiz `br.com.claudio.consorcio`:
 shared/
   persistence/          entidades JPA: modelo do NOSSO banco, só mapeamento, getters e setters
   integracao/<sistema>/ Gateway de cada sistema externo + client REST, DTOs externos e resiliência
+  apresentacao/         Formatador e Rotulos (base comum) + um padrão por canal: web/, mobile/, taa/
 command/
   entrypoint/           REST de escrita + tradução de exceções para HTTP
   application/          use cases (Service Layer): transação e orquestração; chamam repositórios e gateways
   domain/               Domain Model puro: Cliente, Cota, ProcessoPagamento (+ estados) e interfaces de repositório
   persistence/          repositórios Panache + Data Mappers domínio <-> JPA escritos à mão
 query/
-  entrypoint/           REST de leitura
+  entrypoint/           REST de leitura neutro (sem formatação)
+    web/ mobile/ taa/   um BFF por canal: Resource + Response (contrato) + Assembler
   application/          use cases de leitura (normalização de filtros, paginação)
   persistence/          repositórios Jakarta Data com @Query HQL + records projetados (read models)
 ```
@@ -57,6 +59,29 @@ Service Layer (use cases), Domain Model (`command.domain`), Repository + Data Ma
 5. **Shared neutro:** `shared` não depende de `command` nem de `query`.
 6. **Integrações só via Gateway:** fora de `shared.integracao`, só `*Gateway` e `*Exception` são visíveis, e apenas para `application` e `entrypoint`.
 7. **Sem ciclos** entre os pacotes.
+8. **Canais isolados:** `entrypoint.<canal>` e `shared.apresentacao.<canal>` só são usados pelo próprio canal.
+9. **Apresentação só no entrypoint:** nenhum use case nem consulta usa `shared.apresentacao`.
+10. **Use cases sem canal:** `application` não depende de `entrypoint`.
+11. **Base comum neutra:** `Formatador` e `Rotulos` não conhecem os padrões de canal.
+
+### Canais e apresentação
+
+Os fronts são gerados por low-code e não formatam nada, então o backend entrega tudo pronto para exibir, e cada canal (web, mobile, TAA) segue um padrão próprio da empresa. Os padrões deste exemplo são fictícios.
+
+- **O use case não sabe qual canal o chamou.** Ele devolve o read model em termos de negócio.
+- **Cada canal é um BFF dentro do serviço:** `query.entrypoint.<canal>` tem o Resource, o Response (o contrato do front) e o Assembler (DTO Assembler do PoEAA), uma função pura que decide **o que** o canal recebe.
+- **O padrão do canal decide _como_ exibir:** `PadraoWeb`, `PadraoMobile` e `PadraoTaa` implementam `PadraoApresentacao`. Um formato novo na interface só compila quando todos os canais decidirem como exibi-lo. Todos usam a base comum `Formatador` (locale explícito, sem o espaço U+00A0 do `NumberFormat`) e `Rotulos` (catálogo por extenso que cada canal usa, abrevia ou transforma).
+- **Somar ou formatar o que já veio da consulta** é papel do Assembler (ex.: `totalCotas` no mobile). Um número com **significado de negócio** (total pago, saldo devedor) nasce no lado de consulta e serve todos os canais, senão os canais divergem.
+- **O response traz o valor bruto e o formatado** (`valorCredito` e `valorCreditoFormatado`, `estado` e `situacao`): o low-code usa o bruto para ordenar, filtrar e escolher cor, e o formatado para exibir.
+- **O contrato é congelado:** só mudanças aditivas; uma quebra vira `/v2`. `CanaisContratoTest` confere os nomes exatos dos campos e os textos de cada canal, e `PadroesDeCanalTest` é a tabela viva dos padrões (mesma entrada, uma saída por canal). Ele também falha se um estado novo do domínio não tiver rótulo.
+- **Quando houver vários serviços,** `shared.apresentacao` é o primeiro candidato a virar uma biblioteca interna versionada, para que todos sigam o mesmo padrão.
+
+| Entrada | Web | Mobile | TAA |
+|---|---|---|---|
+| `250000.00` | `R$ 250.000,00` | `R$ 250 mil` | `R$250.000,00` |
+| `12345678909` | `123.456.789-09` | `***.456.789-**` | `***.***.789-09` |
+| `Júlia Araújo Lima` | `Júlia Araújo Lima` | `Júlia Lima` | `JULIA ARAUJO LIMA` |
+| `AGUARDANDO_VISTORIA` | `Aguardando vistoria` | `Aguard. vistoria` | `AGUARDANDO VISTORIA` |
 
 ### Processo de pagamento
 
@@ -80,6 +105,9 @@ Transições inválidas lançam `TransicaoInvalidaException` (HTTP 409). Cada co
 | Comando | `POST /processos/{id}/iniciar-analise` · `concluir-analise` · `concluir-vistoria` · `pagar` · `cancelar` | Transições (`pagar` registra a ordem na Tesouraria) |
 | Consulta | `GET /clientes` | Clientes com a quantidade de cotas |
 | Consulta | `GET /cotas/{id}` | Cota com o nome do cliente e o processo atual |
+| Canal web | `GET /web/v1/cotas/{id}` | Cota no padrão web, com o processo atual |
+| Canal mobile | `GET /mobile/v1/cotas/{id}` · `GET /mobile/v1/clientes` | Card da cota; clientes com o total de cotas somado |
+| Canal TAA | `GET /taa/v1/cotas/{id}` | Cota no padrão do terminal |
 | Consulta | `GET /processos?tipo=&estado=&pagina=1&tamanho=20` | Processos filtrados e paginados, com o protocolo de pagamento |
 
 Erros: 400 para validação de domínio, 404 para recurso inexistente, 409 para conflito ou transição inválida, 503 para sistema externo indisponível. Excluir cliente com cotas, ou cota com processos, retorna 409.

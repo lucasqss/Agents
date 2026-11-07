@@ -6,11 +6,13 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import java.util.List;
 
 @AnalyzeClasses(packages = "br.com.claudio.consorcio", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArquiteturaTest {
@@ -79,6 +81,43 @@ class ArquiteturaTest {
     static final ArchRule semCiclos = slices()
             .matching("br.com.claudio.consorcio.(*).(*)..")
             .should().beFreeOfCycles();
+
+    /** Canais de atendimento. Um canal novo entra nesta lista e ganha as mesmas regras. */
+    private static final List<String> CANAIS = List.of("web", "mobile", "taa");
+
+    /** Regra 8: cada canal é isolado; o padrão de apresentação de um canal só é usado pelo entrypoint dele. */
+    @ArchTest
+    static void canaisIsolados(JavaClasses classes) {
+        for (String canal : CANAIS) {
+            noClasses()
+                    .that().resideOutsideOfPackages("..entrypoint." + canal + "..", "..shared.apresentacao." + canal + "..")
+                    .should().dependOnClassesThat().resideInAnyPackage(
+                            "..entrypoint." + canal + "..", "..shared.apresentacao." + canal + "..")
+                    .because("o canal " + canal + " não é usado por outros canais nem por outras camadas")
+                    .check(classes);
+        }
+    }
+
+    /** Regra 9: apresentação é assunto do entrypoint; use case e consulta não formatam nada. */
+    @ArchTest
+    static final ArchRule apresentacaoSoNoEntrypoint = noClasses()
+            .that().resideOutsideOfPackages("..entrypoint..", "..shared.apresentacao..")
+            .should().dependOnClassesThat().resideInAPackage("..shared.apresentacao..")
+            .because("formatação por canal pertence ao entrypoint");
+
+    /** Regra 10: use cases não conhecem canal nem HTTP. */
+    @ArchTest
+    static final ArchRule useCasesSemCanal = noClasses()
+            .that().resideInAPackage("..application..")
+            .should().dependOnClassesThat().resideInAPackage("..entrypoint..")
+            .because("o mesmo use case atende todos os canais");
+
+    /** Regra 11: o pacote comum de apresentação não conhece os padrões de canal. */
+    @ArchTest
+    static final ArchRule apresentacaoComumSemCanal = noClasses()
+            .that().resideInAPackage("..shared.apresentacao")
+            .should().dependOnClassesThat().resideInAPackage("..shared.apresentacao.*..")
+            .because("Formatador e Rotulos são a base que todos os canais usam");
 
     private static DescribedPredicate<JavaClass> internoDeIntegracao() {
         return DescribedPredicate.describe("são client ou DTO de integração",
