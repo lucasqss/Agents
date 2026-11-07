@@ -67,12 +67,19 @@ Os combinados acima são verificados a cada build, em `src/test/java/<pacote rai
 
 Pré-requisitos no projeto de destino: a dependência `archunit-junit5` (escopo de teste) e o código organizado em `command`, `query` e `shared` debaixo do pacote raiz.
 
-Cada regra tem **um motivo só** e um **ID estável** (`DOM-002`). Quando uma falha, o build mostra o ID, o título, o porquê e como corrigir:
+Cada regra tem **um motivo só** e um **ID estável** (`DOM-002`). Quando uma falha, o resumo do Maven mostra a regra, o porquê, como corrigir e onde. Quem monta esse texto é `FormatoDaFalha`, ligado pelo `Raiz` através da propriedade `failureDisplayFormat` do ArchUnit, então ele também vem junto ao copiar a pasta:
 
 ```
-Architecture Violation [Priority: MEDIUM] - Rule 'DOM-002: DOMÍNIO NÃO PODE DEPENDER DE PERSISTÊNCIA, because o domínio não sabe que existe banco. Corrija: declare uma interface de repositório no domínio; ...' was violated (1 times):
-Method <...command.domain.Cota.paraEntidade()> has return type <...shared.persistence.CotaEntity> in (Cota.java:0)
+[ERROR] Failures:
+[ERROR]   ArquiteturaTest.RegrasDominio > dom002Persistencia VIOLAÇÃO DE ARQUITETURA (1 ocorrência)
+  Regra:   DOM-002: DOMÍNIO NÃO PODE DEPENDER DE PERSISTÊNCIA
+  Por quê: o domínio não sabe que existe banco.
+  Corrija: declare uma interface de repositório no domínio; a implementação, a entidade JPA e o Mapper ficam em command.persistence e shared.persistence
+  Onde:
+    - Method <...command.domain.Cota.paraEntidade()> has return type <...shared.persistence.CotaEntity> in (Cota.java:0)
 ```
+
+Se os acentos saírem como `?`, o terminal ou o agente de CI não está em UTF-8 (use `LANG=C.UTF-8`).
 
 Convenção de cada regra: `.as("ABC-001: TÍTULO EM CAIXA ALTA").because("por quê. Corrija: como")`, com o campo começando pelo ID (`dom002Persistencia`). O prefixo é o do grupo (GER, DOM, CMD, QRY, SHR, CAN, TEC, NOM). Um ID nunca é reaproveitado: se uma regra sair, o número dela fica vago. `CatalogoDeRegrasTest` garante o formato, IDs únicos e um prefixo por grupo.
 
