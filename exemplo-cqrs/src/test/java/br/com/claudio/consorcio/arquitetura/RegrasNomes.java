@@ -1,5 +1,7 @@
 package br.com.claudio.consorcio.arquitetura;
 
+import static br.com.claudio.consorcio.arquitetura.Raiz.emQualquer;
+import static br.com.claudio.consorcio.arquitetura.Raiz.pacote;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 
 import com.tngtech.archunit.junit.ArchTest;
@@ -14,39 +16,39 @@ final class RegrasNomes {
     @ArchTest
     static final ArchRule useCases = classes()
             .that().haveSimpleNameEndingWith("UseCase")
-            .should().resideInAPackage("..application..");
+            .should().resideInAPackage(emQualquer("application"));
 
     @ArchTest
     static final ArchRule resources = classes()
             .that().haveSimpleNameEndingWith("Resource")
-            .should().resideInAPackage("..entrypoint..");
+            .should().resideInAPackage(emQualquer("entrypoint"));
 
     @ArchTest
     static final ArchRule assemblers = classes()
             .that().haveSimpleNameEndingWith("Assembler")
-            .should().resideInAPackage("..entrypoint..")
+            .should().resideInAPackage(emQualquer("entrypoint"))
             .allowEmptyShould(true);
 
     @ArchTest
     static final ArchRule gateways = classes()
             .that().haveSimpleNameEndingWith("Gateway")
-            .should().resideInAnyPackage("..shared.gateway..", "..command.gateway..")
+            .should().resideInAnyPackage(pacote("shared.gateway"), pacote("command.gateway"))
             .allowEmptyShould(true);
 
     @ArchTest
     static final ArchRule entidades = classes()
             .that().haveSimpleNameEndingWith("Entity")
-            .should().resideInAPackage("..shared.persistence..");
+            .should().resideInAPackage(pacote("shared.persistence"));
 
     @ArchTest
     static final ArchRule mappersEAdaptersDeRepositorio = classes()
             .that().haveSimpleNameEndingWith("Mapper").or().haveSimpleNameEndingWith("RepositoryAdapter")
-            .should().resideInAPackage("..command.persistence..")
+            .should().resideInAPackage(pacote("command.persistence"))
             .allowEmptyShould(true);
 
     @ArchTest
     static final ArchRule padroesDeApresentacao = classes()
             .that().haveSimpleNameStartingWith("Padrao")
-            .should().resideInAPackage("..shared.apresentacao..")
+            .should().resideInAPackage(pacote("shared.apresentacao"))
             .allowEmptyShould(true);
 }

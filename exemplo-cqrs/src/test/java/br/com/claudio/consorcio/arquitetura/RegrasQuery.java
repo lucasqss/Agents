@@ -1,5 +1,6 @@
 package br.com.claudio.consorcio.arquitetura;
 
+import static br.com.claudio.consorcio.arquitetura.Raiz.pacote;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.tngtech.archunit.junit.ArchTest;
@@ -14,19 +15,19 @@ final class RegrasQuery {
 
     @ArchTest
     static final ArchRule consultaIndependenteDoComando = noClasses()
-            .that().resideInAPackage("..query..")
-            .should().dependOnClassesThat().resideInAPackage("..command..")
+            .that().resideInAPackage(pacote("query"))
+            .should().dependOnClassesThat().resideInAPackage(pacote("command"))
             .because("query nunca importa command (CQRS)");
 
     @ArchTest
     static final ArchRule persistenciaDeLeituraNaBase = noClasses()
-            .that().resideInAPackage("..query.persistence..")
-            .should().dependOnClassesThat().resideInAnyPackage("..query.application..", "..query.entrypoint..")
+            .that().resideInAPackage(pacote("query.persistence"))
+            .should().dependOnClassesThat().resideInAnyPackage(pacote("query.application"), pacote("query.entrypoint"))
             .because("a direção é entrypoint -> application -> persistence");
 
     @ArchTest
     static final ArchRule entrypointNaoUsaRepositorio = noClasses()
-            .that().resideInAPackage("..query.entrypoint..")
+            .that().resideInAPackage(pacote("query.entrypoint"))
             .should().dependOnClassesThat().areAnnotatedWith(Repository.class)
             .because("o entrypoint chama use cases; dos repositórios ele só vê os records projetados");
 }

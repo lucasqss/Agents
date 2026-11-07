@@ -1,20 +1,20 @@
 package br.com.claudio.consorcio.arquitetura;
 
-import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
-
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.junit.ArchTests;
-import com.tngtech.archunit.lang.ArchRule;
 
 /**
- * Fitness functions da arquitetura. Este é o único arquivo que conhece o pacote raiz: as regras usam só
- * padrões relativos ("..command.domain.."), então a pasta {@code arquitetura} pode ser copiada para outro
- * projeto trocando apenas o pacote raiz em {@code @AnalyzeClasses} e em {@link #semCiclos}.
+ * Fitness functions da arquitetura. Nenhum arquivo desta pasta tem o nome do projeto: o pacote raiz é
+ * descoberto por {@link Raiz}. Para usar em outro projeto, copie a pasta para
+ * {@code src/test/java/<pacote raiz>/arquitetura/} e pronto.
  */
-@AnalyzeClasses(packages = "br.com.claudio.consorcio", importOptions = ImportOption.DoNotIncludeTests.class)
+@AnalyzeClasses(locations = Raiz.class, importOptions = ImportOption.DoNotIncludeTests.class)
 class ArquiteturaTest {
+
+    @ArchTest
+    static final ArchTests gerais = ArchTests.in(RegrasGerais.class);
 
     @ArchTest
     static final ArchTests dominio = ArchTests.in(RegrasDominio.class);
@@ -36,10 +36,4 @@ class ArquiteturaTest {
 
     @ArchTest
     static final ArchTests nomes = ArchTests.in(RegrasNomes.class);
-
-    /** Sem ciclos entre os pacotes de segundo nível (command.domain, query.persistence, shared.gateway...). */
-    @ArchTest
-    static final ArchRule semCiclos = slices()
-            .matching("br.com.claudio.consorcio.(*).(*)..")
-            .should().beFreeOfCycles();
 }

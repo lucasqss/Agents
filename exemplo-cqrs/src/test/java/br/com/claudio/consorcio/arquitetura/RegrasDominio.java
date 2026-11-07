@@ -1,5 +1,6 @@
 package br.com.claudio.consorcio.arquitetura;
 
+import static br.com.claudio.consorcio.arquitetura.Raiz.pacote;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.tngtech.archunit.junit.ArchTest;
@@ -13,7 +14,7 @@ final class RegrasDominio {
 
     @ArchTest
     static final ArchRule dominioPuro = noClasses()
-            .that().resideInAPackage("..command.domain..")
+            .that().resideInAPackage(pacote("command.domain"))
             .should().dependOnClassesThat().resideInAnyPackage(
                     "jakarta.persistence..",
                     "jakarta.data..",
@@ -25,10 +26,10 @@ final class RegrasDominio {
                     "io.quarkus..",
                     "org.hibernate..",
                     "org.eclipse.microprofile..",
-                    "..shared..",
-                    "..command.application..",
-                    "..command.persistence..",
-                    "..command.entrypoint..",
-                    "..command.gateway..")
+                    pacote("shared"),
+                    pacote("command.application"),
+                    pacote("command.persistence"),
+                    pacote("command.entrypoint"),
+                    pacote("command.gateway"))
             .because("o domínio não conhece framework, banco, HTTP, sistemas externos nem as outras camadas");
 }

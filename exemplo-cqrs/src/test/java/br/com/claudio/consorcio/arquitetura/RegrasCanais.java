@@ -2,6 +2,9 @@ package br.com.claudio.consorcio.arquitetura;
 
 import static br.com.claudio.consorcio.arquitetura.Condicoes.naoRetornarTipoDePersistence;
 import static br.com.claudio.consorcio.arquitetura.Condicoes.usadoSoPeloProprioCanal;
+import static br.com.claudio.consorcio.arquitetura.Raiz.emQualquer;
+import static br.com.claudio.consorcio.arquitetura.Raiz.exato;
+import static br.com.claudio.consorcio.arquitetura.Raiz.pacote;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
@@ -23,45 +26,45 @@ final class RegrasCanais {
 
     @ArchTest
     static final ArchRule canaisNaoSeConhecem = slices()
-            .matching("..entrypoint.(*)..")
+            .matching(emQualquer("entrypoint.(*)"))
             .should().notDependOnEachOther()
             .allowEmptyShould(true)
             .because("cada canal tem o próprio contrato; nenhum reaproveita o de outro");
 
     @ArchTest
     static final ArchRule padroesNaoSeConhecem = slices()
-            .matching("..shared.apresentacao.(*)..")
+            .matching(pacote("shared.apresentacao.(*)"))
             .should().notDependOnEachOther()
             .allowEmptyShould(true)
             .because("o que é comum aos canais fica na base (Formatador, Rotulos)");
 
     @ArchTest
     static final ArchRule padraoDoCanalSoNoProprioCanal = classes()
-            .that().resideInAPackage("..shared.apresentacao.*..")
+            .that().resideInAPackage(pacote("shared.apresentacao.*"))
             .should(usadoSoPeloProprioCanal())
             .allowEmptyShould(true);
 
     @ArchTest
     static final ArchRule apresentacaoSoNoEntrypoint = noClasses()
-            .that().resideOutsideOfPackages("..entrypoint..", "..shared.apresentacao..")
-            .should().dependOnClassesThat().resideInAPackage("..shared.apresentacao..")
+            .that().resideOutsideOfPackages(emQualquer("entrypoint"), pacote("shared.apresentacao"))
+            .should().dependOnClassesThat().resideInAPackage(pacote("shared.apresentacao"))
             .because("formatação é assunto do entrypoint; use case e consulta não formatam nada");
 
     @ArchTest
     static final ArchRule baseComumSemCanal = noClasses()
-            .that().resideInAPackage("..shared.apresentacao")
-            .should().dependOnClassesThat().resideInAPackage("..shared.apresentacao.*..")
+            .that().resideInAPackage(exato("shared.apresentacao"))
+            .should().dependOnClassesThat().resideInAPackage(pacote("shared.apresentacao.*"))
             .because("Formatador e Rotulos são a base que todos os canais usam");
 
     @ArchTest
     static final ArchRule useCasesSemCanal = noClasses()
-            .that().resideInAPackage("..application..")
-            .should().dependOnClassesThat().resideInAPackage("..entrypoint..")
+            .that().resideInAPackage(emQualquer("application"))
+            .should().dependOnClassesThat().resideInAPackage(emQualquer("entrypoint"))
             .because("o mesmo use case atende todos os canais");
 
     @ArchTest
     static final ArchRule contratoDoCanalIsolado = methods()
-            .that().areDeclaredInClassesThat().resideInAPackage("..entrypoint.*..")
+            .that().areDeclaredInClassesThat().resideInAPackage(emQualquer("entrypoint.*"))
             .and().arePublic()
             .should(naoRetornarTipoDePersistence())
             .allowEmptyShould(true)
@@ -69,7 +72,7 @@ final class RegrasCanais {
 
     @ArchTest
     static final ArchRule apresentacaoPura = noClasses()
-            .that().haveSimpleNameEndingWith("Assembler").or().resideInAPackage("..shared.apresentacao..")
+            .that().haveSimpleNameEndingWith("Assembler").or().resideInAPackage(pacote("shared.apresentacao"))
             .should().dependOnClassesThat().resideInAnyPackage(
                     "jakarta.enterprise..", "jakarta.inject..", "jakarta.persistence..", "io.quarkus..")
             .orShould().dependOnClassesThat().areAnnotatedWith(Repository.class)

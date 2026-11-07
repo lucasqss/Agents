@@ -58,10 +58,18 @@ Service Layer (use cases), Domain Model (`command.domain`), Repository + Data Ma
 
 ### Regras de arquitetura (ArchUnit)
 
-Os combinados acima são verificados a cada build, em `src/test/java/.../arquitetura/`. Cada grupo é uma classe com padrões relativos (`..command.domain..`), e `ArquiteturaTest` só os agrega. **Para outro projeto, copie a pasta e troque o pacote raiz em `ArquiteturaTest`** (em `@AnalyzeClasses` e na regra de ciclos). Regras de pacotes que podem ainda não existir, como `command.gateway`, passam vazias até a primeira classe aparecer.
+Os combinados acima são verificados a cada build, em `src/test/java/<pacote raiz>/arquitetura/`. Cada grupo é uma classe, e `ArquiteturaTest` só os agrega.
+
+**Para usar em outro projeto, é só copiar e colar.** Copie a pasta `arquitetura` para `src/test/java/<pacote raiz do projeto>/arquitetura/` e deixe a IDE ajustar a linha `package` ao colar. Nenhum arquivo tem o nome do projeto:
+- `Raiz` descobre o pacote raiz pelo lugar da pasta (`<raiz>.arquitetura`) e ancora todos os padrões nele. `"query"` casa só com `<raiz>.query`, nunca com pacotes de bibliotecas como `org.hibernate.query`.
+- Regras de pastas que o projeto ainda não tem (sem canal, sem gateway, sem `command.gateway`) passam vazias até a primeira classe aparecer.
+- `RegrasGerais.estrutura` nunca passa vazia: se a pasta foi colada no pacote errado e nenhuma classe foi encontrada, o build falha em vez de deixar tudo passar.
+
+Pré-requisitos no projeto de destino: a dependência `archunit-junit5` (escopo de teste) e o código organizado em `command`, `query` e `shared` debaixo do pacote raiz.
 
 | Grupo | O que garante |
 |---|---|
+| `RegrasGerais` | Todo código em `command`, `query` ou `shared`; sem ciclos entre os pacotes de segundo nível. |
 | `RegrasDominio` | Domínio puro: sem JPA, Jakarta Data, CDI, transação, JAX-RS, Bean Validation, Quarkus, Hibernate, MicroProfile, `shared` nem as outras camadas do command. |
 | `RegrasCommand` | `command` nunca importa `query` (CQRS nos dois sentidos); use cases e entrypoint sem banco; `command.persistence` só é alcançado pela interface do domínio. **`command.gateway`** (futuro): toda implementação de interface do domínio que chama sistema externo mora lá, só traduz e ninguém a referencia diretamente. |
 | `RegrasQuery` | `query` nunca importa `command`; direção `entrypoint → application → persistence`; o entrypoint não usa repositório Jakarta Data, só os records. |
@@ -69,7 +77,6 @@ Os combinados acima são verificados a cada build, em `src/test/java/.../arquite
 | `RegrasCanais` | Sem lista de canais: o subpacote é o canal, e um canal novo herda tudo. Canais e padrões não se conhecem; o padrão do canal X só é usado por `entrypoint.X`; formatação só no entrypoint; base comum neutra; use case sem canal; resource de canal nunca devolve tipo de `persistence`; Assembler e padrões são funções puras. |
 | `RegrasTecnologia` | Onde cada tecnologia mora: `@Entity` em `shared.persistence`; sem Panache; Jakarta Data só em `command.persistence` e `query.persistence`; REST client e Fault Tolerance em `shared.gateway`; `@Path`, exception mappers e Bean Validation (`jakarta.validation`) só no entrypoint; `@Transactional` só em use case. |
 | `RegrasNomes` | O nome diz onde a classe mora: `*UseCase`, `*Resource`, `*Assembler`, `*Gateway`, `*Entity`, `*Mapper`/`*RepositoryAdapter`, `Padrao*`. |
-| `ArquiteturaTest` | Sem ciclos entre os pacotes de segundo nível. |
 
 O HQL dos repositórios Jakarta Data também é validado na compilação, pelo Hibernate Processor.
 
