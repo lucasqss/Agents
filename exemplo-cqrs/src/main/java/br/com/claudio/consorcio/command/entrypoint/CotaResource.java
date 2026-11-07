@@ -1,7 +1,8 @@
 package br.com.claudio.consorcio.command.entrypoint;
 
-import br.com.claudio.consorcio.command.application.DadosCota;
 import br.com.claudio.consorcio.command.application.GerenciarCotaUseCase;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
@@ -19,15 +20,15 @@ public class CotaResource {
     }
 
     @POST
-    public Response criar(DadosCota dados) {
-        Long id = useCase.criar(dados);
+    public Response criar(@Valid @NotNull CotaRequest dados) {
+        Long id = useCase.criar(dados.paraDados());
         return Response.created(URI.create("/cotas/" + id)).entity(new IdCriado(id)).build();
     }
 
     @PUT
     @Path("/{id}")
-    public void atualizar(Long id, DadosCota dados) {
-        useCase.atualizar(id, dados);
+    public void atualizar(Long id, @Valid @NotNull CotaRequest dados) {
+        useCase.atualizar(id, dados.paraDados());
     }
 
     @DELETE

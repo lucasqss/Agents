@@ -21,6 +21,7 @@ final class RegrasDominio {
                     "jakarta.inject..",
                     "jakarta.transaction..",
                     "jakarta.ws.rs..",
+                    "jakarta.validation..",
                     "io.quarkus..",
                     "org.hibernate..",
                     "org.eclipse.microprofile..",

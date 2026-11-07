@@ -1,7 +1,8 @@
 package br.com.claudio.consorcio.command.entrypoint;
 
-import br.com.claudio.consorcio.command.application.DadosCliente;
 import br.com.claudio.consorcio.command.application.GerenciarClienteUseCase;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
@@ -19,15 +20,15 @@ public class ClienteResource {
     }
 
     @POST
-    public Response criar(DadosCliente dados) {
-        Long id = useCase.criar(dados);
+    public Response criar(@Valid @NotNull ClienteRequest dados) {
+        Long id = useCase.criar(dados.paraDados());
         return Response.created(URI.create("/clientes/" + id)).entity(new IdCriado(id)).build();
     }
 
     @PUT
     @Path("/{id}")
-    public void atualizar(Long id, DadosCliente dados) {
-        useCase.atualizar(id, dados);
+    public void atualizar(Long id, @Valid @NotNull ClienteRequest dados) {
+        useCase.atualizar(id, dados.paraDados());
     }
 
     @DELETE

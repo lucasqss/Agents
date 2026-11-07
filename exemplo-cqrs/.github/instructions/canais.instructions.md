@@ -5,7 +5,9 @@ applyTo: "**/entrypoint/**,**/shared/apresentacao/**"
 
 Os fronts são gerados por low-code e não formatam nada: o backend entrega pronto para exibir.
 
-Entrypoint de escrita (`command/entrypoint`) e de leitura neutro (`query/entrypoint`): recebem HTTP, chamam o use case, devolvem o resultado. Exceção vira HTTP em `ExceptionMappers`. Sem regra de negócio, sem acesso a repositório.
+Entrypoint de escrita (`command/entrypoint`) e de leitura neutro (`query/entrypoint`): recebem HTTP, chamam o use case, devolvem o resultado.
+
+Entrada: um `XRequest` (record) por operação, com Bean Validation para o **formato** (`@NotBlank`, `@NotNull`, `@Size(max = <tamanho da coluna>)`, `@Positive`), recebido como `@Valid @NotNull XRequest` e convertido para o comando do use case (`paraDados()`). Não anote os records do `application` nem o domínio: a regra de negócio continua no domínio. O erro sai como `ErroResponse` com a lista `campos`. Exceção vira HTTP em `ExceptionMappers`. Sem regra de negócio, sem acesso a repositório.
 
 Canais (`query/entrypoint/<canal>/`, ex.: `web`, `mobile`, `taa`):
 - Um `XCanalResource` (`@Path("/<canal>/v1/...")`, `@Tag(name = "Canal <canal>")`), um `XCanalResponse` (record: **o contrato do front**) e um `XCanalAssembler` (classe final, métodos estáticos, sem CDI).

@@ -45,6 +45,11 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-openapi</artifactId>
         </dependency>
+        <!-- Bean Validation: formato da entrada no entrypoint (400 com os campos); publicado também no OpenAPI -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-hibernate-validator</artifactId>
+        </dependency>
 
         <!-- Integrações com sistemas externos: REST client + timeout, retry e circuit breaker -->
         <dependency>

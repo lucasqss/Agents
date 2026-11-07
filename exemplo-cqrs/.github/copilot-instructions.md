@@ -31,6 +31,7 @@ shared/
 |---|---|
 | Uma regra de negócio, validação ou transição de estado | `command/domain`, na entidade de domínio. Nunca no use case, no resource nem na entidade JPA. |
 | Consultar algo para validar ou decidir uma escrita (existe? está ativo?) | método novo na interface de repositório do domínio (`command/domain`), implementado em `command/persistence`. Nunca um repositório do query. |
+| Validar o formato da entrada (obrigatório, tamanho, faixa) | `XRequest` (record) no entrypoint com Bean Validation (`@NotBlank`, `@Size` igual à coluna, `@Positive`) e `@Valid @NotNull` no parâmetro do resource; converte para o comando do use case. A **regra de negócio** fica no domínio. |
 | Gravar algo | um use case em `command/application` que carrega o objeto de domínio pelo repositório, chama o método de negócio e salva |
 | Uma tela/listagem nova | um record + um método `@Query` HQL em `query/persistence`, um use case em `query/application` e um resource |
 | Chamar um sistema de outra área | um `*Gateway` em `shared/gateway/<sistema>/`. Só **use cases** chamam gateways. |
@@ -39,7 +40,8 @@ shared/
 | Mudar o banco | nova migration Flyway + campo na `*Entity` + mapper (escrita) e/ou HQL (leitura) |
 
 ## Proibido
-- `command.domain` importar JPA, Jakarta Data, CDI (`@Inject`, `@ApplicationScoped`), JAX-RS, Quarkus, Hibernate, MicroProfile ou `shared`.
+- `jakarta.validation` (Bean Validation) fora do entrypoint.
+- `command.domain` importar JPA, Jakarta Data, CDI (`@Inject`, `@ApplicationScoped`), JAX-RS, Bean Validation, Quarkus, Hibernate, MicroProfile ou `shared`.
 - `query` importar qualquer coisa de `command`, e `command` importar qualquer coisa de `query` (CQRS nos dois sentidos).
 - Use case importar Panache, JPA, `*Entity` ou `command/persistence`.
 - Entidade JPA (`*Entity`) com qualquer método além de getter/setter.

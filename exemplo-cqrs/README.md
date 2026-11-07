@@ -56,12 +56,12 @@ Os combinados acima são verificados a cada build, em `src/test/java/.../arquite
 
 | Grupo | O que garante |
 |---|---|
-| `RegrasDominio` | Domínio puro: sem JPA, Jakarta Data, CDI, transação, JAX-RS, Quarkus, Hibernate, MicroProfile, `shared` nem as outras camadas do command. |
+| `RegrasDominio` | Domínio puro: sem JPA, Jakarta Data, CDI, transação, JAX-RS, Bean Validation, Quarkus, Hibernate, MicroProfile, `shared` nem as outras camadas do command. |
 | `RegrasCommand` | `command` nunca importa `query` (CQRS nos dois sentidos); use cases e entrypoint sem banco; `command.persistence` só é alcançado pela interface do domínio. **`command.gateway`** (futuro): toda implementação de interface do domínio que chama sistema externo mora lá, só traduz e ninguém a referencia diretamente. |
 | `RegrasQuery` | `query` nunca importa `command`; direção `entrypoint → application → persistence`; o entrypoint não usa repositório Jakarta Data, só os records. |
 | `RegrasShared` | `shared` não conhece os lados (por isso um gateway nunca importa o domínio); entidades só com getters/setters; client e DTOs externos não saem de `shared.gateway`; gateways só em use cases, no entrypoint (exceção → HTTP) e em `command.gateway`; um sistema externo não depende de outro. |
 | `RegrasCanais` | Sem lista de canais: o subpacote é o canal, e um canal novo herda tudo. Canais e padrões não se conhecem; o padrão do canal X só é usado por `entrypoint.X`; formatação só no entrypoint; base comum neutra; use case sem canal; resource de canal nunca devolve tipo de `persistence`; Assembler e padrões são funções puras. |
-| `RegrasTecnologia` | Onde cada tecnologia mora: `@Entity` em `shared.persistence`; Panache em `command.persistence`; Jakarta Data em `query.persistence`; REST client e Fault Tolerance em `shared.gateway`; `@Path` e exception mappers no entrypoint; `@Transactional` só em use case. |
+| `RegrasTecnologia` | Onde cada tecnologia mora: `@Entity` em `shared.persistence`; Panache em `command.persistence`; Jakarta Data em `query.persistence`; REST client e Fault Tolerance em `shared.gateway`; `@Path`, exception mappers e Bean Validation (`jakarta.validation`) só no entrypoint; `@Transactional` só em use case. |
 | `RegrasNomes` | O nome diz onde a classe mora: `*UseCase`, `*Resource`, `*Assembler`, `*Gateway`, `*Entity`, `*Mapper`/`*RepositoryAdapter`, `Padrao*`. |
 | `ArquiteturaTest` | Sem ciclos entre os pacotes de segundo nível. |
 
@@ -133,7 +133,13 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e o CI **bloqueiem** o 
 | Canal TAA | `GET /taa/v1/cotas/{id}` | Cota no padrão do terminal |
 | Consulta | `GET /processos?tipo=&estado=&pagina=1&tamanho=20` | Processos filtrados e paginados, com o protocolo de pagamento |
 
-Erros: 400 para validação de domínio, 404 para recurso inexistente, 409 para conflito ou transição inválida, 503 para sistema externo indisponível. Excluir cliente com cotas, ou cota com processos, retorna 409.
+Validação em duas camadas: o **formato** da entrada (obrigatório, tamanho, faixa) é checado com Bean Validation nos requests do entrypoint (`ClienteRequest`, `CotaRequest`), antes do use case, e as restrições aparecem no OpenAPI; a **regra de negócio** continua no domínio, que vale para qualquer chamador. Todo erro sai no mesmo formato, e `campos` só vem preenchido em erro de formato:
+
+```json
+{ "mensagem": "Dados inválidos", "campos": [ { "campo": "cpf", "erro": "não deve estar em branco" } ] }
+```
+
+Erros: 400 para entrada fora do formato ou violação de regra de domínio, 404 para recurso inexistente, 409 para conflito ou transição inválida, 503 para sistema externo indisponível. Excluir cliente com cotas, ou cota com processos, retorna 409.
 
 ## Como rodar
 

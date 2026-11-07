@@ -3,6 +3,8 @@ package br.com.claudio.consorcio.command.entrypoint;
 import br.com.claudio.consorcio.command.application.AvancarProcessoUseCase;
 import br.com.claudio.consorcio.command.application.CriarProcessoUseCase;
 import br.com.claudio.consorcio.command.domain.TipoProcesso;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Response;
@@ -12,7 +14,7 @@ import java.net.URI;
 @Path("/processos")
 public class ProcessoResource {
 
-    public record NovoProcesso(Long cotaId, TipoProcesso tipo) {
+    public record NovoProcesso(@NotNull Long cotaId, @NotNull TipoProcesso tipo) {
     }
 
     public record EstadoAtual(String estado) {
@@ -27,7 +29,7 @@ public class ProcessoResource {
     }
 
     @POST
-    public Response criar(NovoProcesso dados) {
+    public Response criar(@Valid @NotNull NovoProcesso dados) {
         Long id = criar.criar(dados.cotaId(), dados.tipo());
         return Response.created(URI.create("/processos/" + id)).entity(new IdCriado(id)).build();
     }

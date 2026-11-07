@@ -56,6 +56,12 @@ final class RegrasTecnologia {
             .because("só o entrypoint expõe HTTP");
 
     @ArchTest
+    static final ArchRule validacaoSoNoEntrypoint = noClasses()
+            .that().resideOutsideOfPackage("..entrypoint..")
+            .should().dependOnClassesThat().resideInAPackage("jakarta.validation..")
+            .because("Bean Validation é o porteiro do formato da entrada; regra de negócio fica no domínio");
+
+    @ArchTest
     static final ArchRule exceptionMappersSoNoEntrypoint = methods()
             .that().areAnnotatedWith(ServerExceptionMapper.class)
             .should().beDeclaredInClassesThat().resideInAPackage("..entrypoint..")
