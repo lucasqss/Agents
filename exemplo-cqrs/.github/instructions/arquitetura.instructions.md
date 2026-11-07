@@ -15,5 +15,6 @@ Esta pasta é a fitness function da arquitetura e tem dono no CODEOWNERS.
 - **Uma regra, um motivo.** Se a frase tem "nem", "ou" ou uma lista de assuntos diferentes, quebre em várias regras.
 - **ID estável:** prefixo do grupo (GER, DOM, CMD, QRY, SHR, CAN, TEC, NOM) + o próximo número livre do arquivo. Um ID nunca é reaproveitado.
 - **Formato:** `.as("DOM-008: TÍTULO EM CAIXA ALTA").because("por quê. Corrija: o que fazer")`. O `.as` vem antes do `.because`, e o `allowEmptyShould`, se houver, vem antes do `.as`.
+- **Sem `import static`:** chame `Raiz.pacote(...)`, `Condicoes.usamGateway()`, `ArchRuleDefinition.noClasses()`, `SlicesRuleDefinition.slices()`. As classes desta pasta estão no mesmo pacote e não precisam de import.
 - **Nome do campo** começa pelo ID: `dom008Assunto`.
 - Atualize a tabela de regras do README. `CatalogoDeRegrasTest` falha se o formato, o ID ou o prefixo estiverem errados.

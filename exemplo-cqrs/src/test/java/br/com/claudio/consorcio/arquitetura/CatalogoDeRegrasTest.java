@@ -1,7 +1,5 @@
 package br.com.claudio.consorcio.arquitetura;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.tngtech.archunit.junit.ArchTests;
 import com.tngtech.archunit.lang.ArchRule;
 import java.lang.reflect.Field;
@@ -12,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -68,7 +67,7 @@ class CatalogoDeRegrasTest {
             }
         }
 
-        assertTrue(total > 0, "nenhuma regra encontrada em ArquiteturaTest");
-        assertTrue(erros.isEmpty(), "Catálogo de regras inválido:\n  " + String.join("\n  ", erros));
+        Assertions.assertTrue(total > 0, "nenhuma regra encontrada em ArquiteturaTest");
+        Assertions.assertTrue(erros.isEmpty(), "Catálogo de regras inválido:\n  " + String.join("\n  ", erros));
     }
 }

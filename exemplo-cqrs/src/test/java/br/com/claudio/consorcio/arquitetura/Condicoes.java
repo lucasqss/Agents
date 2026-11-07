@@ -1,7 +1,5 @@
 package br.com.claudio.consorcio.arquitetura;
 
-import static br.com.claudio.consorcio.arquitetura.Raiz.emQualquer;
-import static br.com.claudio.consorcio.arquitetura.Raiz.pacote;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -39,7 +37,7 @@ final class Condicoes {
     /** Client e DTOs externos: tudo em shared.gateway que não seja *Gateway nem *Exception. */
     static DescribedPredicate<JavaClass> internoDoGateway() {
         return DescribedPredicate.describe("são client ou DTO de sistema externo",
-                c -> PackageMatcher.of(pacote("shared.gateway")).matches(c.getPackageName())
+                c -> PackageMatcher.of(Raiz.pacote("shared.gateway")).matches(c.getPackageName())
                         && !c.getSimpleName().endsWith("Gateway")
                         && !c.getSimpleName().endsWith("Exception"));
     }
@@ -48,14 +46,14 @@ final class Condicoes {
     static DescribedPredicate<JavaClass> implementaInterfaceDoDominio() {
         return DescribedPredicate.describe("implementam uma interface do domínio",
                 c -> c.getAllRawInterfaces().stream()
-                        .anyMatch(i -> PackageMatcher.of(pacote("command.domain")).matches(i.getPackageName())));
+                        .anyMatch(i -> PackageMatcher.of(Raiz.pacote("command.domain")).matches(i.getPackageName())));
     }
 
     /** Classe que depende de algo em shared.gateway. */
     static DescribedPredicate<JavaClass> usamGateway() {
         return DescribedPredicate.describe("usam shared.gateway",
                 c -> c.getDirectDependenciesFromSelf().stream()
-                        .anyMatch(d -> PackageMatcher.of(pacote("shared.gateway"))
+                        .anyMatch(d -> PackageMatcher.of(Raiz.pacote("shared.gateway"))
                                 .matches(d.getTargetClass().getPackageName())));
     }
 
@@ -87,7 +85,7 @@ final class Condicoes {
             @Override
             public void check(JavaMethod metodo, ConditionEvents eventos) {
                 String pacote = metodo.getRawReturnType().getPackageName();
-                if (PackageMatcher.of(emQualquer("persistence")).matches(pacote)) {
+                if (PackageMatcher.of(Raiz.emQualquer("persistence")).matches(pacote)) {
                     eventos.add(SimpleConditionEvent.violated(metodo,
                             metodo.getFullName() + " retorna " + metodo.getRawReturnType().getName()));
                 }
