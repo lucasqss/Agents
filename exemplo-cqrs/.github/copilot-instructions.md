@@ -30,6 +30,7 @@ shared/
 | Preciso de... | Coloque em |
 |---|---|
 | Uma regra de negócio, validação ou transição de estado | `command/domain`, na entidade de domínio. Nunca no use case, no resource nem na entidade JPA. |
+| Consultar algo para validar ou decidir uma escrita (existe? está ativo?) | método novo na interface de repositório do domínio (`command/domain`), implementado em `command/persistence`. Nunca um repositório do query. |
 | Gravar algo | um use case em `command/application` que carrega o objeto de domínio pelo repositório, chama o método de negócio e salva |
 | Uma tela/listagem nova | um record + um método `@Query` HQL em `query/persistence`, um use case em `query/application` e um resource |
 | Chamar um sistema de outra área | um `*Gateway` em `shared/gateway/<sistema>/`. Só **use cases** chamam gateways. |
@@ -39,7 +40,7 @@ shared/
 
 ## Proibido
 - `command.domain` importar JPA, Jakarta Data, CDI (`@Inject`, `@ApplicationScoped`), JAX-RS, Quarkus, Hibernate, MicroProfile ou `shared`.
-- `query` importar qualquer coisa de `command`.
+- `query` importar qualquer coisa de `command`, e `command` importar qualquer coisa de `query` (CQRS nos dois sentidos).
 - Use case importar Panache, JPA, `*Entity` ou `command/persistence`.
 - Entidade JPA (`*Entity`) com qualquer método além de getter/setter.
 - Lombok, MapStruct, `@Query(nativeQuery)` ou SQL nativo. Mappers são escritos à mão; consultas são HQL validado na compilação.

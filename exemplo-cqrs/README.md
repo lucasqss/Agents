@@ -27,7 +27,7 @@ query/
   persistence/          repositórios Jakarta Data com @Query HQL + records projetados (read models)
 ```
 
-- **Escrita:** `entrypoint → application → domain ← persistence`. A persistência implementa as interfaces que o domínio declara (Separated Interface), então o use case não vê JPA.
+- **Escrita:** `entrypoint → application → domain ← persistence`. A persistência implementa as interfaces que o domínio declara (Separated Interface), então o use case não vê JPA. Quando a escrita precisa consultar algo (existe? está ativo?), o método entra nessa interface do domínio; nunca num repositório do query.
 - **Leitura:** `entrypoint → application → persistence`. Não há domínio para proteger, então também não há porta. O repositório Jakarta Data já é uma interface, com a implementação gerada, e projeta direto no record.
 
 ### Dois tipos de infraestrutura
@@ -57,7 +57,7 @@ Os combinados acima são verificados a cada build, em `src/test/java/.../arquite
 | Grupo | O que garante |
 |---|---|
 | `RegrasDominio` | Domínio puro: sem JPA, Jakarta Data, CDI, transação, JAX-RS, Quarkus, Hibernate, MicroProfile, `shared` nem as outras camadas do command. |
-| `RegrasCommand` | Use cases e entrypoint sem banco; `command.persistence` só é alcançado pela interface do domínio. **`command.gateway`** (futuro): toda implementação de interface do domínio que chama sistema externo mora lá, só traduz e ninguém a referencia diretamente. |
+| `RegrasCommand` | `command` nunca importa `query` (CQRS nos dois sentidos); use cases e entrypoint sem banco; `command.persistence` só é alcançado pela interface do domínio. **`command.gateway`** (futuro): toda implementação de interface do domínio que chama sistema externo mora lá, só traduz e ninguém a referencia diretamente. |
 | `RegrasQuery` | `query` nunca importa `command`; direção `entrypoint → application → persistence`; o entrypoint não usa repositório Jakarta Data, só os records. |
 | `RegrasShared` | `shared` não conhece os lados (por isso um gateway nunca importa o domínio); entidades só com getters/setters; client e DTOs externos não saem de `shared.gateway`; gateways só em use cases, no entrypoint (exceção → HTTP) e em `command.gateway`; um sistema externo não depende de outro. |
 | `RegrasCanais` | Sem lista de canais: o subpacote é o canal, e um canal novo herda tudo. Canais e padrões não se conhecem; o padrão do canal X só é usado por `entrypoint.X`; formatação só no entrypoint; base comum neutra; use case sem canal; resource de canal nunca devolve tipo de `persistence`; Assembler e padrões são funções puras. |

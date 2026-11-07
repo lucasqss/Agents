@@ -15,6 +15,12 @@ final class RegrasCommand {
     }
 
     @ArchTest
+    static final ArchRule escritaIndependenteDaLeitura = noClasses()
+            .that().resideInAPackage("..command..")
+            .should().dependOnClassesThat().resideInAPackage("..query..")
+            .because("a escrita decide com o domínio; projeções do query mudam conforme as telas e podem estar numa réplica");
+
+    @ArchTest
     static final ArchRule useCasesSemBanco = noClasses()
             .that().resideInAPackage("..command.application..")
             .should().dependOnClassesThat().resideInAnyPackage(
