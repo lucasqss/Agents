@@ -1,13 +1,13 @@
-package br.com.claudio.consorcio.shared.integracao.tesouraria;
+package br.com.claudio.consorcio.shared.gateway.tesouraria;
 
-import br.com.claudio.consorcio.shared.integracao.IntegracaoIndisponivelException;
+import br.com.claudio.consorcio.shared.gateway.SistemaExternoIndisponivelException;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 /**
  * Gateway (PoEAA) da tesouraria: a única porta de entrada para esse sistema. Expõe uma API simples,
  * no nosso vocabulário, traduz o modelo externo e converte qualquer falha em
- * {@link IntegracaoIndisponivelException}.
+ * {@link SistemaExternoIndisponivelException}.
  */
 @ApplicationScoped
 public class TesourariaGateway {
@@ -26,10 +26,10 @@ public class TesourariaGateway {
         try {
             resposta = client.criarOrdem(new OrdemPagamentoRequest("CONSORCIO-PROCESSO-" + processoId, cotaId));
         } catch (RuntimeException e) {
-            throw new IntegracaoIndisponivelException(SISTEMA, e);
+            throw new SistemaExternoIndisponivelException(SISTEMA, e);
         }
         if (resposta == null || resposta.protocolNumber() == null || resposta.protocolNumber().isBlank()) {
-            throw new IntegracaoIndisponivelException(SISTEMA,
+            throw new SistemaExternoIndisponivelException(SISTEMA,
                     new IllegalStateException("Resposta sem protocolo: " + resposta));
         }
         return resposta.protocolNumber();

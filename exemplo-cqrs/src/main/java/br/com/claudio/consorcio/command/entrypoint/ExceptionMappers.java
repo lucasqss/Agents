@@ -4,7 +4,7 @@ import br.com.claudio.consorcio.command.application.ConflitoException;
 import br.com.claudio.consorcio.command.application.NaoEncontradoException;
 import br.com.claudio.consorcio.command.domain.DominioException;
 import br.com.claudio.consorcio.command.domain.TransicaoInvalidaException;
-import br.com.claudio.consorcio.shared.integracao.IntegracaoIndisponivelException;
+import br.com.claudio.consorcio.shared.gateway.SistemaExternoIndisponivelException;
 import jakarta.ws.rs.core.Response;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
@@ -32,7 +32,7 @@ public class ExceptionMappers {
     }
 
     @ServerExceptionMapper
-    public Response integracaoIndisponivel(IntegracaoIndisponivelException e) {
+    public Response sistemaExternoIndisponivel(SistemaExternoIndisponivelException e) {
         return erro(Response.Status.SERVICE_UNAVAILABLE, e);
     }
 

@@ -2,7 +2,7 @@ package br.com.claudio.consorcio.command.application;
 
 import br.com.claudio.consorcio.command.domain.ProcessoPagamento;
 import br.com.claudio.consorcio.command.domain.ProcessoPagamentoRepository;
-import br.com.claudio.consorcio.shared.integracao.tesouraria.TesourariaGateway;
+import br.com.claudio.consorcio.shared.gateway.tesouraria.TesourariaGateway;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import java.util.function.Consumer;

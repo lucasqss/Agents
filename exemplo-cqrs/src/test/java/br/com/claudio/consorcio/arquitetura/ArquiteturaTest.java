@@ -65,15 +65,15 @@ class ArquiteturaTest {
 
     /** Regra 6: sistemas externos só via Gateway, e só a partir de use cases (ou do mapeamento de erros). */
     @ArchTest
-    static final ArchRule integracoesSoViaGateway = noClasses()
-            .that().resideOutsideOfPackage("..shared.integracao..")
-            .should().dependOnClassesThat(internoDeIntegracao())
-            .because("client e DTOs externos não vazam do pacote da integração");
+    static final ArchRule sistemasExternosSoViaGateway = noClasses()
+            .that().resideOutsideOfPackage("..shared.gateway..")
+            .should().dependOnClassesThat(internoDoGateway())
+            .because("client e DTOs externos não vazam do pacote do gateway");
 
     @ArchTest
     static final ArchRule gatewaysSoNosUseCases = noClasses()
-            .that().resideOutsideOfPackages("..shared.integracao..", "..application..", "..entrypoint..")
-            .should().dependOnClassesThat().resideInAPackage("..shared.integracao..")
+            .that().resideOutsideOfPackages("..shared.gateway..", "..application..", "..entrypoint..")
+            .should().dependOnClassesThat().resideInAPackage("..shared.gateway..")
             .because("só use cases chamam sistemas externos; o entrypoint só traduz as exceções");
 
     /** Regra 7: sem ciclos entre os pacotes. */
@@ -119,9 +119,9 @@ class ArquiteturaTest {
             .should().dependOnClassesThat().resideInAPackage("..shared.apresentacao.*..")
             .because("Formatador e Rotulos são a base que todos os canais usam");
 
-    private static DescribedPredicate<JavaClass> internoDeIntegracao() {
-        return DescribedPredicate.describe("são client ou DTO de integração",
-                c -> c.getPackageName().contains(".shared.integracao")
+    private static DescribedPredicate<JavaClass> internoDoGateway() {
+        return DescribedPredicate.describe("são client ou DTO de sistema externo",
+                c -> c.getPackageName().contains(".shared.gateway")
                         && !c.getSimpleName().endsWith("Gateway")
                         && !c.getSimpleName().endsWith("Exception"));
     }

@@ -13,7 +13,7 @@ Pacote raiz `br.com.claudio.consorcio`:
 ```
 shared/
   persistence/          entidades JPA: modelo do NOSSO banco, só mapeamento, getters e setters
-  integracao/<sistema>/ Gateway de cada sistema externo + client REST, DTOs externos e resiliência
+  gateway/<sistema>/    Gateway de cada sistema externo + client REST, DTOs externos e resiliência
   apresentacao/         Formatador e Rotulos (base comum) + um padrão por canal: web/, mobile/, taa/
 command/
   entrypoint/           REST de escrita + tradução de exceções para HTTP
@@ -35,10 +35,10 @@ query/
 | | Nosso banco | Sistemas externos (corporativos) |
 |---|---|---|
 | Modelo | nosso, versionado por migrations do Flyway | deles; muda sem aviso |
-| Onde fica | `command.persistence` / `query.persistence` + entidades em `shared.persistence` | `shared.integracao.<sistema>`, atrás de um **Gateway** |
+| Onde fica | `command.persistence` / `query.persistence` + entidades em `shared.persistence` | `shared.gateway.<sistema>`, atrás de um **Gateway** |
 | Acoplamento | a escrita mapeia para o domínio; a leitura projeta direto do banco | o Gateway traduz; client e DTOs externos não saem do pacote |
 | Transação | a mesma do use case | fora do nosso controle (veja o trade-off abaixo) |
-| Falha | rara, vira 500 | esperada: timeout, retry e circuit breaker no client; vira `IntegracaoIndisponivelException` (503) |
+| Falha | rara, vira 500 | esperada: timeout, retry e circuit breaker no client; vira `SistemaExternoIndisponivelException` (503) |
 | Teste | PostgreSQL real (Dev Services) | **Service Stub** (`TesourariaFake`), nunca o sistema real |
 | Config | datasource (`DB_*`); permite réplica de leitura no futuro | `quarkus.rest-client.<sistema>.*` (`TESOURARIA_URL`) |
 
@@ -57,7 +57,7 @@ Service Layer (use cases), Domain Model (`command.domain`), Repository + Data Ma
 3. **Use cases sem banco:** `command.application` não depende de `command.persistence`, `shared.persistence`, JPA nem Panache.
 4. **Consulta independente:** `query` nunca importa `command`. O HQL dos repositórios Jakarta Data é validado na compilação pelo Hibernate Processor.
 5. **Shared neutro:** `shared` não depende de `command` nem de `query`.
-6. **Integrações só via Gateway:** fora de `shared.integracao`, só `*Gateway` e `*Exception` são visíveis, e apenas para `application` e `entrypoint`.
+6. **Sistemas externos só via Gateway:** fora de `shared.gateway`, só `*Gateway` e `*Exception` são visíveis, e apenas para `application` e `entrypoint`.
 7. **Sem ciclos** entre os pacotes.
 8. **Canais isolados:** `entrypoint.<canal>` e `shared.apresentacao.<canal>` só são usados pelo próprio canal.
 9. **Apresentação só no entrypoint:** nenhum use case nem consulta usa `shared.apresentacao`.

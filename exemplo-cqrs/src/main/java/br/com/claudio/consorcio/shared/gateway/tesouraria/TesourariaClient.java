@@ -1,4 +1,4 @@
-package br.com.claudio.consorcio.shared.integracao.tesouraria;
+package br.com.claudio.consorcio.shared.gateway.tesouraria;
 
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
