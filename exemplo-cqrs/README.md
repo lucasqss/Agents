@@ -178,7 +178,7 @@ O ArchUnit detecta o erro no build. Estas peças evitam que ele aconteça e impe
 |---|---|---|
 | Orientar | Instruções gerais do Copilot | `.github/copilot-instructions.md` |
 | Orientar | Instruções por pasta (carregadas só quando o Copilot mexe ali) | `.github/instructions/*.instructions.md` |
-| Orientar | Receitas prontas: `/novo-caso-de-uso-escrita`, `/nova-consulta`, `/nova-integracao-externa`, `/novo-endpoint-de-canal` | `.github/prompts/*.prompt.md` |
+| Orientar | Receitas prontas: `/novo-caso-de-uso-escrita`, `/nova-consulta`, `/nova-integracao-externa`, `/novo-endpoint-de-canal`, `/separar-entidade-jpa` (legado: entidade JPA que também é domínio) | `.github/prompts/*.prompt.md` |
 | Orientar | O papel e as proibições de cada pacote, lidos pela IA ao abrir a pasta | `package-info.java` |
 | Detectar | Regras ArchUnit, testes de contrato, HQL validado na compilação | `src/test/...` |
 | Bloquear | CI (`./mvnw verify`), donos das partes sensíveis e checklist de PR | `.github/workflows/ci.yml`, `.github/CODEOWNERS`, `.github/pull_request_template.md` |
