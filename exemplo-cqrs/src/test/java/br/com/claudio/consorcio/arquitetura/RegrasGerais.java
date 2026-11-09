@@ -1,6 +1,5 @@
 package br.com.claudio.consorcio.arquitetura;
 
-import com.tngtech.archunit.junit.ArchIgnore;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
@@ -35,7 +34,6 @@ final class RegrasGerais {
                     + " Corrija: mova a classe para a camada e o agregado certos; se nenhuma classe foi analisada,"
                     + " a pasta arquitetura está no pacote errado (deve ser <raiz>.arquitetura)");
 
-    @ArchIgnore(reason = "adequacao:ciclos")
     @ArchTest
     static final ArchRule ger002SemCiclos = SlicesRuleDefinition.slices()
             .matching(Raiz.PACOTE + ".(*).(*)..")
