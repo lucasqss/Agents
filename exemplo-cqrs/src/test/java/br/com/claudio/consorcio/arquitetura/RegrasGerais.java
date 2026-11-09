@@ -21,7 +21,6 @@ final class RegrasGerais {
      * Esta regra NUNCA passa vazia: se a pasta foi copiada para o pacote errado (e nenhuma classe foi
      * encontrada), ela falha em vez de deixar tudo passar.
      */
-    @ArchIgnore(reason = "adequacao:estrutura")
     @ArchTest
     static final ArchRule ger001Estrutura = ArchRuleDefinition.classes()
             .should().resideInAnyPackage(
@@ -45,7 +44,6 @@ final class RegrasGerais {
             .because("ciclo (A usa B e B usa A) impede mudar uma parte sem mexer na outra."
                     + " Corrija: inverta a dependência com uma interface ou mova a classe compartilhada");
 
-    @ArchIgnore(reason = "adequacao:estrutura")
     @ArchTest
     static final ArchRule ger003RaizDaCamada = ArchRuleDefinition.classes()
             .that().resideInAnyPackage(
@@ -60,7 +58,6 @@ final class RegrasGerais {
                     + " Corrija: mova a classe para <camada>/<agregado>; a raiz só aceita exceções comuns,"
                     + " ExceptionMappers, ErroResponse, IdCriado e Pagina");
 
-    @ArchIgnore(reason = "adequacao:estrutura")
     @ArchTest
     static final ArchRule ger004SemPastasProibidas = ArchRuleDefinition.noClasses()
             .should().resideInAnyPackage(
@@ -73,7 +70,6 @@ final class RegrasGerais {
             .because("essas pastas viram depósito ou separam por técnica o que é do mesmo agregado."
                     + " Corrija: mova a classe para <camada>/<agregado>");
 
-    @ArchIgnore(reason = "adequacao:estrutura")
     @ArchTest
     static final ArchRule ger005EndpointNaViaEAgregado = ArchRuleDefinition.classes()
             .that().areAnnotatedWith(Path.class).and().areNotAnnotatedWith(RegisterRestClient.class)
