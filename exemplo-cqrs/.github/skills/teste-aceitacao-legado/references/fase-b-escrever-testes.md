@@ -124,7 +124,29 @@ public final class ApiAceitacao {
 }
 ```
 
-Se a listagem for paginada, a resposta for um objeto (`itens`) ou o id for texto, ajuste o caminho do JSON (`getList("itens")`). Confira o formato no resource, e não em outro teste.
+Se a resposta for um objeto (`itens`) ou o id for texto, ajuste o caminho do JSON (`getList("itens")`). Confira o formato no resource, e não em outro teste.
+
+**Listagem paginada:** sem percorrer as páginas, o item pode não aparecer. Use esta versão, com os nomes dos parâmetros do resource:
+
+```java
+public static Map<String, Object> buscarNaListagemPaginada(String caminho, long id) {
+    for (int pagina = 1; pagina < 1000; pagina++) {
+        List<Map<String, Object>> itens = given().queryParam("pagina", pagina).queryParam("tamanho", 100)
+                .when().get(caminho).then().statusCode(200).extract().jsonPath().getList("itens");
+        if (itens.isEmpty()) {
+            break;
+        }
+        for (Map<String, Object> item : itens) {
+            if (((Number) item.get("id")).longValue() == id) {
+                return item;
+            }
+        }
+    }
+    throw new AssertionError("Item %d não aparece em %s".formatted(id, caminho));
+}
+```
+
+Se a primeira página começar em 0, comece o laço em 0.
 
 ### Sistema externo (só se a capacidade chama um)
 
@@ -154,6 +176,8 @@ public class SistemaStubResource implements QuarkusTestResourceLifecycleManager 
 - O teste usa `@WithTestResource(SistemaStubResource.class)`, que o `*IT` herda.
 - No `<Sistema>Stub`, métodos com nome de negócio (`ficarDisponivel()`, `ficarIndisponivel()`) chamam `new WireMock("localhost", Integer.getInteger("aceitacao.sistema.porta"))`.
 - Chame `ficarDisponivel()` num `@BeforeEach`.
+- **Client com `@CircuitBreaker`:** o circuito é compartilhado por todos os casos da mesma execução. Falhas demais abrem o circuito, e os casos seguintes recebem 503 sem motivo. Mantenha os casos de falha abaixo do `requestVolumeThreshold` da anotação. Se o plano precisar de mais casos que isso, pergunte ao usuário antes de escrever.
+- **Client com `@Retry` e `@Timeout`:** um caso de timeout espera timeout × (retries + 1). Prefira simular falha com status 503 do stub, que responde na hora.
 
 ## Regras da fase B
 

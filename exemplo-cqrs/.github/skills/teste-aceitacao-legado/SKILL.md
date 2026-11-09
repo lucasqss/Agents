@@ -21,7 +21,7 @@ Siga os passos na ordem. Em cada passo com "Leia agora", leia o arquivo antes de
 
 **A1.** Entre em modo plan (`EnterPlanMode`). Na fase A você não cria nem altera arquivos do projeto.
 
-**A2.** Leia agora: [references/fase-a-ler-codigo.md](references/fase-a-ler-codigo.md). Rode o comando que lista os endpoints e escolha os da capacidade pedida.
+**A2.** Leia agora: [references/fase-a-ler-codigo.md](references/fase-a-ler-codigo.md). Rode o comando que lista os endpoints e escolha os da capacidade pedida. Se já existirem testes de aceitação dessa capacidade (`find src/test -path "*aceitacao*"`), não os leia como fonte: registre a dúvida "ampliar os existentes, substituir ou criar à parte?" e use um nome de pasta que não sobrescreva nada.
 
 **A3.** Para **cada endpoint, um por vez**, siga o código até as regras e os suspeitos, como manda o `fase-a-ler-codigo.md`. Cada regra leva origem (`arquivo:linha`, tirada do `grep -n`) e o trecho copiado da linha.
 
@@ -79,7 +79,8 @@ Quando a resposta do usuário a um suspeito for:
 4. Usar nos testes `@Inject`, `@InjectMock`, `QuarkusMock`, acesso ao banco ou import de classe de `src/main`.
 5. Aceitar mais de um resultado num caso (`anyOf(400, 409)`, "qualquer 2xx").
 6. Conferir só o status, sem verificar o efeito em outro endpoint.
-7. Tirar regra ou resultado esperado de outros testes. Deles, só se copia a mecânica.
+7. Conferir o total, o tamanho ou a ordem da lista inteira (`listar().size()`). O banco é compartilhado: confira só os itens que o caso criou.
+8. Tirar regra ou resultado esperado de outros testes. Deles, só se copia a mecânica.
 
 ## Onde fica cada coisa
 
