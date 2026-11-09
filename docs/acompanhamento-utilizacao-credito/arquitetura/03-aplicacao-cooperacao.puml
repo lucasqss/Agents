@@ -1,0 +1,85 @@
+@startuml 03-aplicacao-cooperacao
+' ============================================================================
+' Viewpoint ArchiMate 3.x: Application Cooperation
+' Integração ServiceNow → Backend de acompanhamento → App do cliente
+' Fonte: docs/modelo-dominio.md (seções 7 e 8)
+' ============================================================================
+!pragma layout smetana
+!include <archimate/Archimate>
+
+title Cooperação de Aplicações – Acompanhamento do processo\n<size:11>Viewpoint ArchiMate: Application Cooperation</size>
+
+left to right direction
+skinparam nodesep 30
+skinparam ranksep 60
+
+Application_Component(acConsorcio, "Sistema de Consórcio\n(contemplação, cotas)")
+
+Grouping(gSnow, "ServiceNow – aplicação escopada x_<esc>") {
+  Application_Component(acSnow, "App Acompanhamento\nde Processo (ServiceNow)")
+  Application_Function(afInstanciar, "Flow 1 – Instanciar processo\n(template + aplicabilidade)")
+  Application_Function(afDesbloquear,"Flow 2 – Desbloquear sucessoras\n(dependências)")
+  Application_Function(afReavaliar,  "Flow 3 – Reavaliar aplicabilidade\n(mudança de contexto)")
+  Application_Function(afStatus,     "Flow 4 – Marcos e status\n(MapeamentoStatus + agregação)")
+  Application_Function(afPublicar,   "Flow 5 – Publicar eventos")
+  Application_Interface(aiTableApi,  "Table API\n(reconciliação)")
+  Application_Interface(aiInbound,   "API de criação\nde Processo")
+}
+
+Grouping(gBack, "Backend de acompanhamento") {
+  Application_Component(acBackend, "Backend de\nAcompanhamento")
+  Application_Function(afIngestao,   "Ingestão idempotente\n(sys_updated_on)")
+  Application_Function(afReconc,     "Reconciliação\nperiódica (15 min)")
+  Application_Function(afProjecao,   "Projeção para o cliente\n(filtra visíveis, traduz)")
+  Application_Interface(aiWebhook,   "Endpoint de eventos\n(REST inbound)")
+  Application_Interface(aiConsulta,  "GET /processos/{numero}")
+}
+
+Application_Component(acApp, "App do Cliente\n(Acompanhar processo)")
+Application_Component(acNotif, "Notificações\n(push / e-mail)")
+
+Application_Event(aeEventos, "processo.criado · tarefa.status_alterado ·\nmarco.concluido · pendencia.aberta/resolvida")
+
+' --- Composição
+Rel_Composition(acSnow, afInstanciar, "")
+Rel_Composition(acSnow, afDesbloquear, "")
+Rel_Composition(acSnow, afReavaliar, "")
+Rel_Composition(acSnow, afStatus, "")
+Rel_Composition(acSnow, afPublicar, "")
+Rel_Composition(acSnow, aiTableApi, "")
+Rel_Composition(acSnow, aiInbound, "")
+Rel_Composition(acBackend, afIngestao, "")
+Rel_Composition(acBackend, afReconc, "")
+Rel_Composition(acBackend, afProjecao, "")
+Rel_Composition(acBackend, aiWebhook, "")
+Rel_Composition(acBackend, aiConsulta, "")
+
+' --- Fluxos internos do ServiceNow
+Rel_Triggering(afInstanciar, afStatus)
+Rel_Triggering(afDesbloquear, afStatus)
+Rel_Triggering(afReavaliar, afStatus)
+Rel_Triggering(afStatus, afPublicar)
+
+' --- Origem do processo
+Rel_Serving(aiInbound, acConsorcio, "")
+Rel_Flow(acConsorcio, afInstanciar, "contemplação\nhomologada")
+
+' --- ServiceNow → Backend
+Rel_Triggering(afPublicar, aeEventos)
+Rel_Flow(aeEventos, aiWebhook, "REST outbound")
+Rel_Triggering(aiWebhook, afIngestao)
+Rel_Serving(aiTableApi, afReconc, "")
+Rel_Flow(afIngestao, afProjecao, "")
+Rel_Flow(afReconc, afProjecao, "")
+
+' --- Backend → App
+Rel_Serving(aiConsulta, acApp, "")
+Rel_Flow(afProjecao, aiConsulta, "")
+Rel_Flow(afIngestao, acNotif, "pendência aberta /\netapa concluída")
+
+legend right
+  O App consulta **somente** o Backend (nunca o ServiceNow).
+  Templates vivem no ServiceNow; o Backend espelha instâncias
+  e aplica a camada de apresentação ao cliente.
+endlegend
+@enduml

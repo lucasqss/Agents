@@ -1,0 +1,95 @@
+@startuml 02-processo-negocio
+' ============================================================================
+' Viewpoint ArchiMate 3.x: Business Process (fluxo)
+' Processo "Utilização de crédito – Imóvel" (template v1)
+' Fonte: docs/templates/utilizacao-imovel-pronto.yaml
+' Aninhamento = composição (Processo ◆ Etapa ◆ Tarefa).
+' Atribuição de papéis e objetos acessados: ver 05-responsabilidades.puml
+' ============================================================================
+!pragma layout smetana
+!include <archimate/Archimate>
+
+' Junção AND (a macro Junction_And do stdlib gera sintaxe inválida nesta versão)
+!procedure Juncao_E($alias)
+circle " " as $alias #black
+!endprocedure
+
+title Processo de Negócio – Utilização de crédito (Imóvel)\n<size:11>Viewpoint ArchiMate: Business Process</size>
+
+left to right direction
+skinparam nodesep 20
+skinparam ranksep 40
+
+Business_Event(evContemplacao, "Contemplação\nhomologada")
+Business_Event(evUtilizado, "Crédito\nutilizado")
+
+Grouping(gProc, "«business process» Utilização de crédito – Imóvel (UTILIZACAO_IMOVEL v1)") {
+
+  Grouping(gAT, "«business process» Etapa: Análise técnica") {
+    Business_Process(tDocs,      "Análise de documentos")
+    Business_Process(tAvaliacao, "Avaliação do imóvel")
+    Business_Process(tSeguro,    "Seguro")
+    Business_Process(tCadastral, "Análise cadastral e\ncapacidade de pagamento\n«interna»")
+    Business_Process(tPld,       "Verificação PLD/FT\n«interna»")
+    Business_Process(tFgts,      "Análise do FGTS\n«condicional: usaFgts»")
+  }
+
+  Grouping(gCT, "«business process» Etapa: Contrato") {
+    Business_Process(tEmissao,    "Emissão do contrato")
+    Business_Process(tAssinatura, "Assinatura")
+    Business_Process(tRegistro,   "Registro em cartório\n(compra + AF)")
+  }
+
+  Grouping(gPG, "«business process» Etapa: Pagamento") {
+    Business_Process(tQuitacao,     "Quitação do financiamento\nanterior\n«condicional: quitaFinanciamento»")
+    Business_Process(tPagamento,    "Pagamento ao vendedor\n«multi-instância: medições»")
+    Business_Process(tSobra,        "Destinação do saldo\n«condicional: haSobra»")
+    Business_Process(tSubstGarantia,"Substituição de garantia\n«condicional: planta/construção»")
+  }
+
+  Juncao_E(jInicio)
+  Juncao_E(jAnalise)
+  Juncao_E(jFim)
+}
+
+' --- Início: tarefas da Análise técnica correm em paralelo
+Rel_Triggering(evContemplacao, jInicio)
+Rel_Triggering(jInicio, tDocs)
+Rel_Triggering(jInicio, tAvaliacao)
+Rel_Triggering(jInicio, tSeguro)
+Rel_Triggering(jInicio, tCadastral)
+Rel_Triggering(jInicio, tPld)
+Rel_Triggering(tDocs, tFgts)
+
+' --- Todas da Análise técnica → Emissão do contrato
+Rel_Triggering(tDocs, jAnalise)
+Rel_Triggering(tAvaliacao, jAnalise)
+Rel_Triggering(tSeguro, jAnalise)
+Rel_Triggering(tCadastral, jAnalise)
+Rel_Triggering(tPld, jAnalise)
+Rel_Triggering(tFgts, jAnalise)
+Rel_Triggering(jAnalise, tEmissao)
+
+' --- Contrato
+Rel_Triggering(tEmissao, tAssinatura)
+Rel_Triggering(tAssinatura, tRegistro)
+Rel_Triggering(tAssinatura, tQuitacao)
+
+' --- Pagamento
+Rel_Triggering(tRegistro, tPagamento)
+Rel_Triggering(tPagamento, tSobra)
+Rel_Triggering(tPagamento, tSubstGarantia)
+Rel_Triggering(tPagamento, jFim)
+Rel_Triggering(tSobra, jFim)
+Rel_Triggering(tSubstGarantia, jFim)
+Rel_Triggering(tQuitacao, jFim)
+Rel_Triggering(jFim, evUtilizado)
+
+legend right
+  Sequência derivada de **Dependência (FIM_INICIO)** do template.
+  Tarefas «condicional» não aplicáveis ficam DISPENSADAS
+  e contam como concluídas para desbloqueio.
+  «interna» = visivelCliente: false (não aparece no app).
+  ● = junção AND · aninhamento = composição.
+endlegend
+@enduml

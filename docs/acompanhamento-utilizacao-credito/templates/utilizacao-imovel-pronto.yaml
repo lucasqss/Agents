@@ -1,0 +1,168 @@
+# Template de referência: "Utilização de crédito – Imóvel pronto"
+# Mostra o que será configurado nas tabelas de definição do ServiceNow
+# (processo_modelo, etapa_modelo, tarefa_modelo, tarefa_modelo_dependencia, marco_modelo).
+# Não é carregado automaticamente: serve de especificação para a configuração.
+
+processoModelo:
+  codigo: UTILIZACAO_IMOVEL
+  versao: 1
+  vigenciaInicio: 2026-12-01
+  criterios: "segmento == 'IMOVEL'"
+
+  # Variáveis de contexto usadas nas regras
+  contexto:
+    segmento: { tipo: enum, valores: [IMOVEL] }
+    tipoImovel: { tipo: enum, valores: [PRONTO, PLANTA, TERRENO, CONSTRUCAO, REFORMA] }
+    regimeNormativo: { tipo: enum, valores: [CIRC_3432, RES_285] }
+    usaFgts: { tipo: bool, padrao: false }
+    quitaFinanciamento: { tipo: bool, padrao: false }
+    haSobra: { tipo: bool, padrao: false }
+    qtdMedicoes: { tipo: int, padrao: 0 }
+
+  etapas:
+    - codigo: ANALISE_TECNICA
+      ordem: 1
+      nomeCliente: Análise técnica
+      tarefas:
+        - codigo: ANALISE_DOCUMENTOS
+          ordem: 1
+          nomeCliente: Análise de documentos
+          descricaoCliente: Validação de documentos do imóvel e envolvidos.
+          filaResponsavel: BO_ANALISE_DOCUMENTAL
+          tipoExecutor: BACKOFFICE
+          slaHorasUteis: 40
+          visivelCliente: true
+          marcos:
+            - codigo: DOC_ENVIADA
+              ordem: 1
+              nomeCliente: Documentação enviada
+              gatilho: { tipo: PENDENCIA_RESOLVIDA, pendencia: ENVIO_DOCUMENTOS }
+            - codigo: DOC_ANALISADA
+              ordem: 2
+              nomeCliente: Análise da documentação
+              gatilho: { tipo: ESTADO_TAREFA, para: [Concluida] }
+
+        - codigo: AVALIACAO_IMOVEL
+          ordem: 2
+          nomeCliente: Avaliação do imóvel
+          descricaoCliente: Especialista realiza a avaliação do imóvel.
+          filaResponsavel: BO_ENGENHARIA
+          tipoExecutor: TERCEIRO
+          visivelCliente: true
+          marcos:
+            - { codigo: VISTORIA_AGENDADA, ordem: 1, nomeCliente: Vistoria agendada, gatilho: { tipo: EVENTO, evento: vistoria.agendada } }
+            - { codigo: LAUDO_EMITIDO, ordem: 2, nomeCliente: Laudo emitido, gatilho: { tipo: ESTADO_TAREFA, para: [Concluida] } }
+
+        - codigo: SEGURO
+          ordem: 3
+          nomeCliente: Seguro
+          descricaoCliente: Cotação de seguro.
+          filaResponsavel: BO_SEGUROS
+          tipoExecutor: BACKOFFICE
+          visivelCliente: true
+
+        - codigo: ANALISE_CADASTRAL
+          ordem: 4
+          nomeInterno: Análise cadastral e capacidade de pagamento  # Res. 285 art. 3º §2º
+          filaResponsavel: BO_CREDITO
+          tipoExecutor: BACKOFFICE
+          visivelCliente: false
+
+        - codigo: VERIFICACAO_PLD
+          ordem: 5
+          nomeInterno: Verificação PLD/FT  # Circ. BCB 3.978/2020
+          filaResponsavel: BO_PLD
+          tipoExecutor: BACKOFFICE
+          visivelCliente: false
+
+        - codigo: ANALISE_FGTS
+          ordem: 6
+          nomeCliente: Análise do FGTS
+          descricaoCliente: Validação do uso do FGTS junto à CAIXA.
+          filaResponsavel: BO_FGTS
+          tipoExecutor: TERCEIRO
+          visivelCliente: true
+          regraAplicabilidade: "usaFgts == true"
+          dependeDe: [ANALISE_DOCUMENTOS]
+
+    - codigo: CONTRATO
+      ordem: 2
+      nomeCliente: Contrato
+      tarefas:
+        - codigo: EMISSAO_CONTRATO
+          ordem: 1
+          nomeCliente: Emissão do contrato
+          filaResponsavel: BO_FORMALIZACAO
+          tipoExecutor: BACKOFFICE
+          visivelCliente: true
+          dependeDe: [ANALISE_DOCUMENTOS, AVALIACAO_IMOVEL, SEGURO, ANALISE_CADASTRAL, VERIFICACAO_PLD, ANALISE_FGTS]
+
+        - codigo: ASSINATURA
+          ordem: 2
+          nomeCliente: Assinatura
+          descricaoCliente: Assinatura do contrato por você e pelo vendedor.
+          filaResponsavel: AGENCIA
+          tipoExecutor: CLIENTE
+          visivelCliente: true
+          dependeDe: [EMISSAO_CONTRATO]
+
+        - codigo: REGISTRO_CARTORIO
+          ordem: 3
+          nomeCliente: Registro em cartório
+          descricaoCliente: Registro da compra e da alienação fiduciária na matrícula.  # Lei 11.795 art. 45
+          filaResponsavel: BO_FORMALIZACAO
+          tipoExecutor: TERCEIRO
+          visivelCliente: true
+          dependeDe: [ASSINATURA]
+
+    - codigo: PAGAMENTO
+      ordem: 3
+      nomeCliente: Pagamento
+      tarefas:
+        - codigo: QUITACAO_FINANCIAMENTO
+          ordem: 1
+          nomeCliente: Quitação do financiamento anterior
+          filaResponsavel: BO_TESOURARIA
+          tipoExecutor: BACKOFFICE
+          visivelCliente: true
+          regraAplicabilidade: "quitaFinanciamento == true"  # Lei 11.795 art. 22 §3º
+          dependeDe: [ASSINATURA]
+
+        - codigo: PAGAMENTO_VENDEDOR
+          ordem: 2
+          nomeCliente: Pagamento ao vendedor
+          filaResponsavel: BO_TESOURARIA
+          tipoExecutor: BACKOFFICE
+          visivelCliente: true
+          dependeDe: [REGISTRO_CARTORIO]  # pré-condições Res. 285 art. 18 §2º
+          # Variante planta/construção/reforma: multi-instância por medição
+          multiInstancia: "tipoImovel in ['PLANTA', 'CONSTRUCAO', 'REFORMA']"
+          regraInstancias: qtdMedicoes
+
+        - codigo: DESTINACAO_SOBRA
+          ordem: 3
+          nomeCliente: Destinação do saldo restante
+          filaResponsavel: BO_TESOURARIA
+          tipoExecutor: BACKOFFICE
+          visivelCliente: true
+          regraAplicabilidade: "haSobra == true"  # Res. 285 art. 18 §3º
+          dependeDe: [PAGAMENTO_VENDEDOR]
+
+        - codigo: SUBSTITUICAO_GARANTIA
+          ordem: 4
+          nomeCliente: Substituição de garantia
+          filaResponsavel: BO_FORMALIZACAO
+          tipoExecutor: BACKOFFICE
+          visivelCliente: true
+          regraAplicabilidade: "tipoImovel in ['PLANTA', 'CONSTRUCAO']"  # Lei 11.795 art. 14 §3º
+          dependeDe: [PAGAMENTO_VENDEDOR]
+
+mapaStatus:
+  - { state: 1,  substate: null,                 statusCliente: NAO_INICIADA }
+  - { state: 1,  substate: bloqueada,            statusCliente: NAO_INICIADA }
+  - { state: 2,  substate: null,                 statusCliente: EM_ANDAMENTO }
+  - { state: -5, substate: aguardando_cliente,   statusCliente: AGUARDANDO_CLIENTE }
+  - { state: -5, substate: aguardando_terceiro,  statusCliente: EM_ANDAMENTO }
+  - { state: 3,  substate: null,                 statusCliente: CONCLUIDA }
+  - { state: 7,  substate: null,                 statusCliente: DISPENSADA }
+  - { state: 4,  substate: null,                 statusCliente: CANCELADA }

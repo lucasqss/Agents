@@ -1,0 +1,89 @@
+@startuml 01-informacao-negocio
+' ============================================================================
+' Viewpoint ArchiMate 3.x: Information Structure
+' Modelo de domínio – Acompanhamento da utilização de crédito (consórcio imóvel)
+' Fonte: docs/modelo-dominio.md (seções 2, 3 e 5)
+' ============================================================================
+!pragma layout smetana
+!include <archimate/Archimate>
+
+title Estrutura de Informação – Modelo de domínio\n<size:11>Viewpoint ArchiMate: Information Structure</size>
+
+skinparam nodesep 40
+skinparam ranksep 50
+
+' ---------------------------------------------------------------------------
+' Definição (configuração versionada – mantida no ServiceNow)
+' ---------------------------------------------------------------------------
+Grouping(gDef, "Definição (template versionado)") {
+  Business_Object(boProcModelo,  "ProcessoModelo\n(código, versão, vigência,\ncritérios de aplicação)")
+  Business_Object(boEtapaModelo, "EtapaModelo\n(ordem, nome ao cliente,\nvisível ao cliente)")
+  Business_Object(boTarefaModelo,"TarefaModelo\n(fila, executor, SLA, visível,\naplicabilidade, multi-instância)")
+  Business_Object(boDependencia, "Dependência\n(tipo FIM_INICIO, condição)")
+  Business_Object(boMarcoModelo, "MarcoModelo\n(ordem, nome ao cliente, gatilho)")
+  Business_Object(boMapaStatus,  "MapeamentoStatus\n(state/substate → StatusCliente)")
+}
+
+' ---------------------------------------------------------------------------
+' Execução (instâncias – espelhadas no backend)
+' ---------------------------------------------------------------------------
+Grouping(gExec, "Execução (instância por cliente)") {
+  Business_Object(boProcesso, "Processo\n(Atendimento do Processo)\nnº, contexto, situação derivada")
+  Business_Object(boEtapa,    "Etapa\n(status derivado)")
+  Business_Object(boTarefa,   "Tarefa\n(estado interno, fila,\ndatas, instância nº)")
+  Business_Object(boMarco,    "Marco\n(status, data de ocorrência)")
+  Business_Object(boPendencia,"Pendência\n(ação exigida do cliente)")
+  Business_Object(boEvento,   "EventoHistórico\n(trilha imutável)")
+}
+
+' ---------------------------------------------------------------------------
+' Objetos de negócio relacionados (fora do agregado)
+' ---------------------------------------------------------------------------
+Grouping(gCtx, "Contexto do consórcio") {
+  Business_Object(boConsorciado, "Consorciado")
+  Business_Object(boCota,        "Cota contemplada")
+  Business_Object(boObjeto,      "Objeto – Imóvel\n(apelido, matrícula, valor)")
+}
+
+Business_Representation(brStatus, "StatusCliente\nNÃO_INICIADA · EM_ANDAMENTO ·\nAGUARDANDO_CLIENTE · CONCLUÍDA ·\nDISPENSADA · CANCELADA")
+
+' --- Composição da definição
+Rel_Composition_Down(boProcModelo, boEtapaModelo, "1..*")
+Rel_Composition_Down(boEtapaModelo, boTarefaModelo, "1..*")
+Rel_Composition_Down(boTarefaModelo, boMarcoModelo, "0..*")
+Rel_Composition_Right(boTarefaModelo, boDependencia, "0..*")
+Rel_Association(boDependencia, boTarefaModelo, "predecessora")
+
+' --- Composição da execução
+Rel_Composition_Down(boProcesso, boEtapa, "1..*")
+Rel_Composition_Down(boEtapa, boTarefa, "0..*")
+Rel_Composition_Down(boTarefa, boMarco, "0..*")
+Rel_Composition_Right(boTarefa, boPendencia, "0..*")
+Rel_Composition_Left(boProcesso, boEvento, "0..*")
+
+' --- Instanciação (execução → definição)
+Rel_Association(boProcesso, boProcModelo, "instancia\n(versão congelada)")
+Rel_Association(boEtapa, boEtapaModelo, "instancia")
+Rel_Association(boTarefa, boTarefaModelo, "instancia")
+Rel_Association(boMarco, boMarcoModelo, "instancia")
+
+' --- Contexto
+Rel_Association(boProcesso, boConsorciado, "de")
+Rel_Aggregation(boProcesso, boCota, "1..*")
+Rel_Association(boProcesso, boObjeto, "para")
+
+' --- Apresentação ao cliente
+Rel_Realization(boTarefa, brStatus, "status via\nMapeamentoStatus")
+Rel_Association(boMapaStatus, brStatus, "traduz para")
+Rel_Association(boEtapa, brStatus, "agrega")
+Rel_Association(boProcesso, brStatus, "agrega")
+
+legend right
+  **Regra de agregação** (Tarefa → Etapa → Processo; primeira que casar):
+  1. todas CANCELADA → CANCELADA
+  2. todas CONCLUÍDA/DISPENSADA → CONCLUÍDA
+  3. alguma AGUARDANDO_CLIENTE → AGUARDANDO_CLIENTE
+  4. alguma EM_ANDAMENTO/CONCLUÍDA → EM_ANDAMENTO
+  5. senão → NÃO_INICIADA
+endlegend
+@enduml

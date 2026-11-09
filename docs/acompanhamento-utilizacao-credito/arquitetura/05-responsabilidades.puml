@@ -1,0 +1,95 @@
+@startuml 05-responsabilidades
+' ============================================================================
+' Viewpoint ArchiMate 3.x: Business Process Cooperation (atribuição)
+' Quem executa cada tarefa (fila / tipoExecutor) e objetos de negócio acessados
+' Fonte: docs/templates/utilizacao-imovel-pronto.yaml
+' ============================================================================
+!pragma layout smetana
+!include <archimate/Archimate>
+
+title Responsabilidades – Papéis × Tarefas × Objetos\n<size:11>Viewpoint ArchiMate: Business Process Cooperation</size>
+
+left to right direction
+skinparam nodesep 18
+skinparam ranksep 70
+
+Grouping(gCliente, "Cliente") {
+  Business_Actor(baConsorciado, "Consorciado")
+}
+
+Grouping(gEmpresa, "Administradora") {
+  Business_Role(brBoDoc,     "Backoffice – Análise documental\n(BO_ANALISE_DOCUMENTAL)")
+  Business_Role(brBoEng,     "Backoffice – Engenharia\n(BO_ENGENHARIA)")
+  Business_Role(brBoSeguros, "Backoffice – Seguros\n(BO_SEGUROS)")
+  Business_Role(brBoCredito, "Backoffice – Crédito\n(BO_CREDITO)")
+  Business_Role(brBoPld,     "Backoffice – PLD\n(BO_PLD)")
+  Business_Role(brBoFgts,    "Backoffice – FGTS\n(BO_FGTS)")
+  Business_Role(brBoFormal,  "Backoffice – Formalização\n(BO_FORMALIZACAO)")
+  Business_Role(brBoTes,     "Backoffice – Tesouraria\n(BO_TESOURARIA)")
+  Business_Role(brAgencia,   "Agência\n(AGENCIA)")
+}
+
+Grouping(gTerceiros, "Terceiros") {
+  Business_Role(brAvaliador, "Avaliador")
+  Business_Role(brCartorio,  "Registro de Imóveis")
+  Business_Role(brCaixa,     "CAIXA – agente operador FGTS")
+}
+
+Grouping(gTarefas, "Tarefas (TarefaModelo)") {
+  Business_Process(tDocs,          "Análise de documentos")
+  Business_Process(tAvaliacao,     "Avaliação do imóvel")
+  Business_Process(tSeguro,        "Seguro")
+  Business_Process(tCadastral,     "Análise cadastral «interna»")
+  Business_Process(tPld,           "Verificação PLD/FT «interna»")
+  Business_Process(tFgts,          "Análise do FGTS")
+  Business_Process(tEmissao,       "Emissão do contrato")
+  Business_Process(tAssinatura,    "Assinatura")
+  Business_Process(tRegistro,      "Registro em cartório")
+  Business_Process(tQuitacao,      "Quitação do financiamento")
+  Business_Process(tPagamento,     "Pagamento ao vendedor")
+  Business_Process(tSobra,         "Destinação do saldo")
+  Business_Process(tSubstGarantia, "Substituição de garantia")
+}
+
+Grouping(gObjetos, "Objetos de negócio") {
+  Business_Object(boPendencia, "Pendência")
+  Business_Object(boLaudo,     "Laudo de avaliação")
+  Business_Object(boApolice,   "Apólice MIP/DFI")
+  Business_Object(boContrato,  "Contrato (compra + AF)")
+  Business_Object(boGarantia,  "Garantia registrada")
+}
+
+' --- Atribuição
+Rel_Assignment(brBoDoc, tDocs)
+Rel_Assignment(brBoEng, tAvaliacao)
+Rel_Assignment(brAvaliador, tAvaliacao)
+Rel_Assignment(brBoSeguros, tSeguro)
+Rel_Assignment(brBoCredito, tCadastral)
+Rel_Assignment(brBoPld, tPld)
+Rel_Assignment(brBoFgts, tFgts)
+Rel_Assignment(brCaixa, tFgts)
+Rel_Assignment(brBoFormal, tEmissao)
+Rel_Assignment(baConsorciado, tAssinatura)
+Rel_Assignment(brAgencia, tAssinatura)
+Rel_Assignment(brBoFormal, tRegistro)
+Rel_Assignment(brCartorio, tRegistro)
+Rel_Assignment(brBoTes, tQuitacao)
+Rel_Assignment(brBoTes, tPagamento)
+Rel_Assignment(brBoTes, tSobra)
+Rel_Assignment(brBoFormal, tSubstGarantia)
+
+' --- Acesso a objetos
+Rel_Access_rw(tDocs, boPendencia)
+Rel_Access_w(tAvaliacao, boLaudo)
+Rel_Access_w(tSeguro, boApolice)
+Rel_Access_w(tEmissao, boContrato)
+Rel_Access_r(tAssinatura, boContrato)
+Rel_Access_w(tRegistro, boGarantia)
+Rel_Access_rw(tSubstGarantia, boGarantia)
+
+legend right
+  Papel da Administradora = fila (assignment_group) no ServiceNow.
+  Terceiros não operam o ServiceNow: a tarefa fica na fila interna
+  em estado "aguardando terceiro" (→ EM_ANDAMENTO para o cliente).
+endlegend
+@enduml

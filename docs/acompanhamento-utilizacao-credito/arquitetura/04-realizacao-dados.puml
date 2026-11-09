@@ -1,0 +1,86 @@
+@startuml 04-realizacao-dados
+' ============================================================================
+' Viewpoint ArchiMate 3.x: Layered (recorte Negócio ↔ Aplicação)
+' Data Objects (tabelas ServiceNow / backend) realizando Business Objects
+' Fonte: docs/modelo-dominio.md (seção 7.1)
+' ============================================================================
+!pragma layout smetana
+!include <archimate/Archimate>
+
+title Realização de Dados – Business Objects × tabelas\n<size:11>Viewpoint ArchiMate: Layered (Negócio ↔ Aplicação)</size>
+
+skinparam nodesep 20
+skinparam ranksep 70
+
+' ---------------------------------------------------------------------------
+' Camada de Negócio
+' ---------------------------------------------------------------------------
+Grouping(gNeg, "Camada de Negócio") {
+  Business_Object(boProcModelo,  "ProcessoModelo")
+  Business_Object(boEtapaModelo, "EtapaModelo")
+  Business_Object(boTarefaModelo,"TarefaModelo")
+  Business_Object(boDependencia, "Dependência")
+  Business_Object(boMarcoModelo, "MarcoModelo")
+  Business_Object(boMapaStatus,  "MapeamentoStatus")
+  Business_Object(boProcesso,    "Processo")
+  Business_Object(boTarefa,      "Tarefa")
+  Business_Object(boMarco,       "Marco")
+  Business_Object(boPendencia,   "Pendência")
+  Business_Object(boEvento,      "EventoHistórico")
+  Business_Object(boEtapa,       "Etapa\n(derivada – sem tabela)")
+}
+
+' ---------------------------------------------------------------------------
+' Camada de Aplicação – ServiceNow
+' ---------------------------------------------------------------------------
+Grouping(gSnowDef, "ServiceNow – tabelas de definição") {
+  Application_DataObject(doProcModelo,  "x_<esc>_processo_modelo")
+  Application_DataObject(doEtapaModelo, "x_<esc>_etapa_modelo")
+  Application_DataObject(doTarefaModelo,"x_<esc>_tarefa_modelo")
+  Application_DataObject(doDependencia, "x_<esc>_tarefa_modelo_dependencia")
+  Application_DataObject(doMarcoModelo, "x_<esc>_marco_modelo")
+  Application_DataObject(doMapaStatus,  "x_<esc>_mapa_status")
+}
+
+Grouping(gSnowExec, "ServiceNow – tabelas de execução") {
+  Application_DataObject(doProcesso,  "x_<esc>_processo\n(estende task)")
+  Application_DataObject(doTarefa,    "x_<esc>_tarefa\n(estende task; parent=processo;\netapa_codigo)")
+  Application_DataObject(doMarco,     "x_<esc>_marco")
+  Application_DataObject(doPendencia, "x_<esc>_pendencia")
+  Application_DataObject(doAudit,     "sys_audit /\nhistórico de task")
+}
+
+Grouping(gBack, "Backend – modelo de leitura") {
+  Application_DataObject(doProjecao, "Projeção do Processo\n(visão do cliente)")
+  Application_DataObject(doEventos,  "Log de eventos\nrecebidos")
+}
+
+Application_Component(acSnow,    "ServiceNow\n(App Acompanhamento)")
+Application_Component(acBackend, "Backend de\nAcompanhamento")
+
+' --- Realização: Data Object → Business Object
+Rel_Realization_Up(doProcModelo,  boProcModelo)
+Rel_Realization_Up(doEtapaModelo, boEtapaModelo)
+Rel_Realization_Up(doTarefaModelo,boTarefaModelo)
+Rel_Realization_Up(doDependencia, boDependencia)
+Rel_Realization_Up(doMarcoModelo, boMarcoModelo)
+Rel_Realization_Up(doMapaStatus,  boMapaStatus)
+Rel_Realization_Up(doProcesso,    boProcesso)
+Rel_Realization_Up(doTarefa,      boTarefa)
+Rel_Realization_Up(doTarefa,      boEtapa)
+Rel_Realization_Up(doMarco,       boMarco)
+Rel_Realization_Up(doPendencia,   boPendencia)
+Rel_Realization_Up(doAudit,       boEvento)
+Rel_Realization_Up(doEventos,     boEvento)
+Rel_Realization_Up(doProjecao,    boProcesso)
+
+' --- Acesso pelos componentes
+Rel_Access_r(acSnow, gSnowDef)
+Rel_Access_rw(acSnow, gSnowExec)
+Rel_Access_rw(acBackend, gBack)
+
+legend right
+  Etapa não tem tabela: é agrupamento pelo campo
+  **etapa_codigo** da Tarefa e tem status sempre derivado.
+endlegend
+@enduml
