@@ -20,6 +20,9 @@ Recebe HTTP, chama o caso de uso e devolve o resultado. Sem regra de negócio, s
 | `TransicaoInvalidaException`, `ConflitoException` | 409 |
 | `NaoEncontradoException` | 404 |
 | `SistemaExternoIndisponivelException` | 503 |
+| `ConstraintViolationException` (Bean Validation) | 400, com a lista `campos` |
+| `MismatchedInputException` (JSON com tipo ou valor incompatível) | 400 |
+| `WebApplicationException` (recusa do próprio HTTP, como rota inexistente) | mantém o status |
 
 ## Canais (`entrypoint/<canal>/<agregado>/`)
 
@@ -36,11 +39,13 @@ Regras:
 - O Assembler decide **o que** o canal recebe e usa `Padrao<Canal>.INSTANCIA` para decidir **como** exibir.
 - Mande o valor bruto **e** o formatado (`valorCredito` + `valorCreditoFormatado`, `estado` + `situacao`).
 - Somar ou formatar o que já veio da consulta é papel do Assembler. Número com significado de negócio nasce numa consulta em `persistence/<agregado>/`.
-- O Resource nunca devolve record de `persistence/`. Um canal nunca usa outro canal nem o `Padrao` de outro canal.
+- O Resource de canal nunca devolve record de `persistence/`: ele devolve o próprio `*Response`, e o Assembler recebe o record. Na API neutra (`entrypoint/rest/<agregado>/`), o Resource pode devolver o record. Um canal nunca usa outro canal nem o `Padrao` de outro canal.
 - **Contrato congelado:** só mudanças aditivas no `*Response`. Renomear ou remover campo quebra o front low-code; quebra vira `/<canal>/v2`.
 
 ## Apresentação comum (`entrypoint/apresentacao/`)
 
+Se a pasta ainda não existir, crie-a na primeira tela de canal ([exemplo](exemplos-codigo.md)).
+
 - `Formatador` (funções básicas, locale pt-BR explícito, sem o espaço U+00A0) e `Rotulos` (catálogo por extenso) são comuns e não conhecem canais.
 - Cada canal tem `entrypoint/<canal>/Padrao<Canal> implements PadraoApresentacao`. Formato novo entra na interface, e todos os canais implementam.
-- Todo formato novo ganha linha em `PadroesDeCanalTest`; todo endpoint de canal, teste de contrato em `CanaisContratoTest` com os nomes exatos dos campos.
+- Todo formato novo ganha linha em `src/test/java/<pacote raiz>/entrypoint/apresentacao/PadroesDeCanalTest.java`; todo endpoint de canal, teste de contrato em `src/test/java/<pacote raiz>/integracao/CanaisContratoTest.java` com os nomes exatos dos campos. Crie esses arquivos se ainda não existirem.

@@ -12,8 +12,12 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 
 /** Criação do processo e um endpoint por transição de estado. */
 @Path("/processos")
@@ -47,6 +51,8 @@ public class ProcessoResource {
     }
 
     @POST
+    @APIResponse(responseCode = "201", description = "Processo criado",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = IdCriado.class)))
     public Response criar(@Valid @NotNull NovoProcesso dados) {
         Long id = criar.executar(dados.cotaId(), dados.tipo());
         return Response.created(URI.create("/processos/" + id)).entity(new IdCriado(id)).build();

@@ -2,7 +2,7 @@
 
 O destino está em `references/persistencia-jakarta-data.md` da skill `arquiteto-padrao`. Aqui fica só a conversão. Faça depois de [separar a entidade do domínio](entidade-jpa-e-dominio.md).
 
-No `pom.xml`, troque a extensão Panache pela dependência `jakarta.data-api` e inclua `hibernate-processor` nos `annotationProcessorPaths`, como no projeto modelo.
+No `pom.xml`, troque a extensão Panache pela dependência `jakarta.data-api` e inclua `hibernate-processor` nos `annotationProcessorPaths`, conforme `references/pom-obrigatorio.md` da skill `arquiteto-padrao`.
 
 ## Tabela de conversão
 

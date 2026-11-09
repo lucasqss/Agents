@@ -26,28 +26,30 @@ Implementa a interface de repositório do domínio. O acesso é sempre pela inte
 
 ```java
 @Repository
-interface CotaDataRepository {
+interface XDataRepository {
 
     @Find
-    Optional<CotaEntity> buscarPorId(Long id);
+    Optional<XEntity> buscarPorId(Long id);
 
     @Insert
-    void inserir(CotaEntity cota);
+    void inserir(XEntity x);
 
     @Update
-    void atualizar(CotaEntity cota);
+    void atualizar(XEntity x);
 
-    @Query("delete from CotaEntity c where c.id = :id")
+    @Query("delete from XEntity x where x.id = :id")
     void excluir(Long id);
 
-    @Query("select count(c) from CotaEntity c where c.numero = :numero and (:ignorarId is null or c.id <> :ignorarId)")
+    @Query("select count(x) from XEntity x where x.numero = :numero and (:ignorarId is null or x.id <> :ignorarId)")
     long contarPorNumero(String numero, Long ignorarId);
 }
 ```
 
-**`XMapper`:** classe `final`, package-private, métodos estáticos `paraDominio(entity)` e `paraEntidade(dominio)`, escrita à mão. `paraDominio` usa `reconstituir(...)`. Valor inválido vindo do banco (enum desconhecido) lança `IllegalStateException` com o valor na mensagem. Tipo e estado são reconstruídos por `TipoProcesso.valueOf` e `EstadoProcesso.porNome`, sem `switch` no mapper (veja `ProcessoPagamentoMapper`).
+**`XMapper`:** classe `final`, package-private, métodos estáticos `paraDominio(entity)` e `paraEntidade(dominio)`, escrita à mão. `paraDominio` usa `reconstituir(...)`. Valor inválido vindo do banco (enum desconhecido) lança `IllegalStateException` com o valor na mensagem. Tipo e estado são reconstruídos pelo `valueOf` do enum e por `porNome` da interface de estado, sem `switch` no mapper ([exemplo](exemplos-codigo.md)).
 
-**`XRepositoryAdapter`:** `@ApplicationScoped`, `implements XRepository`, injeção por construtor do `XDataRepository`. `salvar`: `paraEntidade`, depois `inserir` se o id for nulo ou `atualizar` se não, e devolve `paraDominio(entity)`. Com filhos: grave o agregado, depois os filhos (apague os removidos), tudo na transação do caso de uso.
+**`XRepositoryAdapter`** ([exemplo](exemplos-codigo.md)): `@ApplicationScoped`, `implements XRepository`, injeção por construtor do `XDataRepository`. `salvar`: `paraEntidade`, depois `inserir` se o id for nulo ou `atualizar` se não, e devolve `paraDominio(entity)`. Com filhos: grave o agregado, depois os filhos (apague os removidos), tudo na transação do caso de uso.
+
+**Bloqueio pessimista:** use quando duas requisições simultâneas não podem passar juntas por uma verificação ("já existe processo em andamento?"). O Jakarta Data não expressa bloqueio, então declare `StatelessSession sessao();` no `XDataRepository` e um método `default` com `sessao().get(XEntity.class, id, LockMode.PESSIMISTIC_WRITE)` ([exemplo](exemplos-codigo.md)). Exponha no domínio como `buscarPorIdComBloqueio`, para o caso de uso não conhecer JPA nem Hibernate. O bloqueio dura até o fim da transação do caso de uso.
 
 ## Leitura de tela (`XQueryRepository`)
 

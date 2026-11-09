@@ -1,13 +1,15 @@
 ---
 name: arquiteto-padrao
-description: Padrão de arquitetura e de pastas dos projetos Java 25 + Quarkus 3.33 (componentes Domínio, ACL e BFF), com camadas no topo e agregados dentro delas. Use ao criar ou alterar componente, classe, caso de uso, regra de negócio, entidade, repositório Jakarta Data, consulta, integração externa, endpoint, canal, migration ou regra ArchUnit, ou ao decidir em qual pasta algo deve ficar.
+description: Padrão de arquitetura e de pastas dos projetos Java 25 + Quarkus 3.33 (componentes Domínio, ACL e BFF), com camadas no topo e agregados dentro delas. Use ao criar ou alterar componente, classe, caso de uso, regra de negócio, entidade, repositório Jakarta Data, consulta, integração externa, endpoint, canal, migration ou regra ArchUnit, ou ao decidir em qual pasta algo deve ficar. Não use para testes de aceitação de usuário, que ficam com a skill teste-aceitacao-modelos.
 ---
 
 # Arquiteto-padrão
 
 Versão: 2026-11-08. Este documento é a referência da equipe e dos agentes de IA. A decisão completa e os motivos estão em [adr/ADR_001.md](adr/ADR_001.md). Se este texto e o ADR divergirem, **vale o ADR**: avise o dono para corrigir.
 
-Para trazer um projeto antigo para este padrão, use a skill `adequar-ao-padrao`.
+Para trazer um projeto antigo para este padrão, use a skill `adequar-ao-padrao`. Para testes de aceitação de usuário, use a skill `teste-aceitacao-modelos`, e não esta.
+
+Nomes como `cota`, `cliente`, `processo` e `tesouraria` nos exemplos são ilustrativos: não procure essas classes no repositório. Modelos de cada peça estão em [exemplos de código](references/exemplos-codigo.md).
 
 ## Onde cada coisa mora
 
@@ -21,7 +23,7 @@ O caminho é sempre um destes:
 | Camada | Caminho | O que tem |
 |---|---|---|
 | Entrada | `entrypoint/<via>/<agregado>/` | Resource, Request, Response, Assembler |
-| Caso de uso | `application/<agregado>/` | um `*UseCase` por classe |
+| Caso de uso | `application/<agregado>/` | um `*UseCase` por classe e os records `DadosX` (comando de entrada da escrita) |
 | Regra de negócio | `domain/<agregado>/` | entidade, estados, interface de repositório |
 | Banco | `persistence/<agregado>/` | `*Entity`, DataRepository, Mapper, Adapter, `*QueryRepository`, records |
 | Sistema externo | `gateway/<sistema>/` | Client, DTOs, `*Gateway` |
@@ -54,8 +56,8 @@ src/main/java/org/acme/consorcio/
 │   ├── ErroResponse.java
 │   └── IdCriado.java
 ├── application/
-│   ├── cliente/         CriarClienteUseCase.java, ListarClientesUseCase.java
-│   ├── cota/            CriarCotaUseCase.java, DetalharCotaUseCase.java
+│   ├── cliente/         CriarClienteUseCase.java, ListarClientesUseCase.java, DadosCliente.java
+│   ├── cota/            CriarCotaUseCase.java, DetalharCotaUseCase.java, DadosCota.java
 │   ├── processo/        CriarProcessoUseCase.java, PagarProcessoUseCase.java
 │   ├── NaoEncontradoException.java
 │   ├── ConflitoException.java
@@ -99,7 +101,7 @@ src/main/java/org/acme/consorcio/
 | `entrypoint/mobile/cota/ExtratoCotaMobileResponse.java` | contrato do front |
 | `entrypoint/mobile/cota/CotaMobileAssembler.java` | monta e formata |
 | `entrypoint/mobile/cota/CotaMobileResource.java` | endpoint novo |
-| `src/test/java/.../integracao/CanaisContratoTest.java` | nomes exatos dos campos |
+| `src/test/java/.../integracao/CanaisContratoTest.java` (crie se ainda não existir) | nomes exatos dos campos |
 
 Repare que a leitura não passa por `domain/`.
 
@@ -138,12 +140,13 @@ Se algo usado por vários agregados não está nessa lista, pare e pergunte ao d
 
 ## Passo a passo
 
-1. Descubra o **tipo do componente** no `README` dele (linha "Tipo X porque Y"). Se não houver, aplique a árvore de decisão e proponha o tipo ao dono.
-2. Descubra o **agregado** e a **camada** (seção "Onde cada coisa mora").
-3. Leia a referência indicada na tabela "Onde coloco X?" **antes** de escrever.
-4. Para tarefa conhecida, siga a receita (seção "Receitas").
-5. Rode `./mvnw verify`. Ele compila (o HQL é validado aqui) e roda domínio, ArchUnit, contrato e integração.
-6. Se uma regra ArchUnit falhar, **o código está no lugar errado: mude o código, nunca a regra.** A falha traz um ID (ex.: `DOM-002`) e um "Corrija:". Se achar que a regra está errada, diga isso e pare.
+1. Confira se `src/test/java/<pacote raiz>/arquitetura/` existe. Se não existir, instale as regras seguindo [archunit](references/archunit.md).
+2. Descubra o **tipo do componente** no `README` dele (linha "Tipo X porque Y"). Se não houver, aplique a árvore de decisão e proponha o tipo ao dono.
+3. Descubra o **agregado** e a **camada** (seção "Onde cada coisa mora").
+4. Leia a referência indicada na tabela "Onde coloco X?" **antes** de escrever.
+5. Para tarefa conhecida, siga a receita (seção "Receitas").
+6. Rode `./mvnw verify`. Ele compila (o HQL é validado aqui) e roda domínio, ArchUnit, contrato e integração. Se não houver `mvnw`, ou se ele falhar por fim de linha CRLF, use `mvn verify`.
+7. Se uma regra ArchUnit falhar, **o código está no lugar errado: mude o código, nunca a regra.** A falha traz um ID (ex.: `DOM-002`) e um "Corrija:". Se achar que a regra está errada, diga isso e pare.
 
 ## Árvore de decisão (qual tipo de componente?)
 
@@ -174,6 +177,8 @@ gateway/<sistema>/        # ACL: sistema externo | BFF: API do componente de dom
 
 Sem `domain`, sem `persistence`, sem `@Entity`, sem `@Transactional`. O ACL protege o domínio do mundo de fora; o BFF adapta o domínio para o canal.
 
+**Atenção:** as regras ArchUnit e os exemplos desta skill cobrem só o tipo Domínio. Em ACL e BFF, o `verify` não valida a estrutura, então peça a revisão do dono.
+
 ## Onde coloco X?
 
 | Preciso de... | Coloque em | Leia |
@@ -184,7 +189,7 @@ Sem `domain`, sem `persistence`, sem `@Entity`, sem `@Transactional`. O ACL prot
 | Gravar algo | `application/<agregado>/XUseCase`: carrega pelo repositório, chama o método de negócio, salva | [use-cases](references/use-cases.md) |
 | Tela ou listagem nova | record + `@Query` HQL em `persistence/<agregado>/`, `application/<agregado>/XUseCase`, resource | [persistência](references/persistencia-jakarta-data.md) |
 | Repositório, entidade JPA, mapper | `persistence/<agregado>/` | [persistência](references/persistencia-jakarta-data.md) |
-| Chamar sistema de outra área | `gateway/<sistema>/XGateway`. Só **use cases** chamam gateways | [gateway](references/gateway.md) |
+| Chamar sistema de outra área | `gateway/<sistema>/XGateway`. Só **use cases** chamam gateways. Única exceção: o `XGatewayAdapter`, quando uma regra do domínio precisa do sistema externo | [gateway](references/gateway.md) |
 | Endpoint REST ou de canal | `entrypoint/rest/<agregado>/` ou `entrypoint/<canal>/<agregado>/` | [canais](references/canais.md) |
 | Formatar para uma tela (moeda, máscara, rótulo) | Assembler em `entrypoint/<canal>/<agregado>/`, usando `Padrao<Canal>` | [canais](references/canais.md) |
 | Número com significado de negócio (total pago, saldo) | uma consulta em `persistence/<agregado>/`, não o Assembler | [canais](references/canais.md) |
@@ -194,6 +199,7 @@ Sem `domain`, sem `persistence`, sem `@Entity`, sem `@Transactional`. O ACL prot
 | Conversão entre modelo externo e interno (ACL/BFF) | `translator/` | |
 | Mudar o banco | nova migration + campo na `*Entity` + mapper (escrita) e/ou HQL (leitura) | [migrations](references/migrations.md) |
 | Criar ou mudar regra ArchUnit | só com pedido do dono | [archunit](references/archunit.md) |
+| Configurar `pom.xml` (versões, dependências, compilador) | `pom.xml` do componente | [pom obrigatório](references/pom-obrigatorio.md) |
 | Algo "que vários agregados usam" | raiz da camada, se for um tipo listado. Senão, **pare e pergunte ao dono** | |
 
 Antes de terminar: confira [estilo e proibidos](references/estilo-e-proibidos.md) e os [testes esperados](references/testes.md).
@@ -211,7 +217,7 @@ Siga a ordem e pare se algum passo exigir quebrar uma regra.
 
 - **Javadoc de cada classe de padrão** declara padrão, papel e fonte, de forma curta. Ex.: `Padrão: State, estado concreto [GoF].` ou `Padrão: Data Mapper [PoEAA].`. A citação completa dos livros fica uma vez só, no `package-info.java`.
 - A descrição de cada pacote vive em `package-info.java`, inclusive na raiz da camada.
-- `entrypoint/` nunca acessa `persistence/` nem `gateway/` direto.
+- `entrypoint/` nunca acessa `gateway/` direto. De `persistence/<agregado>/`, só pode importar os records projetados; nunca `*Entity`, `*QueryRepository`, `*DataRepository`, `*Mapper` nem `*RepositoryAdapter`.
 - `domain/` não depende de `entrypoint/`, `application/`, `persistence/`, `gateway/` nem de framework.
 - `@Transactional` só em `application/`.
 - `*UseCase` tem um único método público.

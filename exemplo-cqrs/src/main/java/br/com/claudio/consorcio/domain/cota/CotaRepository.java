@@ -8,6 +8,9 @@ public interface CotaRepository {
 
     Optional<Cota> buscarPorId(Long id);
 
+    /** Busca a cota e a mantém bloqueada até o fim da transação, para decisões que não podem correr em paralelo. */
+    Optional<Cota> buscarPorIdComBloqueio(Long id);
+
     boolean existeNumero(String numero, Long ignorarId);
 
     boolean existePorCliente(Long clienteId);

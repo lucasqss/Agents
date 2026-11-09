@@ -9,6 +9,8 @@ Versão: 2026-11-08. Este documento é a referência da equipe e dos agentes de 
 
 Esta skill ensina o **caminho**. O **destino** está na skill `arquiteto-padrao`: leia a seção "Onde cada coisa mora" dela antes de começar e consulte-a para saber como cada peça deve ficar.
 
+Nomes como `cota`, `cliente`, `processo` e `tesouraria` nos exemplos são ilustrativos: não procure essas classes no repositório.
+
 ## Como funciona, em resumo
 
 1. Mostra-se o diagnóstico do projeto e espera-se a aprovação do dono.

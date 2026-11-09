@@ -8,5 +8,5 @@ O destino está em `references/gateway.md` da skill `arquiteto-padrao`.
 4. Junte num só lugar o tratamento de erro que estava espalhado pelos chamadores: qualquer falha vira `SistemaExternoIndisponivelException`.
 5. **Resiliência:** coloque `@Timeout`, `@Retry` e `@CircuitBreaker` no client. Se antes não havia, valores e retentativas são mudança de comportamento: confirme com o dono e nunca use `@Retry` em operação não idempotente sem essa confirmação.
 6. Mantenha a chave de configuração da URL, ou migre para `quarkus.rest-client.<sistema>.url` preservando o valor em cada ambiente.
-7. Crie o Service Stub de teste, como `TesourariaFake`, e o teste do 503.
+7. Crie o Service Stub de teste, conforme `references/exemplos-codigo.md` da skill `arquiteto-padrao`, e o teste do 503.
 8. Se o chamador tratava erros específicos (404 do sistema externo significa "não existe", por exemplo), preserve isso no retorno do Gateway, sem expor o DTO.

@@ -1,11 +1,34 @@
 # Regras de arquitetura (ArchUnit)
 
-A pasta `src/test/java/**/arquitetura/` é a fitness function da arquitetura e tem dono no CODEOWNERS.
+A pasta `src/test/java/**/arquitetura/` é a fitness function da arquitetura. Mudar essa pasta é decisão do dono da arquitetura.
 
-- **Não altere, apague, desligue nem afrouxe regras para fazer o build passar.** Quando uma regra falha, o código está no lugar errado: corrija o código. A falha traz um ID (ex.: `DOM-002`): procure-o nessa pasta e na tabela de regras do README e siga o "Corrija:" da mensagem.
+## Instalar as regras em um repositório
+
+As regras viajam com esta skill, em `assets/arquitetura/`. O **pacote raiz** é o pai de `entrypoint`, `application` e `domain` (ex.: `org.acme.consorcio`).
+
+Se `src/test/java/<pacote raiz>/arquitetura/` já existe, não há nada a instalar. Se não existe:
+
+1. Copie todos os `.java` de `assets/arquitetura/` para `src/test/java/<pacote raiz>/arquitetura/`.
+2. Em cada arquivo copiado, troque `PACOTE_RAIZ` pelo pacote raiz. É a única alteração necessária.
+3. Confira as dependências em [pom obrigatório](pom-obrigatorio.md).
+4. **Código já no padrão ou projeto novo:** rode `./mvnw verify`.
+5. **Código legado:** não rode o `verify` agora. Continue no baseline da skill `adequar-ao-padrao`, em `references/metodo-archignore.md`.
+
+No Linux, WSL ou Git Bash, os passos 1 e 2 ficam assim:
+
+```bash
+ORIGEM=.github/skills/arquiteto-padrao/assets/arquitetura
+DESTINO=src/test/java/org/acme/consorcio/arquitetura
+mkdir -p "$DESTINO" && cp "$ORIGEM"/*.java "$DESTINO"/
+sed -i 's/PACOTE_RAIZ/org.acme.consorcio/' "$DESTINO"/*.java
+```
+
+## Regras em vigor
+
+- **Não altere, apague, desligue nem afrouxe regras para fazer o build passar.** Quando uma regra falha, o código está no lugar errado: corrija o código. A falha traz um ID (ex.: `DOM-002`): procure-o nessa pasta e siga o "Corrija:" da mensagem.
 - Não adicione `allowEmptyShould`, exceções, `FreezingArchRule` nem `@ArchIgnore` sem pedido explícito do dono. A única exceção é o baseline da skill `adequar-ao-padrao`.
 - Os padrões são sempre montados com `Raiz.pacote(...)`, `Raiz.exato(...)` e `Raiz.emQualquer(...)`, nunca com o nome do projeto escrito à mão: é isso que deixa a pasta pronta para copiar entre projetos.
-- Mudança de regra é decisão de arquitetura: descreva o motivo no PR e espere a revisão do CODEOWNER.
+- Mudança de regra é decisão de arquitetura: descreva o motivo no PR e espere a revisão do dono da arquitetura.
 
 ## Criando ou mudando uma regra (só com pedido do dono)
 
@@ -14,4 +37,4 @@ A pasta `src/test/java/**/arquitetura/` é a fitness function da arquitetura e t
 - **Formato:** `.as("DOM-008: TÍTULO EM CAIXA ALTA").because("por quê. Corrija: o que fazer")`. O `.as` vem antes do `.because`, e o `allowEmptyShould`, se houver, vem antes do `.as`.
 - **Sem `import static`:** chame `Raiz.pacote(...)`, `Condicoes.usamGateway()`, `ArchRuleDefinition.noClasses()`, `SlicesRuleDefinition.slices()`. As classes dessa pasta estão no mesmo pacote e não precisam de import.
 - **Nome do campo** começa pelo ID: `dom008Assunto`.
-- Atualize a tabela de regras do README. `CatalogoDeRegrasTest` falha se o formato, o ID ou o prefixo estiverem errados.
+- `CatalogoDeRegrasTest`, instalado junto com as regras, falha se o formato, o ID ou o prefixo estiverem errados.

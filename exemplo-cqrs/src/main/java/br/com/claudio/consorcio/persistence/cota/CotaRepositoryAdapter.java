@@ -31,6 +31,11 @@ public class CotaRepositoryAdapter implements CotaRepository {
     }
 
     @Override
+    public Optional<Cota> buscarPorIdComBloqueio(Long id) {
+        return dados.buscarPorIdComBloqueio(id).map(CotaMapper::paraDominio);
+    }
+
+    @Override
     public boolean existeNumero(String numero, Long ignorarId) {
         return dados.contarPorNumero(numero, ignorarId) > 0;
     }

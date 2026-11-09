@@ -10,7 +10,7 @@ Todas as regras começam desligadas. Cada camada liberada quebra o build, e o ag
 
 ## Baseline
 
-1. Copie `src/test/java/**/arquitetura/` do projeto modelo para `src/test/java/<pacote raiz>/arquitetura/` e ajuste a linha `package` de cada arquivo. Inclua `archunit-junit5` no `pom.xml`, como no modelo.
+1. Instale as regras seguindo a seção "Instalar as regras em um repositório" de `references/archunit.md`, na skill `arquiteto-padrao`. Elas viajam em `assets/arquitetura/` daquela skill. Pare antes do `verify`: as regras ainda precisam ser desligadas.
 2. Marque **cada regra**, no campo, com a tag da camada dela:
 
 ```java

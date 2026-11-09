@@ -6,12 +6,21 @@ import jakarta.data.repository.Query;
 import jakarta.data.repository.Repository;
 import jakarta.data.repository.Update;
 import java.util.Optional;
+import org.hibernate.LockMode;
+import org.hibernate.StatelessSession;
 
 @Repository
 interface CotaDataRepository {
 
+    /** Sessão do repositório, usada apenas onde o Jakarta Data não expressa a operação. */
+    StatelessSession sessao();
+
     @Find
     Optional<CotaEntity> buscarPorId(Long id);
+
+    default Optional<CotaEntity> buscarPorIdComBloqueio(Long id) {
+        return Optional.ofNullable(sessao().get(CotaEntity.class, id, LockMode.PESSIMISTIC_WRITE));
+    }
 
     @Insert
     void inserir(CotaEntity cota);

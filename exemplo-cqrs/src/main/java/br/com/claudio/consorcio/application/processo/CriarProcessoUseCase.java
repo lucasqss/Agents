@@ -24,7 +24,8 @@ public class CriarProcessoUseCase {
     @Transactional
     public Long executar(Long cotaId, TipoProcesso tipo) {
         ProcessoPagamento processo = ProcessoPagamento.novo(tipo, cotaId);
-        cotas.buscarPorId(cotaId).orElseThrow(() -> new NaoEncontradoException("Cota", cotaId));
+        // O bloqueio coloca em fila as aberturas da mesma cota; sem ele, duas passariam juntas pela verificação abaixo.
+        cotas.buscarPorIdComBloqueio(cotaId).orElseThrow(() -> new NaoEncontradoException("Cota", cotaId));
         if (processos.existeAtivoPorCota(cotaId)) {
             throw new ConflitoException("Cota " + cotaId + " já possui um processo em andamento");
         }
