@@ -11,6 +11,7 @@ Cada sistema tem seu pacote, com o padrão Gateway [PoEAA]:
 Regras:
 
 - O Gateway **não importa nada de `application/` nem de `domain/`.** Quem converte o retorno para o domínio é o caso de uso.
+- **A única exceção é o `XGatewayAdapter`**, usado quando uma regra do domínio precisa de um sistema externo: a interface fica em `domain/<agregado>/` e a implementação em `gateway/<sistema>/XGatewayAdapter.java`. Ele só traduz entre domínio e Gateway, não orquestra nem acessa banco, e ninguém o referencia pelo nome, só pela interface (CMD-006, CMD-007, CMD-008).
 - Um sistema externo não depende de outro; quem combina dois sistemas é o caso de uso.
 - Só casos de uso chamam gateways.
 - `@RegisterRestClient`, `@Timeout`, `@Retry` e `@CircuitBreaker` só existem em `gateway/`.

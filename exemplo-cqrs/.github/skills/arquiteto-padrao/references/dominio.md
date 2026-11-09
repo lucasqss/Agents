@@ -9,5 +9,5 @@ Aqui mora a regra de negócio. É Java puro: o ArchUnit falha se aparecer import
 - Sem Bean Validation (`@NotNull`, `@NotBlank`...) aqui: o formato é checado no entrypoint; o domínio valida a regra de negócio no código e lança `DominioException`.
 - Repositório é uma **interface** aqui (`domain/cota/CotaRepository`), no vocabulário do negócio. A implementação fica em `persistence/cota/`.
 - **Um agregado não importa outro.** A referência é só o id (`Long clienteId` em `domain/cota/Cota`). Verificar se o outro existe é papel do caso de uso. Objeto que pertence ao agregado vira `record` (Value Object) ou lista alterada só por métodos dele.
-- Se uma regra precisar de um sistema externo, declare uma interface aqui. A implementação fica em `gateway/<sistema>/`, delegando ao `XGateway`. O domínio nunca importa o Gateway.
+- Se uma regra precisar de um sistema externo, declare uma interface aqui. A implementação é um `gateway/<sistema>/XGatewayAdapter.java`, que delega ao `XGateway`. O domínio nunca importa o Gateway.
 - Todo comportamento novo ganha teste JUnit puro, sem Quarkus.

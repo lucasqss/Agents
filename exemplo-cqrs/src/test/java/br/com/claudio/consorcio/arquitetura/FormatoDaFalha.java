@@ -15,7 +15,7 @@ import com.tngtech.archunit.lang.Priority;
  *   Por quê: o domínio é Java puro, testável sem subir o Quarkus.
  *   Corrija: tire @Inject/@ApplicationScoped/@Transactional do domínio; ...
  *   Onde:
- *     - Class &lt;...command.domain.Cota&gt; is annotated with &lt;...ApplicationScoped&gt; in (Cota.java:0)
+ *     - Class &lt;...domain.cota.Cota&gt; is annotated with &lt;...ApplicationScoped&gt; in (Cota.java:0)
  * </pre>
  *
  * Ligado em {@link Raiz} pela propriedade {@code failureDisplayFormat} do ArchUnit.

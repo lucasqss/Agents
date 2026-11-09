@@ -28,7 +28,7 @@ Sempre nesta ordem:
 
 | # | Tag | Regras | O que costuma exigir |
 |---|---|---|---|
-| 1 | `estrutura` | GER-001 | [Mover toda classe para camada e agregado](layout-para-camadas.md) |
+| 1 | `estrutura` | GER-001, 003, 004, 005 | [Mover toda classe para camada e agregado](layout-para-camadas.md) |
 | 2 | `dominio` | DOM | [Separar JPA de domínio](entidade-jpa-e-dominio.md) |
 | 3 | `persistencia` | SHR, TEC | [Panache → Jakarta Data](panache-para-jakarta-data.md), [tirar proibidos](remover-proibidos.md) |
 | 4 | `application` | CMD, QRY | [Quebrar god class](service-god-class.md), [isolar client](client-solto-para-gateway.md) |

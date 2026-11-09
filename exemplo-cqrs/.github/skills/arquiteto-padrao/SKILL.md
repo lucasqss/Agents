@@ -121,7 +121,7 @@ Repare que a leitura não passa por `domain/`.
 
 ### O que pode ficar na raiz de uma camada
 
-Só o que 2 ou mais agregados usam, e só estes tipos:
+Só o que 2 ou mais agregados usam, e só estes tipos (além deles, toda camada pode ter o próprio `package-info.java`):
 
 | Camada | Pode ficar na raiz |
 |---|---|
@@ -210,7 +210,7 @@ Siga a ordem e pare se algum passo exigir quebrar uma regra.
 ## Convenções
 
 - **Javadoc de cada classe de padrão** declara padrão, papel e fonte, de forma curta. Ex.: `Padrão: State, estado concreto [GoF].` ou `Padrão: Data Mapper [PoEAA].`. A citação completa dos livros fica uma vez só, no `package-info.java`.
-- A descrição de cada pacote vive em `package-info.java`.
+- A descrição de cada pacote vive em `package-info.java`, inclusive na raiz da camada.
 - `entrypoint/` nunca acessa `persistence/` nem `gateway/` direto.
 - `domain/` não depende de `entrypoint/`, `application/`, `persistence/`, `gateway/` nem de framework.
 - `@Transactional` só em `application/`.

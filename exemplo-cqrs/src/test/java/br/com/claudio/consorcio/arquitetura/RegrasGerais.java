@@ -11,7 +11,7 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 final class RegrasGerais {
 
     private static final String TIPOS_DA_RAIZ =
-            ".*\\.(ExceptionMappers|ErroResponse|IdCriado|Pagina|[A-Za-z]*Exception)(\\$.*)?";
+            ".*\\.(ExceptionMappers|ErroResponse|IdCriado|Pagina|package-info|[A-Za-z]*Exception)(\\$.*)?";
 
     private RegrasGerais() {
     }
@@ -54,7 +54,7 @@ final class RegrasGerais {
             .as("GER-003: RAIZ DA CAMADA SÓ ACEITA OS TIPOS LISTADOS")
             .because("sem limite, a raiz da camada vira um novo shared."
                     + " Corrija: mova a classe para <camada>/<agregado>; a raiz só aceita exceções comuns,"
-                    + " ExceptionMappers, ErroResponse, IdCriado e Pagina");
+                    + " ExceptionMappers, ErroResponse, IdCriado, Pagina e package-info");
 
     @ArchTest
     static final ArchRule ger004SemPastasProibidas = ArchRuleDefinition.noClasses()
