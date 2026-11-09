@@ -1,79 +1,102 @@
 package br.com.claudio.consorcio.arquitetura;
 
 import com.tngtech.archunit.base.DescribedPredicate;
-import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaMethod;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.domain.PackageMatcher;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import java.util.List;
+import java.util.Set;
 
 /** Predicados e condições customizados usados pelas regras. */
 final class Condicoes {
+
+    /** Vias de entrada que não são canal de atendimento. */
+    private static final Set<String> VIAS_QUE_NAO_SAO_CANAL = Set.of("rest", "mensageria", "batch", "apresentacao");
 
     private Condicoes() {
     }
 
     /**
      * Segmento de pacote logo depois do marcador, ou {@code null}. Ex.: para
-     * "x.query.entrypoint.mobile.foo" e marcador "entrypoint", devolve "mobile".
+     * "x.entrypoint.mobile.cota" e marcador "entrypoint", devolve "mobile".
      */
     static String segmentoApos(String pacote, String marcador) {
         String[] partes = pacote.split("\\.");
-        String[] alvo = marcador.split("\\.");
-        for (int i = 0; i + alvo.length < partes.length; i++) {
-            boolean casa = true;
-            for (int j = 0; j < alvo.length; j++) {
-                casa &= partes[i + j].equals(alvo[j]);
-            }
-            if (casa) {
-                return partes[i + alvo.length];
+        for (int i = 0; i + 1 < partes.length; i++) {
+            if (partes[i].equals(marcador)) {
+                return partes[i + 1];
             }
         }
         return null;
     }
 
-    /** Client e DTOs externos: tudo em shared.gateway que não seja *Gateway nem *Exception. */
+    private static boolean estaEm(JavaClass classe, String pacote) {
+        return PackageMatcher.of(pacote).matches(classe.getPackageName());
+    }
+
+    /** Classe de {@code entrypoint.<canal>}: tudo em entrypoint que não seja rest, mensageria, batch ou apresentacao. */
+    static DescribedPredicate<JavaClass> estaoEmCanal() {
+        return DescribedPredicate.describe("estão em um canal",
+                c -> {
+                    String via = estaEm(c, Raiz.pacote("entrypoint")) ? segmentoApos(c.getPackageName(), "entrypoint") : null;
+                    return via != null && !VIAS_QUE_NAO_SAO_CANAL.contains(via);
+                });
+    }
+
+    /** Client e DTOs externos: tudo em gateway que não seja *Gateway, *GatewayAdapter nem *Exception. */
     static DescribedPredicate<JavaClass> internoDoGateway() {
         return DescribedPredicate.describe("são client ou DTO de sistema externo",
-                c -> PackageMatcher.of(Raiz.pacote("shared.gateway")).matches(c.getPackageName())
+                c -> estaEm(c, Raiz.pacote("gateway"))
                         && !c.getSimpleName().endsWith("Gateway")
+                        && !c.getSimpleName().endsWith("GatewayAdapter")
                         && !c.getSimpleName().endsWith("Exception"));
     }
 
-    /** Classe que implementa uma interface declarada em command.domain. */
+    /** Classe que implementa uma interface declarada em domain. */
     static DescribedPredicate<JavaClass> implementaInterfaceDoDominio() {
         return DescribedPredicate.describe("implementam uma interface do domínio",
-                c -> c.getAllRawInterfaces().stream()
-                        .anyMatch(i -> PackageMatcher.of(Raiz.pacote("command.domain")).matches(i.getPackageName())));
+                c -> c.getAllRawInterfaces().stream().anyMatch(i -> estaEm(i, Raiz.pacote("domain"))));
     }
 
-    /** Classe que depende de algo em shared.gateway. */
+    /** Classe que depende de algo em gateway. */
     static DescribedPredicate<JavaClass> usamGateway() {
-        return DescribedPredicate.describe("usam shared.gateway",
-                c -> c.getDirectDependenciesFromSelf().stream()
-                        .anyMatch(d -> PackageMatcher.of(Raiz.pacote("shared.gateway"))
-                                .matches(d.getTargetClass().getPackageName())));
+        return DescribedPredicate.describe("usam gateway",
+                c -> c.getDirectDependenciesFromSelf().stream().anyMatch(d -> estaEm(d.getTargetClass(), Raiz.pacote("gateway"))));
     }
 
-    /**
-     * O padrão de apresentação do canal X (shared.apresentacao.X) só é usado pelo entrypoint do mesmo canal
-     * (..entrypoint.X..) ou pelo próprio pacote. Sem lista de canais: um canal novo herda a regra.
-     */
-    static ArchCondition<JavaClass> usadoSoPeloProprioCanal() {
-        return new ArchCondition<>("ser usado só pelo entrypoint do próprio canal") {
+    /** Classe que depende de algo em domain: é assim que um caso de uso de escrita se identifica. */
+    static DescribedPredicate<JavaClass> usamDominio() {
+        return DescribedPredicate.describe("usam o domínio",
+                c -> c.getDirectDependenciesFromSelf().stream().anyMatch(d -> estaEm(d.getTargetClass(), Raiz.pacote("domain"))));
+    }
+
+    /** Implementação da escrita: só o adapter a conhece. */
+    static DescribedPredicate<JavaClass> implementacaoDaEscrita() {
+        return DescribedPredicate.describe("são DataRepository, Mapper ou RepositoryAdapter",
+                c -> estaEm(c, Raiz.pacote("persistence"))
+                        && (c.getSimpleName().endsWith("DataRepository")
+                                || c.getSimpleName().endsWith("Mapper")
+                                || c.getSimpleName().endsWith("RepositoryAdapter")));
+    }
+
+    /** O caso de uso faz uma coisa só: exatamente um método público declarado. */
+    static ArchCondition<JavaClass> terUmUnicoMetodoPublico() {
+        return new ArchCondition<>("ter um único método público") {
             @Override
-            public void check(JavaClass alvo, ConditionEvents eventos) {
-                String canal = segmentoApos(alvo.getPackageName(), "shared.apresentacao");
-                for (Dependency dependencia : alvo.getDirectDependenciesToSelf()) {
-                    String origem = dependencia.getOriginClass().getPackageName();
-                    boolean permitido = canal.equals(segmentoApos(origem, "entrypoint"))
-                            || canal.equals(segmentoApos(origem, "shared.apresentacao"));
-                    if (!permitido) {
-                        eventos.add(SimpleConditionEvent.violated(dependencia,
-                                "padrão do canal '" + canal + "' usado fora dele: " + dependencia.getDescription()));
-                    }
+            public void check(JavaClass classe, ConditionEvents eventos) {
+                List<String> publicos = classe.getMethods().stream()
+                        .filter(m -> m.getModifiers().contains(JavaModifier.PUBLIC))
+                        .filter(m -> !m.getModifiers().contains(JavaModifier.SYNTHETIC))
+                        .map(JavaMethod::getName)
+                        .sorted()
+                        .toList();
+                if (publicos.size() != 1) {
+                    eventos.add(SimpleConditionEvent.violated(classe,
+                            classe.getName() + " tem " + publicos.size() + " métodos públicos: " + publicos));
                 }
             }
         };
@@ -81,11 +104,10 @@ final class Condicoes {
 
     /** Método público não pode devolver um tipo de nenhum pacote persistence (o contrato do canal é próprio). */
     static ArchCondition<JavaMethod> naoRetornarTipoDePersistence() {
-        return new ArchCondition<>("não retornar tipo de ..persistence..") {
+        return new ArchCondition<>("não retornar tipo de persistence") {
             @Override
             public void check(JavaMethod metodo, ConditionEvents eventos) {
-                String pacote = metodo.getRawReturnType().getPackageName();
-                if (PackageMatcher.of(Raiz.emQualquer("persistence")).matches(pacote)) {
+                if (estaEm(metodo.getRawReturnType(), Raiz.pacote("persistence"))) {
                     eventos.add(SimpleConditionEvent.violated(metodo,
                             metodo.getFullName() + " retorna " + metodo.getRawReturnType().getName()));
                 }

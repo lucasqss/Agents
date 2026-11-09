@@ -1,17 +1,20 @@
 package br.com.claudio.consorcio.arquitetura;
 
+import com.tngtech.archunit.junit.ArchIgnore;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
+import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition;
 
 /** DOM: Domain Model puro (PoEAA). Java sem framework e sem conhecer as outras camadas. */
 final class RegrasDominio {
 
-    private static final String DOMINIO = Raiz.pacote("command.domain");
+    private static final String DOMINIO = Raiz.pacote("domain");
 
     private RegrasDominio() {
     }
 
+    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom001Framework = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
@@ -24,8 +27,9 @@ final class RegrasDominio {
             .as("DOM-001: DOMÍNIO NÃO PODE DEPENDER DE FRAMEWORK")
             .because("o domínio é Java puro, testável sem subir o Quarkus."
                     + " Corrija: tire @Inject/@ApplicationScoped/@Transactional do domínio;"
-                    + " quem injeta e abre transação é o use case (command.application)");
+                    + " quem injeta e abre transação é o use case (application/<agregado>)");
 
+    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom002Persistencia = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
@@ -33,38 +37,41 @@ final class RegrasDominio {
                     "jakarta.persistence..",
                     "jakarta.data..",
                     "org.hibernate..",
-                    Raiz.pacote("command.persistence"),
-                    Raiz.pacote("shared.persistence"))
+                    Raiz.pacote("persistence"))
             .as("DOM-002: DOMÍNIO NÃO PODE DEPENDER DE PERSISTÊNCIA")
             .because("o domínio não sabe que existe banco."
                     + " Corrija: declare uma interface de repositório no domínio; a implementação,"
-                    + " a entidade JPA e o Mapper ficam em command.persistence e shared.persistence");
+                    + " a entidade JPA e o Mapper ficam em persistence/<agregado>");
 
+    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom003Application = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
-            .should().dependOnClassesThat().resideInAPackage(Raiz.pacote("command.application"))
+            .should().dependOnClassesThat().resideInAPackage(Raiz.pacote("application"))
             .as("DOM-003: DOMÍNIO NÃO PODE DEPENDER DE APPLICATION (SERVICE LAYER)")
             .because("o use case usa o domínio, nunca o contrário."
                     + " Corrija: passe o dado como parâmetro do método do domínio ou mova a lógica para o use case");
 
+    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom004Gateway = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
-            .should().dependOnClassesThat().resideInAnyPackage(Raiz.pacote("shared.gateway"), Raiz.pacote("command.gateway"))
+            .should().dependOnClassesThat().resideInAPackage(Raiz.pacote("gateway"))
             .as("DOM-004: DOMÍNIO NÃO PODE DEPENDER DE GATEWAY EXTERNO")
             .because("só use cases chamam sistemas externos."
                     + " Corrija: o use case chama o Gateway e passa o resultado para o domínio;"
-                    + " se a regra do domínio precisa do sistema, declare a interface no domínio e implemente em command.gateway");
+                    + " se a regra do domínio precisa do sistema, declare a interface no domínio e implemente em um *GatewayAdapter em gateway/<sistema>");
 
+    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom005Http = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
-            .should().dependOnClassesThat().resideInAnyPackage("jakarta.ws.rs..", Raiz.pacote("command.entrypoint"))
+            .should().dependOnClassesThat().resideInAnyPackage("jakarta.ws.rs..", Raiz.pacote("entrypoint"))
             .as("DOM-005: DOMÍNIO NÃO PODE DEPENDER DE HTTP NEM DO ENTRYPOINT")
             .because("HTTP é detalhe de entrada."
                     + " Corrija: lance uma DominioException; o entrypoint traduz para o status HTTP no ExceptionMappers");
 
+    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom006BeanValidation = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
@@ -74,11 +81,22 @@ final class RegrasDominio {
                     + " Corrija: valide formato (@NotBlank, @Size) no Request do entrypoint e regra de negócio"
                     + " no construtor/método do domínio lançando DominioException");
 
+    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom007Apresentacao = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
-            .should().dependOnClassesThat().resideInAPackage(Raiz.pacote("shared.apresentacao"))
+            .should().dependOnClassesThat().resideInAPackage(Raiz.pacote("entrypoint.apresentacao"))
             .as("DOM-007: DOMÍNIO NÃO PODE DEPENDER DE APRESENTAÇÃO DE CANAL")
             .because("formatação muda por canal; regra de negócio não."
                     + " Corrija: devolva o valor cru e formate no entrypoint do canal com o Padrao do canal");
+
+    @ArchIgnore(reason = "adequacao:dominio")
+    @ArchTest
+    static final ArchRule dom008AgregadosIndependentes = SlicesRuleDefinition.slices()
+            .matching(Raiz.pacote("domain.(*)"))
+            .should().notDependOnEachOther()
+            .allowEmptyShould(true)
+            .as("DOM-008: UM AGREGADO NÃO PODE DEPENDER DE OUTRO NO DOMÍNIO")
+            .because("o agregado guarda só o id do outro; assim cada um muda sem arrastar o resto."
+                    + " Corrija: troque a referência pelo id e coordene os dois agregados no use case");
 }

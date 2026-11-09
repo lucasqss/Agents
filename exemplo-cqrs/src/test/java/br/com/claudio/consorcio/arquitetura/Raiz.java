@@ -11,8 +11,8 @@ import java.util.Set;
  * Para levar as regras a outro projeto, copie a pasta para {@code src/test/java/<pacote raiz>/arquitetura/}
  * (a IDE ajusta a linha {@code package}); nada mais muda.
  *
- * <p>Todos os padrões das regras são ancorados aqui. Assim, {@code "query"} só casa com o nosso
- * {@code <raiz>.query}, nunca com pacotes de bibliotecas como {@code org.hibernate.query}.
+ * <p>Todos os padrões das regras são ancorados aqui. Assim, {@code "domain"} só casa com o nosso
+ * {@code <raiz>.domain}, nunca com pacotes de bibliotecas.
  */
 public final class Raiz implements LocationProvider {
 
@@ -37,12 +37,12 @@ public final class Raiz implements LocationProvider {
         return Locations.ofPackage(PACOTE);
     }
 
-    /** {@code pacote("command.domain")} = {@code <raiz>.command.domain..} (o pacote e os subpacotes). */
+    /** {@code pacote("domain")} = {@code <raiz>.domain..} (o pacote e os subpacotes). */
     static String pacote(String relativo) {
         return PACOTE + "." + relativo + "..";
     }
 
-    /** {@code exato("shared.apresentacao")} = só esse pacote, sem os subpacotes. */
+    /** {@code exato("entrypoint.apresentacao")} = só esse pacote, sem os subpacotes. */
     static String exato(String relativo) {
         return PACOTE + "." + relativo;
     }

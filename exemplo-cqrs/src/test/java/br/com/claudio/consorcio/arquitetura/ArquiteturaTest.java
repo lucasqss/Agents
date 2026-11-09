@@ -20,13 +20,13 @@ class ArquiteturaTest {
     static final ArchTests dominio = ArchTests.in(RegrasDominio.class);
 
     @ArchTest
-    static final ArchTests command = ArchTests.in(RegrasCommand.class);
+    static final ArchTests escrita = ArchTests.in(RegrasEscrita.class);
 
     @ArchTest
-    static final ArchTests query = ArchTests.in(RegrasQuery.class);
+    static final ArchTests leitura = ArchTests.in(RegrasLeitura.class);
 
     @ArchTest
-    static final ArchTests shared = ArchTests.in(RegrasShared.class);
+    static final ArchTests persistenciaEGateway = ArchTests.in(RegrasPersistenciaEGateway.class);
 
     @ArchTest
     static final ArchTests canais = ArchTests.in(RegrasCanais.class);
