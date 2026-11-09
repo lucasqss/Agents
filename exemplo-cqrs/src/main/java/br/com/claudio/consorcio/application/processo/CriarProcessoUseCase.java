@@ -22,7 +22,7 @@ public class CriarProcessoUseCase {
     }
 
     @Transactional
-    public Long criar(Long cotaId, TipoProcesso tipo) {
+    public Long executar(Long cotaId, TipoProcesso tipo) {
         ProcessoPagamento processo = ProcessoPagamento.novo(tipo, cotaId);
         cotas.buscarPorId(cotaId).orElseThrow(() -> new NaoEncontradoException("Cota", cotaId));
         if (processos.existeAtivoPorCota(cotaId)) {

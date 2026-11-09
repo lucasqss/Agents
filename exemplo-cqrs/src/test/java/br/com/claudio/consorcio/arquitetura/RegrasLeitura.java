@@ -1,6 +1,5 @@
 package br.com.claudio.consorcio.arquitetura;
 
-import com.tngtech.archunit.junit.ArchIgnore;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
@@ -12,7 +11,6 @@ final class RegrasLeitura {
     private RegrasLeitura() {
     }
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule qry001ConsultaIndependenteDoDominio = ArchRuleDefinition.noClasses()
             .that().haveSimpleNameEndingWith("QueryRepository")
@@ -21,7 +19,6 @@ final class RegrasLeitura {
             .because("consulta de tela não passa pelo domínio."
                     + " Corrija: crie um record de projeção e a consulta em persistence/<agregado>; não reuse o domínio");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule qry002PersistenciaNaBase = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(Raiz.pacote("persistence"))
@@ -30,7 +27,6 @@ final class RegrasLeitura {
             .because("a direção é entrypoint -> application -> persistence."
                     + " Corrija: o repositório devolve records próprios; quem adapta é o use case ou o entrypoint");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule qry003EntrypointSemRepositorio = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(Raiz.pacote("entrypoint"))

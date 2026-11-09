@@ -1,6 +1,5 @@
 package br.com.claudio.consorcio.arquitetura;
 
-import com.tngtech.archunit.junit.ArchIgnore;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
@@ -13,7 +12,6 @@ final class RegrasEscrita {
     private RegrasEscrita() {
     }
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule cmd001EscritaNaoUsaConsultaDeTela = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(APPLICATION).and(Condicoes.usamDominio())
@@ -23,7 +21,6 @@ final class RegrasEscrita {
                     + " Corrija: busque pelo repositório em domain/<agregado> e, se faltar método, crie-o lá;"
                     + " se é uma leitura, tire o domínio do caso de uso");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule cmd002UseCaseSemImplementacaoDeRepositorio = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(APPLICATION)
@@ -32,7 +29,6 @@ final class RegrasEscrita {
             .because("o use case vê o banco só pela interface do domínio (Separated Interface)."
                     + " Corrija: injete a interface de domain/<agregado> (ex.: CotaRepository), não o *RepositoryAdapter");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule cmd003UseCaseSemEntidadeJpa = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(APPLICATION)
@@ -42,7 +38,6 @@ final class RegrasEscrita {
             .because("o use case trabalha com objetos do domínio ou records de consulta."
                     + " Corrija: use o objeto do domínio; a conversão entidade <-> domínio é do Mapper em persistence/<agregado>");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule cmd004EntrypointSemBanco = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(Raiz.pacote("entrypoint"))
@@ -52,7 +47,6 @@ final class RegrasEscrita {
             .because("o entrypoint só traduz HTTP e chama use case."
                     + " Corrija: crie ou use um use case em application/<agregado>");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule cmd005PersistenciaSoPelaInterface = ArchRuleDefinition.noClasses()
             .that().resideOutsideOfPackage(Raiz.pacote("persistence"))
@@ -61,7 +55,6 @@ final class RegrasEscrita {
             .because("a implementação dos repositórios é encontrada via CDI pela interface do domínio."
                     + " Corrija: dependa da interface em domain/<agregado>, nunca da classe de persistence/<agregado>");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule cmd006PortaDoDominioParaSistemaExterno = ArchRuleDefinition.classes()
             .that(Condicoes.implementaInterfaceDoDominio()).and(Condicoes.usamGateway())
@@ -71,7 +64,6 @@ final class RegrasEscrita {
             .because("cada pasta tem um papel só."
                     + " Corrija: mova a classe para gateway/<sistema> com o sufixo GatewayAdapter");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule cmd007GatewayAdapterSoTraduz = ArchRuleDefinition.noClasses()
             .that().haveSimpleNameEndingWith("GatewayAdapter")
@@ -82,7 +74,6 @@ final class RegrasEscrita {
             .because("ele não orquestra nem acessa banco."
                     + " Corrija: deixe só a tradução domínio <-> Gateway; orquestração vai para o use case");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule cmd008GatewayAdapterSoPelaInterface = ArchRuleDefinition.noClasses()
             .should().dependOnClassesThat().haveSimpleNameEndingWith("GatewayAdapter")
@@ -91,7 +82,6 @@ final class RegrasEscrita {
             .because("quem precisa usa a interface, nunca a implementação."
                     + " Corrija: injete a interface declarada em domain/<agregado>");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule cmd009UmaOperacaoPorUseCase = ArchRuleDefinition.classes()
             .that().haveSimpleNameEndingWith("UseCase")
@@ -100,7 +90,6 @@ final class RegrasEscrita {
             .because("uma classe, uma operação: é o limite que impede classes gigantes."
                     + " Corrija: separe cada operação em seu próprio *UseCase em application/<agregado>");
 
-    @ArchIgnore(reason = "adequacao:application")
     @ArchTest
     static final ArchRule cmd010EscritaSemJakartaData = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(APPLICATION).and(Condicoes.usamDominio())

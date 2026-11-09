@@ -1,6 +1,8 @@
 package br.com.claudio.consorcio.entrypoint.rest.cliente;
 
-import br.com.claudio.consorcio.application.cliente.GerenciarClienteUseCase;
+import br.com.claudio.consorcio.application.cliente.AtualizarClienteUseCase;
+import br.com.claudio.consorcio.application.cliente.CriarClienteUseCase;
+import br.com.claudio.consorcio.application.cliente.ExcluirClienteUseCase;
 import br.com.claudio.consorcio.entrypoint.IdCriado;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -14,27 +16,31 @@ import java.net.URI;
 @Path("/clientes")
 public class ClienteResource {
 
-    private final GerenciarClienteUseCase useCase;
+    private final CriarClienteUseCase criar;
+    private final AtualizarClienteUseCase atualizar;
+    private final ExcluirClienteUseCase excluir;
 
-    public ClienteResource(GerenciarClienteUseCase useCase) {
-        this.useCase = useCase;
+    public ClienteResource(CriarClienteUseCase criar, AtualizarClienteUseCase atualizar, ExcluirClienteUseCase excluir) {
+        this.criar = criar;
+        this.atualizar = atualizar;
+        this.excluir = excluir;
     }
 
     @POST
     public Response criar(@Valid @NotNull ClienteRequest dados) {
-        Long id = useCase.criar(dados.paraDados());
+        Long id = criar.executar(dados.paraDados());
         return Response.created(URI.create("/clientes/" + id)).entity(new IdCriado(id)).build();
     }
 
     @PUT
     @Path("/{id}")
     public void atualizar(Long id, @Valid @NotNull ClienteRequest dados) {
-        useCase.atualizar(id, dados.paraDados());
+        atualizar.executar(id, dados.paraDados());
     }
 
     @DELETE
     @Path("/{id}")
     public void excluir(Long id) {
-        useCase.excluir(id);
+        excluir.executar(id);
     }
 }

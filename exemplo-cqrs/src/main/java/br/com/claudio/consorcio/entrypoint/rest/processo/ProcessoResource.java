@@ -1,7 +1,11 @@
 package br.com.claudio.consorcio.entrypoint.rest.processo;
 
-import br.com.claudio.consorcio.application.processo.AvancarProcessoUseCase;
+import br.com.claudio.consorcio.application.processo.CancelarProcessoUseCase;
+import br.com.claudio.consorcio.application.processo.ConcluirAnaliseProcessoUseCase;
+import br.com.claudio.consorcio.application.processo.ConcluirVistoriaProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.CriarProcessoUseCase;
+import br.com.claudio.consorcio.application.processo.IniciarAnaliseProcessoUseCase;
+import br.com.claudio.consorcio.application.processo.PagarProcessoUseCase;
 import br.com.claudio.consorcio.domain.processo.TipoProcesso;
 import br.com.claudio.consorcio.entrypoint.IdCriado;
 import jakarta.validation.Valid;
@@ -22,46 +26,59 @@ public class ProcessoResource {
     }
 
     private final CriarProcessoUseCase criar;
-    private final AvancarProcessoUseCase avancar;
+    private final IniciarAnaliseProcessoUseCase iniciarAnalise;
+    private final ConcluirAnaliseProcessoUseCase concluirAnalise;
+    private final ConcluirVistoriaProcessoUseCase concluirVistoria;
+    private final PagarProcessoUseCase pagar;
+    private final CancelarProcessoUseCase cancelar;
 
-    public ProcessoResource(CriarProcessoUseCase criar, AvancarProcessoUseCase avancar) {
+    public ProcessoResource(CriarProcessoUseCase criar,
+            IniciarAnaliseProcessoUseCase iniciarAnalise,
+            ConcluirAnaliseProcessoUseCase concluirAnalise,
+            ConcluirVistoriaProcessoUseCase concluirVistoria,
+            PagarProcessoUseCase pagar,
+            CancelarProcessoUseCase cancelar) {
         this.criar = criar;
-        this.avancar = avancar;
+        this.iniciarAnalise = iniciarAnalise;
+        this.concluirAnalise = concluirAnalise;
+        this.concluirVistoria = concluirVistoria;
+        this.pagar = pagar;
+        this.cancelar = cancelar;
     }
 
     @POST
     public Response criar(@Valid @NotNull NovoProcesso dados) {
-        Long id = criar.criar(dados.cotaId(), dados.tipo());
+        Long id = criar.executar(dados.cotaId(), dados.tipo());
         return Response.created(URI.create("/processos/" + id)).entity(new IdCriado(id)).build();
     }
 
     @POST
     @Path("/{id}/iniciar-analise")
     public EstadoAtual iniciarAnalise(Long id) {
-        return new EstadoAtual(avancar.iniciarAnalise(id));
+        return new EstadoAtual(iniciarAnalise.executar(id));
     }
 
     @POST
     @Path("/{id}/concluir-analise")
     public EstadoAtual concluirAnalise(Long id) {
-        return new EstadoAtual(avancar.concluirAnalise(id));
+        return new EstadoAtual(concluirAnalise.executar(id));
     }
 
     @POST
     @Path("/{id}/concluir-vistoria")
     public EstadoAtual concluirVistoria(Long id) {
-        return new EstadoAtual(avancar.concluirVistoria(id));
+        return new EstadoAtual(concluirVistoria.executar(id));
     }
 
     @POST
     @Path("/{id}/pagar")
     public EstadoAtual pagar(Long id) {
-        return new EstadoAtual(avancar.pagar(id));
+        return new EstadoAtual(pagar.executar(id));
     }
 
     @POST
     @Path("/{id}/cancelar")
     public EstadoAtual cancelar(Long id) {
-        return new EstadoAtual(avancar.cancelar(id));
+        return new EstadoAtual(cancelar.executar(id));
     }
 }
