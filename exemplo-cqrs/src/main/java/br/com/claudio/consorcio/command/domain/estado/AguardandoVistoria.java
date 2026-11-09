@@ -1,7 +1,9 @@
 package br.com.claudio.consorcio.command.domain.estado;
 
-import br.com.claudio.consorcio.command.domain.ProcessoPagamento;
-
+/**
+ * Padrão: State, estado concreto [GoF].
+ * Etapa de vistoria, usada só pelos tipos cujo fluxo passa por ela.
+ */
 public record AguardandoVistoria() implements EstadoProcesso {
 
     public static final String NOME = "AGUARDANDO_VISTORIA";
@@ -12,7 +14,7 @@ public record AguardandoVistoria() implements EstadoProcesso {
     }
 
     @Override
-    public EstadoProcesso concluirVistoria(ProcessoPagamento processo) {
+    public EstadoProcesso concluirVistoria() {
         return new Aprovado();
     }
 }

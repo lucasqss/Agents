@@ -7,7 +7,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import java.util.function.Consumer;
 
-/** Aplica uma transição ao processo e devolve o nome do novo estado. */
+/** Padrão: Service Layer [PoEAA]. Aplica uma transição ao processo e devolve o nome do novo estado. */
 @ApplicationScoped
 public class AvancarProcessoUseCase {
 

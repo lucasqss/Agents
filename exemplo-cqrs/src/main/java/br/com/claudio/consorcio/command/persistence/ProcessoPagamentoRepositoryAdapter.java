@@ -2,17 +2,20 @@ package br.com.claudio.consorcio.command.persistence;
 
 import br.com.claudio.consorcio.command.domain.ProcessoPagamento;
 import br.com.claudio.consorcio.command.domain.ProcessoPagamentoRepository;
-import br.com.claudio.consorcio.command.domain.estado.Cancelado;
-import br.com.claudio.consorcio.command.domain.estado.Pago;
+import br.com.claudio.consorcio.command.domain.estado.EstadoProcesso;
 import br.com.claudio.consorcio.shared.persistence.ProcessoPagamentoEntity;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
 import java.util.Optional;
 
+/** Padrão: Repository [PoEAA]; implementa a Separated Interface do domínio sobre o Jakarta Data. */
 @ApplicationScoped
 public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepository {
 
-    private static final List<String> ESTADOS_FINAIS = List.of(Pago.NOME, Cancelado.NOME);
+    private static final List<String> ESTADOS_FINAIS = EstadoProcesso.todos().stream()
+            .filter(EstadoProcesso::finalizado)
+            .map(EstadoProcesso::nome)
+            .toList();
 
     private final ProcessoPagamentoDataRepository dados;
 

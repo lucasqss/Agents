@@ -1,14 +1,30 @@
 package br.com.claudio.consorcio.command.domain.estado;
 
-import br.com.claudio.consorcio.command.domain.ProcessoPagamento;
+import br.com.claudio.consorcio.command.domain.FluxoProcesso;
 import br.com.claudio.consorcio.command.domain.TransicaoInvalidaException;
+import java.util.List;
 
 /**
- * Estado de um processo de pagamento (padrão State). Cada ação devolve o próximo estado;
- * por padrão a ação é inválida e só os estados que a permitem sobrescrevem o método.
+ * Padrão: State, interface do estado [GoF].
+ * Cada ação devolve o próximo estado; por padrão ela é inválida, e só os estados que a permitem sobrescrevem.
+ * Estado novo: crie o record, inclua em {@code permits} e em {@link #todos()}.
  */
 public sealed interface EstadoProcesso
         permits Aberto, EmAnalise, AguardandoVistoria, Aprovado, Pago, Cancelado {
+
+    /** Todos os estados; é a lista que o banco usa para reconstruir e para achar os finais. */
+    static List<EstadoProcesso> todos() {
+        return List.of(new Aberto(), new EmAnalise(), new AguardandoVistoria(), new Aprovado(), new Pago(),
+                new Cancelado());
+    }
+
+    /** Estado pelo código gravado na coluna {@code estado}. */
+    static EstadoProcesso porNome(String nome) {
+        return todos().stream()
+                .filter(estado -> estado.nome().equals(nome))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Estado desconhecido: " + nome));
+    }
 
     /** Código gravado na coluna {@code estado}. */
     String nome();
@@ -17,24 +33,25 @@ public sealed interface EstadoProcesso
         return false;
     }
 
-    default EstadoProcesso iniciarAnalise(ProcessoPagamento processo) {
+    default EstadoProcesso iniciarAnalise() {
         throw new TransicaoInvalidaException("iniciar a análise de", nome());
     }
 
-    default EstadoProcesso concluirAnalise(ProcessoPagamento processo) {
+    /** O fluxo do tipo do processo decide o próximo passo. */
+    default EstadoProcesso concluirAnalise(FluxoProcesso fluxo) {
         throw new TransicaoInvalidaException("concluir a análise de", nome());
     }
 
-    default EstadoProcesso concluirVistoria(ProcessoPagamento processo) {
+    default EstadoProcesso concluirVistoria() {
         throw new TransicaoInvalidaException("concluir a vistoria de", nome());
     }
 
-    default EstadoProcesso pagar(ProcessoPagamento processo) {
+    default EstadoProcesso pagar() {
         throw new TransicaoInvalidaException("pagar", nome());
     }
 
     /** Qualquer estado não final pode ser cancelado. */
-    default EstadoProcesso cancelar(ProcessoPagamento processo) {
+    default EstadoProcesso cancelar() {
         if (finalizado()) {
             throw new TransicaoInvalidaException("cancelar", nome());
         }

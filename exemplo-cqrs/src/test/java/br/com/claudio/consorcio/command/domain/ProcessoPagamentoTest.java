@@ -11,6 +11,7 @@ import br.com.claudio.consorcio.command.domain.estado.AguardandoVistoria;
 import br.com.claudio.consorcio.command.domain.estado.Aprovado;
 import br.com.claudio.consorcio.command.domain.estado.Cancelado;
 import br.com.claudio.consorcio.command.domain.estado.EmAnalise;
+import br.com.claudio.consorcio.command.domain.estado.EstadoProcesso;
 import br.com.claudio.consorcio.command.domain.estado.Pago;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,7 @@ class ProcessoPagamentoTest {
     void novoProcessoComecaAbertoESemId() {
         ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA);
 
-        assertInstanceOf(ProcessoServico.class, processo);
+        assertEquals(TipoProcesso.SERVICO, processo.tipo());
         assertInstanceOf(Aberto.class, processo.estado());
         assertEquals(null, processo.id());
         assertTrue(processo.ativo());
@@ -160,7 +161,17 @@ class ProcessoPagamentoTest {
 
     @Test
     void reconstituirComProtocoloExigeEstadoPago() {
-        assertThrows(DominioException.class, () -> new ProcessoServico(1L, COTA, new Aprovado(), "PROT-1"));
-        assertEquals("PROT-1", new ProcessoServico(1L, COTA, new Pago(), "PROT-1").protocoloPagamento());
+        assertThrows(DominioException.class,
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, new Aprovado(), "PROT-1"));
+        assertEquals("PROT-1",
+                ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, new Pago(), "PROT-1").protocoloPagamento());
+    }
+
+    @Test
+    void todosOsEstadosSaoReconstituiveisPeloNome() {
+        for (EstadoProcesso estado : EstadoProcesso.todos()) {
+            assertEquals(estado, EstadoProcesso.porNome(estado.nome()));
+        }
+        assertThrows(IllegalArgumentException.class, () -> EstadoProcesso.porNome("INEXISTENTE"));
     }
 }

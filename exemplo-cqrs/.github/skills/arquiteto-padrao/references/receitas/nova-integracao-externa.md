@@ -1,14 +1,8 @@
----
-mode: agent
-description: Cria o Gateway de um sistema externo (REST client, DTOs, resiliência, erro 503 e Service Stub para testes).
----
-Crie a integração com o sistema externo descrito abaixo seguindo `.github/copilot-instructions.md` e o exemplo `shared/gateway/tesouraria`.
+# Receita: nova integração externa
 
-Sistema: ${input:sistema:Nome do sistema, ex.: "cadastro-corporativo"}
-Operação: ${input:operacao:O que precisamos dele, ex.: "consultar restrições de um CPF"}
-Contrato da API externa: ${input:contrato:Cole aqui o endpoint e o JSON de request/response, ou o link da documentação}
+Entradas necessárias: o nome do sistema (ex.: "cadastro-corporativo"), a operação (ex.: "consultar restrições de um CPF") e o contrato da API (endpoint e JSON, ou link da documentação). Se faltar, pergunte. Use `gateway/tesouraria` como exemplo e veja [gateway](../gateway.md).
 
-1. Pacote `shared/gateway/<sistema>/`.
+1. Pacote `gateway/<sistema>/`.
 2. DTOs (records) com os nomes de campo **exatos da API externa**.
 3. `XClient` com `@RegisterRestClient(configKey = "<sistema>")`, `@Timeout`, `@Retry` e `@CircuitBreaker`.
 4. `XGateway` com uma API simples no nosso vocabulário; traduz e converte qualquer falha em `SistemaExternoIndisponivelException("<Sistema>", causa)`. Não importa nada de `command` nem de `query`.

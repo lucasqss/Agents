@@ -1,7 +1,9 @@
 package br.com.claudio.consorcio.command.domain.estado;
 
-import br.com.claudio.consorcio.command.domain.ProcessoPagamento;
-
+/**
+ * Padrão: State, estado concreto [GoF].
+ * Processo recém-criado; só aceita iniciar a análise (ou cancelar).
+ */
 public record Aberto() implements EstadoProcesso {
 
     public static final String NOME = "ABERTO";
@@ -12,7 +14,7 @@ public record Aberto() implements EstadoProcesso {
     }
 
     @Override
-    public EstadoProcesso iniciarAnalise(ProcessoPagamento processo) {
+    public EstadoProcesso iniciarAnalise() {
         return new EmAnalise();
     }
 }

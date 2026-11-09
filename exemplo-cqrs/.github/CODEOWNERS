@@ -5,8 +5,11 @@
 # Regras de arquitetura (ArchUnit): ninguém afrouxa uma regra para o build passar.
 /src/test/java/**/arquitetura/                  @lucasqss
 
-# Guardrails: CI, instruções do Copilot, prompts, template de PR e este arquivo.
+# Guardrails: skills de arquitetura, ADR, instruções para agentes de IA e este arquivo.
 /.github/                                       @lucasqss
+/AGENTS.md                                      @lucasqss
+/CLAUDE.md                                      @lucasqss
+/.claude/                                       @lucasqss
 
 # Build: versões, plugins e dependências.
 /pom.xml                                        @lucasqss
@@ -18,5 +21,5 @@
 /src/main/resources/db/migration/               @lucasqss
 
 # Padrão de apresentação dos canais (padrão da empresa) e contratos dos fronts.
-/src/main/java/**/shared/apresentacao/          @lucasqss
+/src/main/java/**/apresentacao/                 @lucasqss
 /src/main/java/**/entrypoint/*/*Response.java   @lucasqss

@@ -1,7 +1,9 @@
 package br.com.claudio.consorcio.command.domain.estado;
 
-import br.com.claudio.consorcio.command.domain.ProcessoPagamento;
-
+/**
+ * Padrão: State, estado concreto [GoF].
+ * Aprovado e pronto para pagar.
+ */
 public record Aprovado() implements EstadoProcesso {
 
     public static final String NOME = "APROVADO";
@@ -12,7 +14,7 @@ public record Aprovado() implements EstadoProcesso {
     }
 
     @Override
-    public EstadoProcesso pagar(ProcessoPagamento processo) {
+    public EstadoProcesso pagar() {
         return new Pago();
     }
 }

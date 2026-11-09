@@ -160,7 +160,10 @@ Os fronts são gerados por low-code e não formatam nada, então o backend entre
 
 ### Processo de pagamento
 
-`ProcessoPagamento` é abstrata, com `ProcessoImobiliario` e `ProcessoServico`. Os estados seguem o padrão State (`command.domain.estado`):
+`ProcessoPagamento` é o motor único de todos os tipos de pagamento. Dois padrões do GoF dividem o trabalho:
+
+- **State** (`command.domain.estado`): o estado atual decide se a ação é válida e qual o próximo estado.
+- **Strategy** (`FluxoProcesso`, escolhida por `TipoProcesso`): o tipo decide os desvios do fluxo. Hoje, só o que vem depois da análise.
 
 ```
 Imobiliário: ABERTO → EM_ANALISE → AGUARDANDO_VISTORIA → APROVADO → PAGO
@@ -168,7 +171,18 @@ Serviço:     ABERTO → EM_ANALISE → APROVADO → PAGO
 Qualquer estado não final → CANCELADO
 ```
 
-Transições inválidas lançam `TransicaoInvalidaException` (HTTP 409). Cada cota tem no máximo um processo em andamento. No banco existe uma única tabela, `processo_pagamento`, com `tipo` e `estado` em texto. O mapper reconstrói a subclasse e o estado, sem herança JPA.
+Transições inválidas lançam `TransicaoInvalidaException` (HTTP 409). Cada cota tem no máximo um processo em andamento. No banco existe uma única tabela, `processo_pagamento`, com `tipo` e `estado` em texto. O mapper reconstrói o tipo e o estado pelo código gravado (`TipoProcesso.valueOf`, `EstadoProcesso.porNome`), sem herança JPA.
+
+**Como estender o motor**
+
+| Quero... | Faça |
+|---|---|
+| Um tipo novo de pagamento | constante em `TipoProcesso` + uma implementação de `FluxoProcesso` + rótulo em `Rotulos` |
+| Um estado novo | record em `estado/`, incluir em `permits` e em `EstadoProcesso.todos()` + rótulo em `Rotulos` |
+| Uma ação nova | método em `EstadoProcesso` (inválido por padrão) + método em `ProcessoPagamento` + caso de uso e endpoint |
+| Um desvio novo por tipo | método em `FluxoProcesso` e em cada fluxo concreto |
+
+Cada classe do motor traz no Javadoc uma linha com o padrão, o papel e a fonte. Fontes: **[GoF]** Gamma, Helm, Johnson e Vlissides, *Design Patterns* (1994); **[PoEAA]** Fowler, *Patterns of Enterprise Application Architecture* (2002).
 
 ## Guardrails para IA e revisão
 
@@ -176,18 +190,19 @@ O ArchUnit detecta o erro no build. Estas peças evitam que ele aconteça e impe
 
 | Camada | Peça | Onde |
 |---|---|---|
-| Orientar | Instruções gerais do Copilot | `.github/copilot-instructions.md` |
-| Orientar | Instruções por pasta (carregadas só quando o Copilot mexe ali) | `.github/instructions/*.instructions.md` |
-| Orientar | Receitas prontas: `/novo-caso-de-uso-escrita`, `/nova-consulta`, `/nova-integracao-externa`, `/novo-endpoint-de-canal`, `/separar-entidade-jpa` (legado: entidade JPA que também é domínio) | `.github/prompts/*.prompt.md` |
+| Orientar | Regras sempre ativas para qualquer agente de IA | `AGENTS.md` |
+| Orientar | O padrão de arquitetura, o ADR e as receitas de código novo: `/arquiteto-padrao` | `.github/skills/arquiteto-padrao/` |
+| Orientar | Como trazer um projeto legado para o padrão: `/adequar-ao-padrao` | `.github/skills/adequar-ao-padrao/` |
 | Orientar | O papel e as proibições de cada pacote, lidos pela IA ao abrir a pasta | `package-info.java` |
 | Detectar | Regras ArchUnit, testes de contrato, HQL validado na compilação | `src/test/...` |
-| Bloquear | CI (`./mvnw verify`), donos das partes sensíveis e checklist de PR | `.github/workflows/ci.yml`, `.github/CODEOWNERS`, `.github/pull_request_template.md` |
+| Bloquear | Donos das partes sensíveis | `.github/CODEOWNERS` |
+| Bloquear | `./mvnw verify` na esteira corporativa | fora deste repositório |
 
-**Neste repositório, a pasta `.github` é um modelo:** o GitHub só lê `.github` na raiz do repositório. Ao criar um projeto a partir deste exemplo, ela vai para a raiz.
+**Neste repositório, a pasta `.github` é um modelo:** o GitHub só lê `.github` na raiz do repositório. Ao criar um projeto a partir deste exemplo, ela vai para a raiz, junto com o `AGENTS.md`.
 
-O CODEOWNERS sozinho só **pede** revisão. Para que ele e o CI **bloqueiem** o merge, configure no GitHub, em *Settings → Rules → Rulesets* (ou *Branches → Branch protection*), para a `main`:
+O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem** o merge, configure no GitHub, em *Settings → Rules → Rulesets* (ou *Branches → Branch protection*), para a `main`:
 1. *Require a pull request before merging*, com *Require review from Code Owners*.
-2. *Require status checks to pass*, marcando o job `build` do CI.
+2. *Require status checks to pass*, marcando o check da esteira que roda `./mvnw verify`.
 3. *Block force pushes* e, se quiser, *Require linear history*.
 
 ## API

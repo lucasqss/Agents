@@ -7,6 +7,7 @@ import br.com.claudio.consorcio.command.domain.TipoProcesso;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
+/** Padrão: Service Layer [PoEAA]. Cria um processo novo para uma cota sem processo em andamento. */
 @ApplicationScoped
 public class CriarProcessoUseCase {
 

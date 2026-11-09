@@ -5,22 +5,27 @@ import br.com.claudio.consorcio.command.domain.estado.EstadoProcesso;
 import br.com.claudio.consorcio.command.domain.estado.Pago;
 
 /**
- * Processo de pagamento de uma cota. As transições são delegadas ao estado atual (padrão State);
- * cada subclasse decide para onde o processo vai depois da análise.
+ * Padrões: State e Strategy, contexto [GoF]; Factory Method em novo/reconstituir [GoF].
+ * Motor único dos processos de pagamento: o estado atual decide se a ação vale, o fluxo do tipo decide os desvios.
  */
-public abstract class ProcessoPagamento {
+public final class ProcessoPagamento {
 
     private final Long id;
     private final Long cotaId;
+    private final TipoProcesso tipo;
     private EstadoProcesso estado;
     private String protocoloPagamento;
 
-    protected ProcessoPagamento(Long id, Long cotaId, EstadoProcesso estado, String protocoloPagamento) {
+    private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, EstadoProcesso estado, String protocoloPagamento) {
         if (cotaId == null) {
             throw new DominioException("Processo precisa de uma cota");
         }
+        if (tipo == null) {
+            throw new DominioException("Tipo do processo é obrigatório");
+        }
         this.id = id;
         this.cotaId = cotaId;
+        this.tipo = tipo;
         this.estado = estado == null ? new Aberto() : estado;
         if (protocoloPagamento != null) {
             registrarProtocolo(protocoloPagamento);
@@ -29,34 +34,29 @@ public abstract class ProcessoPagamento {
 
     /** Cria um processo novo, no estado Aberto, do tipo informado. */
     public static ProcessoPagamento novo(TipoProcesso tipo, Long cotaId) {
-        if (tipo == null) {
-            throw new DominioException("Tipo do processo é obrigatório");
-        }
-        return switch (tipo) {
-            case IMOBILIARIO -> new ProcessoImobiliario(null, cotaId, new Aberto(), null);
-            case SERVICO -> new ProcessoServico(null, cotaId, new Aberto(), null);
-        };
+        return new ProcessoPagamento(null, cotaId, tipo, new Aberto(), null);
     }
 
-    public abstract TipoProcesso tipo();
-
-    /** Próximo estado quando a análise é concluída. */
-    public abstract EstadoProcesso estadoAposAnalise();
+    /** Recria um processo já gravado, no estado em que ele estava. */
+    public static ProcessoPagamento reconstituir(Long id, Long cotaId, TipoProcesso tipo, EstadoProcesso estado,
+            String protocoloPagamento) {
+        return new ProcessoPagamento(id, cotaId, tipo, estado, protocoloPagamento);
+    }
 
     public void iniciarAnalise() {
-        estado = estado.iniciarAnalise(this);
+        estado = estado.iniciarAnalise();
     }
 
     public void concluirAnalise() {
-        estado = estado.concluirAnalise(this);
+        estado = estado.concluirAnalise(tipo.fluxo());
     }
 
     public void concluirVistoria() {
-        estado = estado.concluirVistoria(this);
+        estado = estado.concluirVistoria();
     }
 
     public void pagar() {
-        estado = estado.pagar(this);
+        estado = estado.pagar();
     }
 
     /** Guarda o protocolo emitido pela tesouraria; só faz sentido para um processo já pago. */
@@ -71,7 +71,7 @@ public abstract class ProcessoPagamento {
     }
 
     public void cancelar() {
-        estado = estado.cancelar(this);
+        estado = estado.cancelar();
     }
 
     public boolean ativo() {
@@ -84,6 +84,10 @@ public abstract class ProcessoPagamento {
 
     public Long cotaId() {
         return cotaId;
+    }
+
+    public TipoProcesso tipo() {
+        return tipo;
     }
 
     public EstadoProcesso estado() {
