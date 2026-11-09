@@ -17,7 +17,7 @@ No `pom.xml`, troque a extensão Panache pela dependência `jakarta.data-api` e 
 | `X.find("numero", valor)` | `@Query` com HQL completo |
 | `X.find("status = ?1", s).page(...)` | `@Query` + `PageRequest`, devolvendo `Page<...>` |
 | `X.count("cliente", c)` | `@Query("select count(x) from XEntity x where ...")` |
-| `X.listAll()` em tela | record projetado + `@Query` em `query/persistence` |
+| `X.listAll()` em tela | record projetado + `@Query` em `persistence/<agregado>/XQueryRepository` |
 
 O atalho do Panache (`"numero"`, `"status = ?1"`) não existe em Jakarta Data: escreva o HQL completo, com parâmetros nomeados. Ele passa a ser validado na compilação, e um erro antes escondido pode aparecer aqui.
 

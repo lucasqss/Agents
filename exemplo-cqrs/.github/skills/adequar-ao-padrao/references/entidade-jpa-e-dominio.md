@@ -27,7 +27,7 @@ Se encontrar um dos casos abaixo, **pare e pergunte** antes de seguir:
 - **Callback que faz mais do que preencher data.**
 - **Associação que forma ciclo entre agregados.**
 
-## Passo 1: entidade de domínio (`domain/<Nome>.java`)
+## Passo 1: entidade de domínio (`domain/<agregado>/<Nome>.java`)
 
 - **Java puro:** sem JPA, Jakarta Data, CDI, Bean Validation, Lombok, Quarkus nem Hibernate.
 - **Construção:** construtor privado; fábrica `novo(...)` (ou `nova(...)`), sem id, para criar; `reconstituir(id, ...)`, usada só pelo mapper.
@@ -38,13 +38,13 @@ Se encontrar um dos casos abaixo, **pare e pergunte** antes de seguir:
 - **Estados fechados:** `sealed` + `record` (State), como em `ProcessoPagamento`. **Variação por tipo:** enum com Strategy (`TipoProcesso` + `FluxoProcesso`), sem subclasse por tipo.
 - **Versão:** se havia `@Version`, o domínio carrega `versao` (Long) só para devolvê-la ao mapper.
 
-## Passo 2: interface de repositório no domínio (`domain/<Nome>Repository.java`)
+## Passo 2: interface de repositório no domínio (`domain/<agregado>/<Nome>Repository.java`)
 
 - Só os métodos que os **use cases de escrita** precisam: `salvar`, `buscarPorId`, `excluir` e consultas de decisão (`existeX(...)`).
 - Usa só tipos do domínio.
-- Buscas que só alimentam **telas** não entram aqui: vão para o `query` (record + `@Query` em `query/persistence`).
+- Buscas que só alimentam **telas** não entram aqui: vão para um `<Nome>QueryRepository` (record + `@Query` em `persistence/<agregado>/`).
 
-## Passo 3: entidade JPA (`<modulo>/persistence/<Nome>Entity.java`)
+## Passo 3: entidade JPA (`persistence/<agregado>/<Nome>Entity.java`)
 
 - **O mapeamento é exatamente o atual:** os mesmos `@Table`, `@Column`, `@Id`/geração e `@Version`.
 - **Só campos, getters e setters.** Sem regra, sem construtor com lógica, sem Bean Validation e sem Lombok.
@@ -54,26 +54,26 @@ Se encontrar um dos casos abaixo, **pare e pergunte** antes de seguir:
 - **Enum:** `String` (ou `@Enumerated(EnumType.STRING)` se a coluna já guarda o nome); a conversão é do mapper.
 - **Callbacks:** nenhum. O que eles faziam passa a ser explícito (domínio ou adapter).
 
-## Passo 4: repositório Jakarta Data (`persistence/<Nome>DataRepository.java`)
+## Passo 4: repositório Jakarta Data (`persistence/<agregado>/<Nome>DataRepository.java`)
 
 - Interface **package-private** com `@Repository`, `@Find`, `@Insert`, `@Update` e `@Query` em HQL para deletes e contagens. Sem SQL nativo nem Panache.
 - **Stateless session:** não há dirty checking, cascade nem lazy loading. Gravar é sempre explícito, e os filhos são gravados e carregados explicitamente pelo adapter.
 
-## Passo 5: mapper (`persistence/<Nome>Mapper.java`)
+## Passo 5: mapper (`persistence/<agregado>/<Nome>Mapper.java`)
 
 - Classe `final`, package-private, métodos estáticos `paraDominio(entity)` e `paraEntidade(dominio)`, escrita à mão, sem MapStruct.
 - `paraDominio` usa `reconstituir(...)`. Valor inválido vindo do banco (enum desconhecido) lança `IllegalStateException` com a mensagem do valor.
 - Tipo e estado são reconstruídos por `TipoProcesso.valueOf` e `EstadoProcesso.porNome`, como em `ProcessoPagamentoMapper`, sem `switch` no mapper.
 
-## Passo 6: adapter (`persistence/<Nome>RepositoryAdapter.java`)
+## Passo 6: adapter (`persistence/<agregado>/<Nome>RepositoryAdapter.java`)
 
 - `@ApplicationScoped`, `implements <Nome>Repository`, injeção pelo construtor do `<Nome>DataRepository`.
 - `salvar`: `paraEntidade`, depois `inserir` se o id for nulo ou `atualizar` se não, e devolve `paraDominio(entity)`. Com filhos: grave o agregado, depois os filhos (apague os removidos), tudo na transação do use case.
 
 ## Passo 7: atualize quem usava a entidade
 
-- **Use cases de escrita** passam a usar `<Nome>Repository` e a entidade de domínio. Nada de `*Entity` fora de `persistence`.
-- **Consultas de tela** que usavam a entidade migram para `query/persistence` (record projetado + `@Query` HQL) e `query/application`.
+- **Use cases de escrita** passam a usar `<Nome>Repository` e a entidade de domínio. Nada de `*Entity` fora de `persistence/`.
+- **Consultas de tela** que usavam a entidade migram para `persistence/<agregado>/` (record projetado + `@Query` HQL) e `application/<agregado>/`.
 - **Entrypoints:** veja [entidade-na-api](entidade-na-api.md).
 
 ## Passo 8: testes

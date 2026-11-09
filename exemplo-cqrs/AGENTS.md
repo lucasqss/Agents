@@ -4,7 +4,7 @@ Serviço Java 25 + Quarkus 3.33 com domínio puro e padrões do *Patterns of Ent
 
 **Use as skills:** `arquiteto-padrao` ao criar ou alterar código; `adequar-ao-padrao` ao trazer código legado para o padrão.
 
-> **Temporário:** a reorganização deste projeto para o layout por módulo ainda não foi feita. Até lá, neste projeto valem o layout atual (`command/query/shared`) e as regras ArchUnit atuais.
+> **Temporário:** a reorganização deste projeto para o layout de camadas e agregados ainda não foi feita. Até lá, neste projeto valem o layout atual (`command/query/shared`) e as regras ArchUnit atuais.
 
 ## Antes de terminar qualquer tarefa
 

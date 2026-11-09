@@ -28,7 +28,7 @@ Sempre nesta ordem:
 
 | # | Tag | Regras | O que costuma exigir |
 |---|---|---|---|
-| 1 | `estrutura` | GER-001 | [Mover toda classe para uma pasta conhecida](layout-para-modulos.md) |
+| 1 | `estrutura` | GER-001 | [Mover toda classe para camada e agregado](layout-para-camadas.md) |
 | 2 | `dominio` | DOM | [Separar JPA de domínio](entidade-jpa-e-dominio.md) |
 | 3 | `persistencia` | SHR, TEC | [Panache → Jakarta Data](panache-para-jakarta-data.md), [tirar proibidos](remover-proibidos.md) |
 | 4 | `application` | CMD, QRY | [Quebrar god class](service-god-class.md), [isolar client](client-solto-para-gateway.md) |
@@ -45,7 +45,7 @@ Para cada camada:
 
 ## Regras do método
 
-- **A camada `estrutura` vem sempre primeiro.** O `Raiz` liga `failOnEmptyShould=false`, então, com as pastas erradas, as demais regras passam sem validar nada. A GER-001 é a única que recusa isso (`allowEmptyShould(false)`) e exige que toda classe esteja numa pasta do vocabulário.
+- **A camada `estrutura` vem sempre primeiro.** O `Raiz` liga `failOnEmptyShould=false`, então, com as pastas erradas, as demais regras passam sem validar nada. A GER-001 é a única que recusa isso (`allowEmptyShould(false)`) e exige que toda classe esteja numa camada do vocabulário.
 - **Build verde depois de liberar não significa que estava certo.** Se liberar uma camada não gerar nenhuma falha, confirme que as classes daquela camada estão no pacote que a regra analisa.
 - `@ArchIgnore` só sai. Depois do baseline, nunca adicione nem mude a tag de uma regra.
 - Nunca libere a próxima camada com a atual vermelha.

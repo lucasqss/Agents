@@ -2,7 +2,7 @@
 
 O destino está em `references/gateway.md` da skill `arquiteto-padrao`.
 
-1. Mova o client e seus DTOs para `gateway/<sistema>/`. Os DTOs mantêm os nomes de campo **exatos da API externa** e não saem desse pacote.
+1. Mova o client e seus DTOs para `gateway/<sistema>/`, pelo nome do sistema externo, não pelo agregado. Os DTOs mantêm os nomes de campo **exatos da API externa** e não saem desse pacote.
 2. Crie o `XGateway` com uma API no nosso vocabulário e troque, em cada chamador, o uso direto do client pelo Gateway.
 3. **Quem chamava o client passa a ser um use case.** Se era um Resource ou uma entidade, a chamada sobe ou desce para o use case.
 4. Junte num só lugar o tratamento de erro que estava espalhado pelos chamadores: qualquer falha vira `SistemaExternoIndisponivelException`.

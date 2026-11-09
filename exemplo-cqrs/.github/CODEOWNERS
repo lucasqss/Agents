@@ -21,5 +21,5 @@
 /src/main/resources/db/migration/               @lucasqss
 
 # Padrão de apresentação dos canais (padrão da empresa) e contratos dos fronts.
-/src/main/java/**/apresentacao/                 @lucasqss
-/src/main/java/**/entrypoint/*/*Response.java   @lucasqss
+/src/main/java/**/entrypoint/apresentacao/      @lucasqss
+/src/main/java/**/entrypoint/*/*/*Response.java @lucasqss
