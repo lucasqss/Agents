@@ -1,6 +1,5 @@
 package br.com.claudio.consorcio.arquitetura;
 
-import com.tngtech.archunit.junit.ArchIgnore;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
@@ -14,7 +13,6 @@ final class RegrasDominio {
     private RegrasDominio() {
     }
 
-    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom001Framework = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
@@ -29,7 +27,6 @@ final class RegrasDominio {
                     + " Corrija: tire @Inject/@ApplicationScoped/@Transactional do domínio;"
                     + " quem injeta e abre transação é o use case (application/<agregado>)");
 
-    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom002Persistencia = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
@@ -43,7 +40,6 @@ final class RegrasDominio {
                     + " Corrija: declare uma interface de repositório no domínio; a implementação,"
                     + " a entidade JPA e o Mapper ficam em persistence/<agregado>");
 
-    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom003Application = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
@@ -52,7 +48,6 @@ final class RegrasDominio {
             .because("o use case usa o domínio, nunca o contrário."
                     + " Corrija: passe o dado como parâmetro do método do domínio ou mova a lógica para o use case");
 
-    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom004Gateway = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
@@ -62,7 +57,6 @@ final class RegrasDominio {
                     + " Corrija: o use case chama o Gateway e passa o resultado para o domínio;"
                     + " se a regra do domínio precisa do sistema, declare a interface no domínio e implemente em um *GatewayAdapter em gateway/<sistema>");
 
-    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom005Http = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
@@ -71,7 +65,6 @@ final class RegrasDominio {
             .because("HTTP é detalhe de entrada."
                     + " Corrija: lance uma DominioException; o entrypoint traduz para o status HTTP no ExceptionMappers");
 
-    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom006BeanValidation = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
@@ -81,7 +74,6 @@ final class RegrasDominio {
                     + " Corrija: valide formato (@NotBlank, @Size) no Request do entrypoint e regra de negócio"
                     + " no construtor/método do domínio lançando DominioException");
 
-    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom007Apresentacao = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(DOMINIO)
@@ -90,7 +82,6 @@ final class RegrasDominio {
             .because("formatação muda por canal; regra de negócio não."
                     + " Corrija: devolva o valor cru e formate no entrypoint do canal com o Padrao do canal");
 
-    @ArchIgnore(reason = "adequacao:dominio")
     @ArchTest
     static final ArchRule dom008AgregadosIndependentes = SlicesRuleDefinition.slices()
             .matching(Raiz.pacote("domain.(*)"))
