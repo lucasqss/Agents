@@ -2,7 +2,6 @@ package br.com.claudio.consorcio.arquitetura;
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
-import com.tngtech.archunit.junit.ArchIgnore;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
@@ -21,7 +20,6 @@ final class RegrasCanais {
     private RegrasCanais() {
     }
 
-    @ArchIgnore(reason = "adequacao:entrypoint")
     @ArchTest
     static final ArchRule can001CanaisNaoSeConhecem = SlicesRuleDefinition.slices()
             .matching(Raiz.pacote("entrypoint.(*)"))
@@ -33,7 +31,6 @@ final class RegrasCanais {
                     + " Corrija: copie o Response/Assembler para o seu canal; o que for comum vai para o use case"
                     + " ou para entrypoint/apresentacao");
 
-    @ArchIgnore(reason = "adequacao:entrypoint")
     @ArchTest
     static final ArchRule can004ApresentacaoSoNoEntrypoint = ArchRuleDefinition.noClasses()
             .that().resideOutsideOfPackage(Raiz.pacote("entrypoint"))
@@ -42,7 +39,6 @@ final class RegrasCanais {
             .because("use case e consulta não formatam nada; o mesmo dado atende todos os canais."
                     + " Corrija: devolva o valor cru e formate no Assembler/Resource do canal");
 
-    @ArchIgnore(reason = "adequacao:entrypoint")
     @ArchTest
     static final ArchRule can005BaseComumSemCanal = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(APRESENTACAO)
@@ -51,7 +47,6 @@ final class RegrasCanais {
             .because("Formatador e Rotulos são a base que todos os canais usam."
                     + " Corrija: mova o que é específico para entrypoint/<canal>");
 
-    @ArchIgnore(reason = "adequacao:entrypoint")
     @ArchTest
     static final ArchRule can006UseCasesSemCanal = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(Raiz.pacote("application"))
@@ -60,7 +55,6 @@ final class RegrasCanais {
             .because("o mesmo use case atende todos os canais."
                     + " Corrija: receba e devolva tipos do application; o entrypoint converte Request/Response");
 
-    @ArchIgnore(reason = "adequacao:entrypoint")
     @ArchTest
     static final ArchRule can007ContratoDoCanalIsolado = ArchRuleDefinition.methods()
             .that().areDeclaredInClassesThat(Condicoes.estaoEmCanal())
@@ -71,7 +65,6 @@ final class RegrasCanais {
             .because("mudar uma projeção não pode mudar o JSON do front."
                     + " Corrija: devolva o *Response do canal, montado pelo Assembler");
 
-    @ArchIgnore(reason = "adequacao:entrypoint")
     @ArchTest
     static final ArchRule can008ApresentacaoSemFramework = ArchRuleDefinition.noClasses()
             .that().haveSimpleNameEndingWith("Assembler")
@@ -83,7 +76,6 @@ final class RegrasCanais {
             .because("são funções puras, testáveis sem Quarkus."
                     + " Corrija: tire @Inject/@ApplicationScoped; use métodos estáticos ou a instância INSTANCIA");
 
-    @ArchIgnore(reason = "adequacao:entrypoint")
     @ArchTest
     static final ArchRule can009ApresentacaoSemRepositorio = ArchRuleDefinition.noClasses()
             .that().haveSimpleNameEndingWith("Assembler")
