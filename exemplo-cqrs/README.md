@@ -202,6 +202,7 @@ O ArchUnit detecta o erro no build. Estas peças evitam que ele aconteça e impe
 | Orientar | Regras sempre ativas para qualquer agente de IA | `AGENTS.md` |
 | Orientar | O padrão de arquitetura, o ADR e as receitas de código novo: `/arquiteto-padrao` | `.github/skills/arquiteto-padrao/` |
 | Orientar | Como trazer um projeto legado para o padrão: `/adequar-ao-padrao` | `.github/skills/adequar-ao-padrao/` |
+| Orientar | Testes de aceitação pelos endpoints: `/teste-aceitacao-modelos` a partir do requisito, `/teste-aceitacao-legado` a partir do código existente | `.github/skills/teste-aceitacao-modelos/`, `.github/skills/teste-aceitacao-legado/` |
 | Orientar | O papel e as proibições de cada pacote, lidos pela IA ao abrir a pasta | `package-info.java` |
 | Detectar | Regras ArchUnit, testes de contrato, HQL validado na compilação | `src/test/...` |
 | Bloquear | Donos das partes sensíveis | `.github/CODEOWNERS` |

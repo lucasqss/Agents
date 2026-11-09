@@ -1,13 +1,13 @@
 ---
 name: arquiteto-padrao
-description: Padrão de arquitetura e de pastas dos projetos Java 25 + Quarkus 3.33 (componentes Domínio, ACL e BFF), com camadas no topo e agregados dentro delas. Use ao criar ou alterar componente, classe, caso de uso, regra de negócio, entidade, repositório Jakarta Data, consulta, integração externa, endpoint, canal, migration ou regra ArchUnit, ou ao decidir em qual pasta algo deve ficar. Não use para testes de aceitação de usuário, que ficam com a skill teste-aceitacao-modelos.
+description: Padrão de arquitetura e de pastas dos projetos Java 25 + Quarkus 3.33 (componentes Domínio, ACL e BFF), com camadas no topo e agregados dentro delas. Use ao criar ou alterar componente, classe, caso de uso, regra de negócio, entidade, repositório Jakarta Data, consulta, integração externa, endpoint, canal, migration ou regra ArchUnit, ou ao decidir em qual pasta algo deve ficar. Não use para testes de aceitação de usuário, que ficam com as skills teste-aceitacao-modelos (a partir do requisito) e teste-aceitacao-legado (a partir do código existente).
 ---
 
 # Arquiteto-padrão
 
 Versão: 2026-11-08. Este documento é a referência da equipe e dos agentes de IA. A decisão completa e os motivos estão em [adr/ADR_001.md](adr/ADR_001.md). Se este texto e o ADR divergirem, **vale o ADR**: avise o dono para corrigir.
 
-Para trazer um projeto antigo para este padrão, use a skill `adequar-ao-padrao`. Para testes de aceitação de usuário, use a skill `teste-aceitacao-modelos`, e não esta.
+Para trazer um projeto antigo para este padrão, use a skill `adequar-ao-padrao`. Para testes de aceitação de usuário, use a skill `teste-aceitacao-modelos` (a partir do requisito) ou `teste-aceitacao-legado` (a partir do código existente), e não esta.
 
 Nomes como `cota`, `cliente`, `processo` e `tesouraria` nos exemplos são ilustrativos: não procure essas classes no repositório. Modelos de cada peça estão em [exemplos de código](references/exemplos-codigo.md).
 

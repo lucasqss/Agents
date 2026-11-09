@@ -7,6 +7,6 @@ Os testes ficam no mesmo pacote da classe testada (`src/test/java/.../domain/cot
 - **Formato novo de canal:** linha nova em `src/test/java/.../entrypoint/apresentacao/PadroesDeCanalTest.java` (crie se ainda não existir).
 - **Mapper:** a ida e volta `paraEntidade(paraDominio(entity))` preserva todos os campos, inclusive enum, subtipo e versão.
 - **Sistema externo:** nunca chamar o real nos testes. Use um Service Stub ([exemplo](exemplos-codigo.md)) com chave para simular falha, e teste o 503.
-- **Teste de aceitação de usuário:** siga a skill `teste-aceitacao-modelos`. Ele parte só do requisito e do contrato, em `src/test/java/.../aceitacao/<capacidade>/`, e o Service Stub JAX-RS não serve para ele, porque não entra no artefato testado pelo `*IT`.
+- **Teste de aceitação de usuário:** siga a skill `teste-aceitacao-modelos`, que parte só do requisito e do contrato, ou, sem requisito escrito, a `teste-aceitacao-legado`, que deriva as regras do código e as confirma com o usuário. Os testes ficam em `src/test/java/.../aceitacao/<capacidade>/`, e o Service Stub JAX-RS não serve para eles, porque não entra no artefato testado pelo `*IT`.
 
 Antes de terminar qualquer tarefa, rode `./mvnw verify`.

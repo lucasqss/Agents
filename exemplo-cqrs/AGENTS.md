@@ -2,7 +2,7 @@
 
 Serviço Java 25 + Quarkus 3.33 com domínio puro e padrões do *Patterns of Enterprise Application Architecture* (Fowler). A arquitetura é verificada a cada build por testes ArchUnit.
 
-**Use as skills:** `arquiteto-padrao` ao criar ou alterar código; `adequar-ao-padrao` ao trazer código legado para o padrão; `teste-aceitacao-modelos` ao criar ou alterar testes de aceitação de usuário.
+**Use as skills:** `arquiteto-padrao` ao criar ou alterar código; `adequar-ao-padrao` ao trazer código legado para o padrão; `teste-aceitacao-modelos` ao criar ou alterar testes de aceitação de usuário a partir do requisito; `teste-aceitacao-legado` quando não há requisito e as regras saem do código existente.
 
 ## Antes de terminar qualquer tarefa
 

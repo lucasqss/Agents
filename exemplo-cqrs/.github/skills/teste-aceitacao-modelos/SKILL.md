@@ -1,6 +1,6 @@
 ---
 name: teste-aceitacao-modelos
-description: Use ao criar, alterar ou revisar testes de aceitação de usuário que acionam endpoints HTTP em projetos Quarkus, ao transformar requisito, regra de negócio, caso de uso ou critério de aceite em testes, ou ao criar pares *Test e *IT com @QuarkusTest e @QuarkusIntegrationTest.
+description: Use ao criar, alterar ou revisar testes de aceitação de usuário que acionam endpoints HTTP em projetos Quarkus, ao transformar requisito, regra de negócio, caso de uso ou critério de aceite em testes, ou ao criar pares *Test e *IT com @QuarkusTest e @QuarkusIntegrationTest. Se não houver requisito e as regras precisarem sair do código de um sistema existente, use a skill teste-aceitacao-legado.
 ---
 
 # Teste de aceitação baseado em modelos
@@ -13,7 +13,7 @@ Este documento é a referência da equipe e dos agentes de IA. Nomes como `cota`
 
 Cada teste roda duas vezes, sem duplicar código: na fase de teste unitário (`*Test`, com `@QuarkusTest`) e na fase de integração (`*IT`, com `@QuarkusIntegrationTest`, contra o sistema empacotado).
 
-Esta skill cobre apenas testes de aceitação pelos endpoints. Não use para testes de unidade, de arquitetura ou de componentes internos.
+Esta skill cobre apenas testes de aceitação pelos endpoints. Não use para testes de unidade, de arquitetura ou de componentes internos. Sistema existente sem requisito escrito, em que as regras precisam sair do código: use a skill [`teste-aceitacao-legado`](../teste-aceitacao-legado/SKILL.md).
 
 ## Passo a passo
 
