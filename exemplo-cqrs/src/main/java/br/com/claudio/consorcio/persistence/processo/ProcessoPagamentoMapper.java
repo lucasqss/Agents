@@ -17,7 +17,7 @@ final class ProcessoPagamentoMapper {
         try {
             return ProcessoPagamento.reconstituir(entity.getId(), entity.getCotaId(),
                     TipoProcesso.valueOf(entity.getTipo()), EstadoProcesso.valueOf(entity.getEstado()),
-                    entity.getProtocoloPagamento());
+                    entity.getProtocoloPagamento(), entity.getVersao());
         } catch (IllegalArgumentException e) {
             throw new IllegalStateException("Valor desconhecido no banco: " + e.getMessage(), e);
         }
@@ -30,6 +30,7 @@ final class ProcessoPagamentoMapper {
         entity.setTipo(processo.tipo().name());
         entity.setEstado(processo.estado().name());
         entity.setProtocoloPagamento(processo.protocoloPagamento());
+        entity.setVersao(processo.versao());
         return entity;
     }
 }

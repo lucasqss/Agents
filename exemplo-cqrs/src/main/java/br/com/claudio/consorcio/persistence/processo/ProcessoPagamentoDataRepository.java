@@ -7,12 +7,21 @@ import jakarta.data.repository.Repository;
 import jakarta.data.repository.Update;
 import java.util.List;
 import java.util.Optional;
+import org.hibernate.LockMode;
+import org.hibernate.StatelessSession;
 
 @Repository
 interface ProcessoPagamentoDataRepository {
 
+    /** Sessão do repositório, usada apenas onde o Jakarta Data não expressa a operação. */
+    StatelessSession sessao();
+
     @Find
     Optional<ProcessoPagamentoEntity> buscarPorId(Long id);
+
+    default Optional<ProcessoPagamentoEntity> buscarPorIdComBloqueio(Long id) {
+        return Optional.ofNullable(sessao().get(ProcessoPagamentoEntity.class, id, LockMode.PESSIMISTIC_WRITE));
+    }
 
     @Insert
     void inserir(ProcessoPagamentoEntity processo);

@@ -63,7 +63,7 @@ class ProcessoPagamentoTest {
             processo.executar(CONCLUIR_VISTORIA);
             assertEquals(APROVADO, processo.estado());
 
-            processo.executar(PAGAR);
+            processo.pagar("PROT-1");
             assertEquals(PAGO, processo.estado());
             assertFalse(processo.ativo());
         }
@@ -97,7 +97,7 @@ class ProcessoPagamentoTest {
             processo.executar(CONCLUIR_ANALISE);
             assertEquals(APROVADO, processo.estado());
 
-            processo.executar(PAGAR);
+            processo.pagar("PROT-1");
             assertEquals(PAGO, processo.estado());
         }
 
@@ -142,7 +142,7 @@ class ProcessoPagamentoTest {
     @EnumSource(TipoProcesso.class)
     void estadosFinaisNaoAceitamNenhumaAcao(TipoProcesso tipo) {
         ProcessoPagamento pago = aprovado(tipo);
-        pago.executar(PAGAR);
+        pago.pagar("PROT-1");
         assertTrue(pago.acoesDisponiveis().isEmpty());
         for (AcaoProcesso acao : AcaoProcesso.values()) {
             invalida(pago, acao);
@@ -168,22 +168,46 @@ class ProcessoPagamentoTest {
     }
 
     @Test
-    void protocoloSoEmProcessoPago() {
+    void pagarMudaOEstadoEGuardaOProtocoloJuntos() {
         ProcessoPagamento processo = aprovado(TipoProcesso.SERVICO);
-        assertThrows(DominioException.class, () -> processo.registrarProtocolo("PROT-1"));
+        assertThrows(DominioException.class, () -> processo.pagar(" "));
+        assertThrows(DominioException.class, () -> processo.pagar(null));
+        assertEquals(APROVADO, processo.estado());
 
-        processo.executar(PAGAR);
-        assertThrows(DominioException.class, () -> processo.registrarProtocolo(" "));
-        processo.registrarProtocolo("PROT-1");
+        processo.pagar("PROT-1");
+        assertEquals(PAGO, processo.estado());
         assertEquals("PROT-1", processo.protocoloPagamento());
     }
 
     @Test
-    void reconstituirComProtocoloExigeEstadoPago() {
+    void naoFicaPagoSemProtocolo() {
+        ProcessoPagamento processo = aprovado(TipoProcesso.SERVICO);
+
+        assertThrows(DominioException.class, () -> processo.executar(PAGAR));
+        assertEquals(APROVADO, processo.estado());
+        assertNull(processo.protocoloPagamento());
+    }
+
+    @Test
+    void exigirQuePodeConfereSemAplicar() {
+        ProcessoPagamento aberto = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA);
+        assertThrows(TransicaoInvalidaException.class, () -> aberto.exigirQuePode(PAGAR));
+
+        ProcessoPagamento aprovado = aprovado(TipoProcesso.SERVICO);
+        aprovado.exigirQuePode(PAGAR);
+        assertEquals(APROVADO, aprovado.estado());
+    }
+
+    @Test
+    void reconstituirExigeProtocoloSeESomenteSePago() {
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, APROVADO, "PROT-1"));
-        assertEquals("PROT-1",
-                ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, PAGO, "PROT-1").protocoloPagamento());
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, APROVADO, "PROT-1", 0));
+        assertThrows(DominioException.class,
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, PAGO, null, 0));
+
+        ProcessoPagamento pago = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, PAGO, "PROT-1", 3);
+        assertEquals("PROT-1", pago.protocoloPagamento());
+        assertEquals(3, pago.versao());
     }
 
     private static void invalida(ProcessoPagamento processo, AcaoProcesso acao) {

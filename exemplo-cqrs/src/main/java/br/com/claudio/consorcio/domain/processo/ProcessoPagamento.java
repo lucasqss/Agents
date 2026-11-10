@@ -18,8 +18,10 @@ public final class ProcessoPagamento {
     private final TipoProcesso tipo;
     private EstadoProcesso estado;
     private String protocoloPagamento;
+    private final long versao;
 
-    private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, EstadoProcesso estado, String protocoloPagamento) {
+    private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, EstadoProcesso estado, String protocoloPagamento,
+            long versao) {
         if (cotaId == null) {
             throw new DominioException("Processo precisa de uma cota");
         }
@@ -32,37 +34,46 @@ public final class ProcessoPagamento {
         this.id = id;
         this.cotaId = cotaId;
         this.tipo = tipo;
-        this.estado = estado;
-        if (protocoloPagamento != null) {
-            registrarProtocolo(protocoloPagamento);
+        if ((estado == EstadoProcesso.PAGO) != (protocoloPagamento != null)) {
+            throw new DominioException("Processo pago tem protocolo de pagamento, e só ele");
         }
+        this.estado = estado;
+        this.protocoloPagamento = protocoloPagamento;
+        this.versao = versao;
     }
 
     /** Cria um processo novo, no estado Aberto, do tipo informado. */
     public static ProcessoPagamento novo(TipoProcesso tipo, Long cotaId) {
-        return new ProcessoPagamento(null, cotaId, tipo, EstadoProcesso.ABERTO, null);
+        return new ProcessoPagamento(null, cotaId, tipo, EstadoProcesso.ABERTO, null, 0);
     }
 
     /** Recria um processo já gravado, no estado em que ele estava. */
     public static ProcessoPagamento reconstituir(Long id, Long cotaId, TipoProcesso tipo, EstadoProcesso estado,
-            String protocoloPagamento) {
-        return new ProcessoPagamento(id, cotaId, tipo, estado, protocoloPagamento);
+            String protocoloPagamento, long versao) {
+        return new ProcessoPagamento(id, cotaId, tipo, estado, protocoloPagamento, versao);
     }
 
     /** Aplica a ação; se o fluxo do tipo não a aceita no estado atual, lança TransicaoInvalidaException. */
     public void executar(AcaoProcesso acao) {
-        estado = tipo.fluxo().proximo(estado, acao);
+        EstadoProcesso destino = tipo.fluxo().proximo(estado, acao);
+        if (destino == EstadoProcesso.PAGO) {
+            throw new DominioException("Processo só fica pago com o protocolo da tesouraria");
+        }
+        estado = destino;
     }
 
-    /** Guarda o protocolo emitido pela tesouraria; só faz sentido para um processo já pago. */
-    public void registrarProtocolo(String protocolo) {
-        if (estado != EstadoProcesso.PAGO) {
-            throw new DominioException("Protocolo de pagamento só pode ser registrado em processo pago");
-        }
+    /** Paga o processo e guarda o protocolo emitido pela tesouraria, numa operação só. */
+    public void pagar(String protocolo) {
         if (protocolo == null || protocolo.isBlank()) {
             throw new DominioException("Protocolo de pagamento é obrigatório");
         }
-        this.protocoloPagamento = protocolo;
+        estado = tipo.fluxo().proximo(estado, AcaoProcesso.PAGAR);
+        protocoloPagamento = protocolo;
+    }
+
+    /** Confere se a ação vale no estado atual, sem aplicá-la; para validar antes de um efeito externo. */
+    public void exigirQuePode(AcaoProcesso acao) {
+        tipo.fluxo().proximo(estado, acao);
     }
 
     /** Ações que o fluxo do tipo aceita no estado atual. */
@@ -92,5 +103,10 @@ public final class ProcessoPagamento {
 
     public String protocoloPagamento() {
         return protocoloPagamento;
+    }
+
+    /** Versão gravada quando o processo foi lido; a gravação falha se outra operação já a mudou. */
+    public long versao() {
+        return versao;
     }
 }

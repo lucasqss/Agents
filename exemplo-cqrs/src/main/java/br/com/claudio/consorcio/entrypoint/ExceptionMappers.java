@@ -2,6 +2,7 @@ package br.com.claudio.consorcio.entrypoint;
 
 import br.com.claudio.consorcio.application.ConflitoException;
 import br.com.claudio.consorcio.application.NaoEncontradoException;
+import br.com.claudio.consorcio.domain.AlteracaoConcorrenteException;
 import br.com.claudio.consorcio.domain.DominioException;
 import br.com.claudio.consorcio.domain.processo.fluxo.TransicaoInvalidaException;
 import br.com.claudio.consorcio.gateway.SistemaExternoIndisponivelException;
@@ -33,6 +34,11 @@ public class ExceptionMappers {
 
     @ServerExceptionMapper
     public Response conflito(ConflitoException e) {
+        return erro(Response.Status.CONFLICT, e);
+    }
+
+    @ServerExceptionMapper
+    public Response alteracaoConcorrente(AlteracaoConcorrenteException e) {
         return erro(Response.Status.CONFLICT, e);
     }
 

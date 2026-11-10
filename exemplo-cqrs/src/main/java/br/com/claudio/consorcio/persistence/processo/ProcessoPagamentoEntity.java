@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 /**
  * Mapeamento da tabela processo_pagamento. Uma única entidade para todos os tipos:
@@ -28,6 +29,9 @@ public class ProcessoPagamentoEntity {
 
     @Column(name = "protocolo_pagamento")
     private String protocoloPagamento;
+
+    @Version
+    private long versao;
 
     public Long getId() {
         return id;
@@ -67,5 +71,13 @@ public class ProcessoPagamentoEntity {
 
     public void setProtocoloPagamento(String protocoloPagamento) {
         this.protocoloPagamento = protocoloPagamento;
+    }
+
+    public long getVersao() {
+        return versao;
+    }
+
+    public void setVersao(long versao) {
+        this.versao = versao;
     }
 }

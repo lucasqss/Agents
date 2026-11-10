@@ -1,8 +1,10 @@
 package br.com.claudio.consorcio.persistence.processo;
 
+import br.com.claudio.consorcio.domain.AlteracaoConcorrenteException;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
+import jakarta.data.exceptions.OptimisticLockingFailureException;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.Arrays;
 import java.util.List;
@@ -29,14 +31,27 @@ public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepo
         if (processo.id() == null) {
             dados.inserir(entity);
         } else {
-            dados.atualizar(entity);
+            atualizar(entity);
         }
         return ProcessoPagamentoMapper.paraDominio(entity);
+    }
+
+    private void atualizar(ProcessoPagamentoEntity entity) {
+        try {
+            dados.atualizar(entity);
+        } catch (OptimisticLockingFailureException e) {
+            throw new AlteracaoConcorrenteException("Processo", entity.getId());
+        }
     }
 
     @Override
     public Optional<ProcessoPagamento> buscarPorId(Long id) {
         return dados.buscarPorId(id).map(ProcessoPagamentoMapper::paraDominio);
+    }
+
+    @Override
+    public Optional<ProcessoPagamento> buscarPorIdComBloqueio(Long id) {
+        return dados.buscarPorIdComBloqueio(id).map(ProcessoPagamentoMapper::paraDominio);
     }
 
     @Override
