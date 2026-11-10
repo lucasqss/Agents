@@ -1,12 +1,11 @@
 package br.com.claudio.consorcio.entrypoint.rest.processo;
 
-import br.com.claudio.consorcio.application.processo.CancelarProcessoUseCase;
-import br.com.claudio.consorcio.application.processo.ConcluirAnaliseProcessoUseCase;
-import br.com.claudio.consorcio.application.processo.ConcluirVistoriaProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.CriarProcessoUseCase;
-import br.com.claudio.consorcio.application.processo.IniciarAnaliseProcessoUseCase;
+import br.com.claudio.consorcio.application.processo.ExecutarAcaoProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.PagarProcessoUseCase;
-import br.com.claudio.consorcio.domain.processo.TipoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
+import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
 import br.com.claudio.consorcio.entrypoint.IdCriado;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -19,7 +18,10 @@ import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 
-/** Criação do processo e um endpoint por transição de estado. */
+/**
+ * Criação do processo e um endpoint por ação. Os endpoints são explícitos (aparecem um a um no OpenAPI),
+ * mas as ações que só mudam o estado passam todas pelo mesmo use case.
+ */
 @Path("/processos")
 public class ProcessoResource {
 
@@ -27,27 +29,21 @@ public class ProcessoResource {
     }
 
     public record EstadoAtual(String estado) {
+
+        static EstadoAtual de(EstadoProcesso estado) {
+            return new EstadoAtual(estado.name());
+        }
     }
 
     private final CriarProcessoUseCase criar;
-    private final IniciarAnaliseProcessoUseCase iniciarAnalise;
-    private final ConcluirAnaliseProcessoUseCase concluirAnalise;
-    private final ConcluirVistoriaProcessoUseCase concluirVistoria;
+    private final ExecutarAcaoProcessoUseCase executarAcao;
     private final PagarProcessoUseCase pagar;
-    private final CancelarProcessoUseCase cancelar;
 
-    public ProcessoResource(CriarProcessoUseCase criar,
-            IniciarAnaliseProcessoUseCase iniciarAnalise,
-            ConcluirAnaliseProcessoUseCase concluirAnalise,
-            ConcluirVistoriaProcessoUseCase concluirVistoria,
-            PagarProcessoUseCase pagar,
-            CancelarProcessoUseCase cancelar) {
+    public ProcessoResource(CriarProcessoUseCase criar, ExecutarAcaoProcessoUseCase executarAcao,
+            PagarProcessoUseCase pagar) {
         this.criar = criar;
-        this.iniciarAnalise = iniciarAnalise;
-        this.concluirAnalise = concluirAnalise;
-        this.concluirVistoria = concluirVistoria;
+        this.executarAcao = executarAcao;
         this.pagar = pagar;
-        this.cancelar = cancelar;
     }
 
     @POST
@@ -61,30 +57,30 @@ public class ProcessoResource {
     @POST
     @Path("/{id}/iniciar-analise")
     public EstadoAtual iniciarAnalise(Long id) {
-        return new EstadoAtual(iniciarAnalise.executar(id));
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.INICIAR_ANALISE));
     }
 
     @POST
     @Path("/{id}/concluir-analise")
     public EstadoAtual concluirAnalise(Long id) {
-        return new EstadoAtual(concluirAnalise.executar(id));
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CONCLUIR_ANALISE));
     }
 
     @POST
     @Path("/{id}/concluir-vistoria")
     public EstadoAtual concluirVistoria(Long id) {
-        return new EstadoAtual(concluirVistoria.executar(id));
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CONCLUIR_VISTORIA));
     }
 
     @POST
     @Path("/{id}/pagar")
     public EstadoAtual pagar(Long id) {
-        return new EstadoAtual(pagar.executar(id));
+        return EstadoAtual.de(pagar.executar(id));
     }
 
     @POST
     @Path("/{id}/cancelar")
     public EstadoAtual cancelar(Long id) {
-        return new EstadoAtual(cancelar.executar(id));
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CANCELAR));
     }
 }

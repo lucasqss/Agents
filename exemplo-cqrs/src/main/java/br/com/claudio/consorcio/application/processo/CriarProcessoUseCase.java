@@ -5,7 +5,7 @@ import br.com.claudio.consorcio.application.NaoEncontradoException;
 import br.com.claudio.consorcio.domain.cota.CotaRepository;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
-import br.com.claudio.consorcio.domain.processo.TipoProcesso;
+import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 

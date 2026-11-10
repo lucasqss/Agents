@@ -4,6 +4,8 @@ import br.com.claudio.consorcio.application.NaoEncontradoException;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
 import br.com.claudio.consorcio.gateway.tesouraria.TesourariaGateway;
+import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
@@ -25,11 +27,11 @@ public class PagarProcessoUseCase {
     }
 
     @Transactional
-    public String executar(Long id) {
+    public EstadoProcesso executar(Long id) {
         ProcessoPagamento processo = processos.buscarPorId(id)
                 .orElseThrow(() -> new NaoEncontradoException("Processo", id));
-        processo.pagar();
+        processo.executar(AcaoProcesso.PAGAR);
         processo.registrarProtocolo(tesouraria.registrarPagamento(processo.id(), processo.cotaId()));
-        return processos.salvar(processo).estado().nome();
+        return processos.salvar(processo).estado();
     }
 }

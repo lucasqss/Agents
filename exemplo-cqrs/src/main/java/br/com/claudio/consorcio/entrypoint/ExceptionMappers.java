@@ -3,7 +3,7 @@ package br.com.claudio.consorcio.entrypoint;
 import br.com.claudio.consorcio.application.ConflitoException;
 import br.com.claudio.consorcio.application.NaoEncontradoException;
 import br.com.claudio.consorcio.domain.DominioException;
-import br.com.claudio.consorcio.domain.processo.TransicaoInvalidaException;
+import br.com.claudio.consorcio.domain.processo.fluxo.TransicaoInvalidaException;
 import br.com.claudio.consorcio.gateway.SistemaExternoIndisponivelException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import jakarta.validation.ConstraintViolation;

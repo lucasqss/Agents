@@ -1,19 +1,27 @@
 package br.com.claudio.consorcio.domain.processo;
 
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CANCELAR;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCLUIR_ANALISE;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCLUIR_VISTORIA;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.INICIAR_ANALISE;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.PAGAR;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.ABERTO;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.AGUARDANDO_VISTORIA;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.APROVADO;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.CANCELADO;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.EM_ANALISE;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.PAGO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import br.com.claudio.consorcio.domain.DominioException;
-import br.com.claudio.consorcio.domain.processo.estado.Aberto;
-import br.com.claudio.consorcio.domain.processo.estado.AguardandoVistoria;
-import br.com.claudio.consorcio.domain.processo.estado.Aprovado;
-import br.com.claudio.consorcio.domain.processo.estado.Cancelado;
-import br.com.claudio.consorcio.domain.processo.estado.EmAnalise;
-import br.com.claudio.consorcio.domain.processo.estado.EstadoProcesso;
-import br.com.claudio.consorcio.domain.processo.estado.Pago;
+import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.TransicaoInvalidaException;
+import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
+import java.util.Set;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -28,8 +36,8 @@ class ProcessoPagamentoTest {
         ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA);
 
         assertEquals(TipoProcesso.SERVICO, processo.tipo());
-        assertInstanceOf(Aberto.class, processo.estado());
-        assertEquals(null, processo.id());
+        assertEquals(ABERTO, processo.estado());
+        assertNull(processo.id());
         assertTrue(processo.ativo());
     }
 
@@ -46,30 +54,35 @@ class ProcessoPagamentoTest {
 
         @Test
         void fluxoCompletoPassaPelaVistoria() {
-            processo.iniciarAnalise();
-            assertInstanceOf(EmAnalise.class, processo.estado());
-            processo.concluirAnalise();
-            assertInstanceOf(AguardandoVistoria.class, processo.estado());
-            processo.concluirVistoria();
-            assertInstanceOf(Aprovado.class, processo.estado());
-            processo.pagar();
-            assertInstanceOf(Pago.class, processo.estado());
+            processo.executar(INICIAR_ANALISE);
+            assertEquals(EM_ANALISE, processo.estado());
+
+            processo.executar(CONCLUIR_ANALISE);
+            assertEquals(AGUARDANDO_VISTORIA, processo.estado());
+
+            processo.executar(CONCLUIR_VISTORIA);
+            assertEquals(APROVADO, processo.estado());
+
+            processo.executar(PAGAR);
+            assertEquals(PAGO, processo.estado());
             assertFalse(processo.ativo());
         }
 
         @Test
-        void naoPodeAprovarSemVistoria() {
-            processo.iniciarAnalise();
-            processo.concluirAnalise();
-            assertThrows(TransicaoInvalidaException.class, processo::pagar);
+        void naoPodePagarSemVistoria() {
+            processo.executar(INICIAR_ANALISE);
+            processo.executar(CONCLUIR_ANALISE);
+
+            invalida(processo, PAGAR);
         }
 
         @Test
         void podeCancelarAguardandoVistoria() {
-            processo.iniciarAnalise();
-            processo.concluirAnalise();
-            processo.cancelar();
-            assertInstanceOf(Cancelado.class, processo.estado());
+            processo.executar(INICIAR_ANALISE);
+            processo.executar(CONCLUIR_ANALISE);
+            processo.executar(CANCELAR);
+
+            assertEquals(CANCELADO, processo.estado());
         }
     }
 
@@ -80,19 +93,21 @@ class ProcessoPagamentoTest {
 
         @Test
         void fluxoCompletoVaiDiretoParaAprovado() {
-            processo.iniciarAnalise();
-            processo.concluirAnalise();
-            assertInstanceOf(Aprovado.class, processo.estado());
-            processo.pagar();
-            assertInstanceOf(Pago.class, processo.estado());
+            processo.executar(INICIAR_ANALISE);
+            processo.executar(CONCLUIR_ANALISE);
+            assertEquals(APROVADO, processo.estado());
+
+            processo.executar(PAGAR);
+            assertEquals(PAGO, processo.estado());
         }
 
         @Test
         void naoTemEtapaDeVistoria() {
-            processo.iniciarAnalise();
-            assertThrows(TransicaoInvalidaException.class, processo::concluirVistoria);
-            processo.concluirAnalise();
-            assertThrows(TransicaoInvalidaException.class, processo::concluirVistoria);
+            processo.executar(INICIAR_ANALISE);
+            invalida(processo, CONCLUIR_VISTORIA);
+
+            processo.executar(CONCLUIR_ANALISE);
+            invalida(processo, CONCLUIR_VISTORIA);
         }
     }
 
@@ -101,60 +116,63 @@ class ProcessoPagamentoTest {
     void transicoesForaDeOrdemSaoInvalidas(TipoProcesso tipo) {
         ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA);
 
-        assertThrows(TransicaoInvalidaException.class, processo::concluirAnalise);
-        assertThrows(TransicaoInvalidaException.class, processo::concluirVistoria);
-        assertThrows(TransicaoInvalidaException.class, processo::pagar);
+        invalida(processo, CONCLUIR_ANALISE);
+        invalida(processo, CONCLUIR_VISTORIA);
+        invalida(processo, PAGAR);
 
-        processo.iniciarAnalise();
-        assertThrows(TransicaoInvalidaException.class, processo::iniciarAnalise);
-        assertThrows(TransicaoInvalidaException.class, processo::pagar);
+        processo.executar(INICIAR_ANALISE);
+        invalida(processo, INICIAR_ANALISE);
+        invalida(processo, PAGAR);
+        assertEquals(EM_ANALISE, processo.estado(), "ação recusada não muda o estado");
     }
 
     @ParameterizedTest
     @EnumSource(TipoProcesso.class)
     void cancelaEmEstadosNaoFinais(TipoProcesso tipo) {
         ProcessoPagamento aberto = ProcessoPagamento.novo(tipo, COTA);
-        aberto.cancelar();
-        assertInstanceOf(Cancelado.class, aberto.estado());
+        aberto.executar(CANCELAR);
+        assertEquals(CANCELADO, aberto.estado());
 
         ProcessoPagamento aprovado = aprovado(tipo);
-        aprovado.cancelar();
-        assertInstanceOf(Cancelado.class, aprovado.estado());
+        aprovado.executar(CANCELAR);
+        assertEquals(CANCELADO, aprovado.estado());
     }
 
     @ParameterizedTest
     @EnumSource(TipoProcesso.class)
-    void estadosFinaisNaoAceitamNenhumaTransicao(TipoProcesso tipo) {
+    void estadosFinaisNaoAceitamNenhumaAcao(TipoProcesso tipo) {
         ProcessoPagamento pago = aprovado(tipo);
-        pago.pagar();
-        assertThrows(TransicaoInvalidaException.class, pago::cancelar);
-        assertThrows(TransicaoInvalidaException.class, pago::pagar);
+        pago.executar(PAGAR);
+        assertTrue(pago.acoesDisponiveis().isEmpty());
+        for (AcaoProcesso acao : AcaoProcesso.values()) {
+            invalida(pago, acao);
+        }
 
         ProcessoPagamento cancelado = ProcessoPagamento.novo(tipo, COTA);
-        cancelado.cancelar();
+        cancelado.executar(CANCELAR);
         assertFalse(cancelado.ativo());
-        assertThrows(TransicaoInvalidaException.class, cancelado::cancelar);
-        assertThrows(TransicaoInvalidaException.class, cancelado::iniciarAnalise);
+        for (AcaoProcesso acao : AcaoProcesso.values()) {
+            invalida(cancelado, acao);
+        }
     }
 
-    private static ProcessoPagamento aprovado(TipoProcesso tipo) {
-        ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA);
-        processo.iniciarAnalise();
-        processo.concluirAnalise();
-        if (tipo == TipoProcesso.IMOBILIARIO) {
-            processo.concluirVistoria();
-        }
-        return processo;
+    @Test
+    void acoesDisponiveisDependemDoTipoEDoEstado() {
+        ProcessoPagamento servico = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA);
+        assertEquals(Set.of(INICIAR_ANALISE, CANCELAR), servico.acoesDisponiveis());
+
+        ProcessoPagamento imobiliario = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA);
+        imobiliario.executar(INICIAR_ANALISE);
+        imobiliario.executar(CONCLUIR_ANALISE);
+        assertEquals(Set.of(CONCLUIR_VISTORIA, CANCELAR), imobiliario.acoesDisponiveis());
     }
 
     @Test
     void protocoloSoEmProcessoPago() {
-        ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA);
-        processo.iniciarAnalise();
-        processo.concluirAnalise();
+        ProcessoPagamento processo = aprovado(TipoProcesso.SERVICO);
         assertThrows(DominioException.class, () -> processo.registrarProtocolo("PROT-1"));
 
-        processo.pagar();
+        processo.executar(PAGAR);
         assertThrows(DominioException.class, () -> processo.registrarProtocolo(" "));
         processo.registrarProtocolo("PROT-1");
         assertEquals("PROT-1", processo.protocoloPagamento());
@@ -163,16 +181,22 @@ class ProcessoPagamentoTest {
     @Test
     void reconstituirComProtocoloExigeEstadoPago() {
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, new Aprovado(), "PROT-1"));
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, APROVADO, "PROT-1"));
         assertEquals("PROT-1",
-                ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, new Pago(), "PROT-1").protocoloPagamento());
+                ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, PAGO, "PROT-1").protocoloPagamento());
     }
 
-    @Test
-    void todosOsEstadosSaoReconstituiveisPeloNome() {
-        for (EstadoProcesso estado : EstadoProcesso.todos()) {
-            assertEquals(estado, EstadoProcesso.porNome(estado.nome()));
+    private static void invalida(ProcessoPagamento processo, AcaoProcesso acao) {
+        assertThrows(TransicaoInvalidaException.class, () -> processo.executar(acao));
+    }
+
+    private static ProcessoPagamento aprovado(TipoProcesso tipo) {
+        ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA);
+        processo.executar(INICIAR_ANALISE);
+        processo.executar(CONCLUIR_ANALISE);
+        if (processo.acoesDisponiveis().contains(CONCLUIR_VISTORIA)) {
+            processo.executar(CONCLUIR_VISTORIA);
         }
-        assertThrows(IllegalArgumentException.class, () -> EstadoProcesso.porNome("INEXISTENTE"));
+        return processo;
     }
 }

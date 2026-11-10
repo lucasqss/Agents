@@ -1,0 +1,23 @@
+package br.com.claudio.consorcio.domain.processo.tipo;
+
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCLUIR_ANALISE;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCLUIR_VISTORIA;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.AGUARDANDO_VISTORIA;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.APROVADO;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.EM_ANALISE;
+
+import br.com.claudio.consorcio.domain.processo.fluxo.FluxoProcesso;
+
+/** Imobiliário: depois da análise, passa pela vistoria antes de ser aprovado. */
+final class FluxoImobiliario {
+
+    private FluxoImobiliario() {
+    }
+
+    static FluxoProcesso definir() {
+        return FluxoProcesso.comum()
+                .transicao(EM_ANALISE, CONCLUIR_ANALISE, AGUARDANDO_VISTORIA)
+                .transicao(AGUARDANDO_VISTORIA, CONCLUIR_VISTORIA, APROVADO)
+                .construir();
+    }
+}

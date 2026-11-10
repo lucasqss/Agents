@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import br.com.claudio.consorcio.domain.processo.TipoProcesso;
-import br.com.claudio.consorcio.domain.processo.estado.EstadoProcesso;
+import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import br.com.claudio.consorcio.entrypoint.mobile.PadraoMobile;
 import br.com.claudio.consorcio.entrypoint.taa.PadraoTaa;
 import br.com.claudio.consorcio.entrypoint.web.PadraoWeb;
@@ -63,11 +63,10 @@ class PadroesDeCanalTest {
     }
 
     @Test
-    void todoEstadoETipoDoDominioTemRotulo() throws ReflectiveOperationException {
+    void todoEstadoETipoDoDominioTemRotulo() {
         // Um estado novo no domínio sem rótulo apareceria cru ("EM_REVISAO") na tela dos canais.
-        for (Class<?> estado : EstadoProcesso.class.getPermittedSubclasses()) {
-            String codigo = (String) estado.getField("NOME").get(null);
-            assertTrue(Rotulos.temEstado(codigo), "estado sem rótulo: " + codigo);
+        for (EstadoProcesso estado : EstadoProcesso.values()) {
+            assertTrue(Rotulos.temEstado(estado.name()), "estado sem rótulo: " + estado);
         }
         for (TipoProcesso tipo : TipoProcesso.values()) {
             assertTrue(Rotulos.temTipo(tipo.name()), "tipo sem rótulo: " + tipo);

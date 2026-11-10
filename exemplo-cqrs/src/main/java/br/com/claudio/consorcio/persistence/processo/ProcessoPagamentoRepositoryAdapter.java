@@ -2,8 +2,9 @@ package br.com.claudio.consorcio.persistence.processo;
 
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
-import br.com.claudio.consorcio.domain.processo.estado.EstadoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,9 +12,9 @@ import java.util.Optional;
 @ApplicationScoped
 public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepository {
 
-    private static final List<String> ESTADOS_FINAIS = EstadoProcesso.todos().stream()
+    private static final List<String> ESTADOS_FINAIS = Arrays.stream(EstadoProcesso.values())
             .filter(EstadoProcesso::finalizado)
-            .map(EstadoProcesso::nome)
+            .map(EstadoProcesso::name)
             .toList();
 
     private final ProcessoPagamentoDataRepository dados;
