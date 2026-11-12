@@ -9,7 +9,7 @@ import java.util.Set;
 /**
  * Pacote raiz do projeto, descoberto pelo lugar desta pasta: ela fica sempre em {@code <raiz>.arquitetura}.
  * Para levar as regras a outro projeto, copie a pasta para {@code src/test/java/<pacote raiz>/arquitetura/}
- * (a IDE ajusta a linha {@code package}); nada mais muda.
+ * (a IDE ajusta a linha {@code package}) e ajuste {@link Catalogo}; nada mais muda.
  *
  * <p>Todos os padrões das regras são ancorados aqui. Assim, {@code "domain"} só casa com o nosso
  * {@code <raiz>.domain}, nunca com pacotes de bibliotecas.

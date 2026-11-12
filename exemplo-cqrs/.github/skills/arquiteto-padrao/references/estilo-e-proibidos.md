@@ -14,6 +14,7 @@
 - Lombok, MapStruct, `@Query(nativeQuery)` ou SQL nativo. Mappers são escritos à mão; consultas são HQL validado na compilação.
 - Herança JPA. Uma tabela por agregado; subtipos são reconstruídos pelo mapper.
 - DTO ou client de sistema externo fora de `gateway/<sistema>/`. Gateway nunca importa o domínio; a única exceção é o `XGatewayAdapter` ([gateway](gateway.md)).
+- Classe do catálogo corporativo (dependência Maven gerada de outro sistema) fora de `gateway/` e `entrypoint/`. Para o caso de uso, o Gateway devolve tipo simples ou record próprio ([gateway](gateway.md)).
 - `@RegisterRestClient`, `@Timeout`, `@Retry`, `@CircuitBreaker` fora de `gateway/`.
 - Resource de canal devolver record de `persistence/`; ele devolve o próprio `*Response`.
 - Canal usar o `Padrao` de outro canal; formatação fora de `entrypoint/`.

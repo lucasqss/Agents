@@ -96,4 +96,13 @@ final class RegrasTecnologia {
             .as("TEC-010: @TRANSACTIONAL EM CLASSE SÓ NO USE CASE")
             .because("o use case (Service Layer) define a fronteira da transação."
                     + " Corrija: tire a anotação da classe e coloque no *UseCase");
+
+    @ArchTest
+    static final ArchRule tec011CatalogoSoNoGatewayENoEntrypoint = ArchRuleDefinition.noClasses()
+            .that().resideOutsideOfPackages(Raiz.pacote("gateway"), Raiz.emQualquer("entrypoint"))
+            .should().dependOnClassesThat(Catalogo.classeDoCatalogo())
+            .as("TEC-011: CLASSE DO CATÁLOGO CORPORATIVO SÓ EM GATEWAY E ENTRYPOINT")
+            .because("o contrato de outro sistema muda sem nos avisar; application e domain usam só tipos nossos."
+                    + " Corrija: ao consumir, o *Gateway devolve tipo simples ou record próprio de gateway/<sistema>;"
+                    + " ao prover, o entrypoint converte a classe do catálogo no DadosX do use case");
 }

@@ -6,11 +6,21 @@ Cada sistema tem seu pacote, com o padrão Gateway [PoEAA] ([exemplo](exemplos-c
 
 - `XClient`: interface `@RegisterRestClient(configKey = "<sistema>")` com `@Timeout`, `@Retry` e `@CircuitBreaker` nos métodos. URL em `quarkus.rest-client.<sistema>.url=${<SISTEMA>_URL:...}`.
 - DTOs no **vocabulário do sistema externo** (records), com os nomes de campo exatos da API. Eles nunca saem deste pacote (o ArchUnit falha).
-- `XGateway` (`@ApplicationScoped`): API simples no nosso vocabulário (tipos simples ou records próprios), traduz request/response e converte qualquer falha em `SistemaExternoIndisponivelException` (vira 503). Essa exceção fica na raiz de `gateway/`.
+- `XGateway` (`@ApplicationScoped`): API simples no nosso vocabulário, traduz request/response e converte qualquer falha em `SistemaExternoIndisponivelException` (vira 503). Essa exceção fica na raiz de `gateway/`.
+- **Records próprios** (opcional): quando o retorno não cabe num tipo simples, o `XGateway` devolve um record nosso, declarado neste pacote, com nomes do nosso vocabulário. O caso de uso pode importá-lo; o domínio, não.
+
+## Catálogo corporativo
+
+O client e os DTOs de muitos sistemas chegam prontos, como dependência Maven gerada pelo catálogo corporativo. Nesse caso não se escreve `XClient` nem DTO à mão: o `XGateway` usa as classes do catálogo e devolve tipo simples ou record próprio.
+
+- **Classe do catálogo só aparece em `gateway/` (ao consumir) e em `entrypoint/` (ao prover).** Nunca em `application/`, `domain/` nem `persistence/` (TEC-011).
+- Uma classe é do catálogo quando o pacote dela está em `Catalogo.PACOTES` (em `src/test/java/<pacote raiz>/arquitetura/Catalogo.java`) ou quando ela vem de um jar com o mesmo `groupId` do componente, detectado sozinho pelo `pom.xml`. Sistema novo do catálogo: peça ao dono para acrescentar o pacote em `Catalogo.PACOTES`.
+- **Record próprio é só nosso:** não tem campo, parâmetro nem método com classe do catálogo, e não aparece na assinatura de um `XClient`. Se tiver, ele conta como modelo externo e não sai do gateway (SHR-003).
+- Ao prover para outro sistema, veja "Contrato do catálogo" em [canais](canais.md).
 
 Regras:
 
-- O Gateway **não importa nada de `application/` nem de `domain/`.** Quem converte o retorno para o domínio é o caso de uso.
+- O Gateway **não importa nada de `application/` nem de `domain/`.** Quem converte o retorno (tipo simples ou record próprio) para o domínio é o caso de uso.
 - **A única exceção é o `XGatewayAdapter`**, usado quando uma regra do domínio precisa de um sistema externo: a interface fica em `domain/<agregado>/` e a implementação em `gateway/<sistema>/XGatewayAdapter.java`. Ele só traduz entre domínio e Gateway, não orquestra nem acessa banco, e ninguém o referencia pelo nome, só pela interface (CMD-006, CMD-007, CMD-008).
 - Um sistema externo não depende de outro; quem combina dois sistemas é o caso de uso.
 - Só casos de uso chamam gateways.

@@ -18,5 +18,6 @@ Serviço Java 25 + Quarkus 3.33 com domínio puro e padrões do *Patterns of Ent
 - Use case importar JPA, Jakarta Data ou `*Entity`.
 - Bean Validation fora do entrypoint.
 - Chamar sistema externo fora de um `*Gateway`, ou Gateway chamado por quem não é use case.
+- Classe do catálogo corporativo (dependência Maven de outro sistema) fora de `gateway/` e `entrypoint/`. Não edite `Catalogo.java` em `arquitetura/` para o build passar.
 - Renomear ou remover campo de um `*Response` de canal. Só mudanças aditivas; quebra vira `/v2`.
 - Formatação fora do Assembler do canal.

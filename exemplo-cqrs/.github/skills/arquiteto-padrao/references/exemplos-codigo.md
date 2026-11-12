@@ -270,6 +270,44 @@ public class TesourariaGateway {
 }
 ```
 
+## Gateway sobre o catálogo corporativo
+
+O client e os DTOs vêm prontos de uma dependência Maven (aqui, `org.acme.sistema`). Eles ficam atrás do Gateway, que devolve um record próprio.
+
+`gateway/tesouraria/OrdemRegistrada.java`. Record nosso, no nosso vocabulário, sem nenhuma classe do catálogo. O caso de uso pode importá-lo.
+
+```java
+public record OrdemRegistrada(String protocolo, LocalDate previsaoPagamento) {
+}
+```
+
+`gateway/tesouraria/TesourariaGateway.java`:
+
+```java
+/** Padrão: Gateway [PoEAA]. */
+@ApplicationScoped
+public class TesourariaGateway {
+
+    private final org.acme.sistema.TesourariaApi api; // client gerado pelo catálogo
+
+    public TesourariaGateway(@RestClient org.acme.sistema.TesourariaApi api) {
+        this.api = api;
+    }
+
+    public OrdemRegistrada registrarPagamento(Long processoId, Long cotaId) {
+        org.acme.sistema.PaymentOrderOutput saida;
+        try {
+            saida = api.createOrder(new org.acme.sistema.PaymentOrderInput("PROCESSO-" + processoId, cotaId));
+        } catch (RuntimeException e) {
+            throw new SistemaExternoIndisponivelException("Tesouraria", e);
+        }
+        return new OrdemRegistrada(saida.getProtocolNumber(), saida.getDueDate());
+    }
+}
+```
+
+No caso de uso: `OrdemRegistrada ordem = tesouraria.registrarPagamento(...)`, e os dados seguem para o domínio como parâmetros (`processo.registrarPagamento(ordem.protocolo(), ordem.previsaoPagamento())`). O domínio não importa `OrdemRegistrada`.
+
 ## Service Stub para testes
 
 `src/test/java/<pacote raiz>/integracao/<Sistema>Fake.java`. A própria aplicação serve o stub nos testes com `@QuarkusTest`. Para testes de aceitação ele não serve, porque não entra no artefato empacotado: siga a skill `teste-aceitacao-modelos`.

@@ -5,7 +5,7 @@ description: Padrão de arquitetura e de pastas dos projetos Java 25 + Quarkus 3
 
 # Arquiteto-padrão
 
-Versão: 2026-11-08. Este documento é a referência da equipe e dos agentes de IA. A decisão completa e os motivos estão em [adr/ADR_001.md](adr/ADR_001.md). Se este texto e o ADR divergirem, **vale o ADR**: avise o dono para corrigir.
+Versão: 2026-11-12. Este documento é a referência da equipe e dos agentes de IA. A decisão completa e os motivos estão em [adr/ADR_001.md](adr/ADR_001.md). Se este texto e o ADR divergirem, **vale o ADR**: avise o dono para corrigir.
 
 Para trazer um projeto antigo para este padrão, use a skill `adequar-ao-padrao`. Para testes de aceitação de usuário, use a skill `teste-aceitacao-modelos` (a partir do requisito) ou `teste-aceitacao-legado` (a partir do código existente), e não esta.
 
@@ -190,6 +190,7 @@ Sem `domain`, sem `persistence`, sem `@Entity`, sem `@Transactional`. O ACL prot
 | Tela ou listagem nova | record + `@Query` HQL em `persistence/<agregado>/`, `application/<agregado>/XUseCase`, resource | [persistência](references/persistencia-jakarta-data.md) |
 | Repositório, entidade JPA, mapper | `persistence/<agregado>/` | [persistência](references/persistencia-jakarta-data.md) |
 | Chamar sistema de outra área | `gateway/<sistema>/XGateway`. Só **use cases** chamam gateways. Única exceção: o `XGatewayAdapter`, quando uma regra do domínio precisa do sistema externo | [gateway](references/gateway.md) |
+| Usar dependência do catálogo corporativo (client ou contrato gerado de outro sistema) | só em `gateway/<sistema>/` (consumir) ou `entrypoint/rest/<agregado>/` (prover). O caso de uso recebe tipo simples, `DadosX` ou record próprio do gateway | [gateway](references/gateway.md), [canais](references/canais.md) |
 | Endpoint REST ou de canal | `entrypoint/rest/<agregado>/` ou `entrypoint/<canal>/<agregado>/` | [canais](references/canais.md) |
 | Formatar para uma tela (moeda, máscara, rótulo) | Assembler em `entrypoint/<canal>/<agregado>/`, usando `Padrao<Canal>` | [canais](references/canais.md) |
 | Número com significado de negócio (total pago, saldo) | uma consulta em `persistence/<agregado>/`, não o Assembler | [canais](references/canais.md) |
@@ -217,6 +218,7 @@ Siga a ordem e pare se algum passo exigir quebrar uma regra.
 
 - **Javadoc de cada classe de padrão** declara padrão, papel e fonte, de forma curta. Ex.: `Padrão: State, estado concreto [GoF].` ou `Padrão: Data Mapper [PoEAA].`. A citação completa dos livros fica uma vez só, no `package-info.java`.
 - A descrição de cada pacote vive em `package-info.java`, inclusive na raiz da camada.
+- De `gateway/<sistema>/`, o caso de uso só importa o `*Gateway`, as `*Exception` e os records próprios; nunca o client, o DTO externo nem classe do catálogo corporativo.
 - `entrypoint/` nunca acessa `gateway/` direto. De `persistence/<agregado>/`, só pode importar os records projetados; nunca `*Entity`, `*QueryRepository`, `*DataRepository`, `*Mapper` nem `*RepositoryAdapter`.
 - `domain/` não depende de `entrypoint/`, `application/`, `persistence/`, `gateway/` nem de framework.
 - `@Transactional` só em `application/`.

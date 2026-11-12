@@ -24,6 +24,14 @@ Recebe HTTP, chama o caso de uso e devolve o resultado. Sem regra de negócio, s
 | `MismatchedInputException` (JSON com tipo ou valor incompatível) | 400 |
 | `WebApplicationException` (recusa do próprio HTTP, como rota inexistente) | mantém o status |
 
+## Contrato do catálogo (quando o componente provê para outro sistema)
+
+Se o contrato da API vem do catálogo corporativo (interface ou DTOs gerados numa dependência Maven), ele fica em `entrypoint/rest/<agregado>/` e não passa dali (TEC-011):
+
+- o `XResource` implementa ou usa o contrato gerado;
+- um `XAssembler` (final, estático, sem CDI) converte o DTO do catálogo no `DadosX` do caso de uso e o resultado de volta no DTO do catálogo;
+- o caso de uso recebe e devolve só tipos nossos: `DadosX`, tipos simples, records de consulta.
+
 ## Canais (`entrypoint/<canal>/<agregado>/`)
 
 Na pasta do agregado ficam:

@@ -1,6 +1,7 @@
 package PACOTE_RAIZ.arquitetura;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaModifier;
@@ -8,8 +9,10 @@ import com.tngtech.archunit.core.domain.PackageMatcher;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 /** Predicados e condições customizados usados pelas regras. */
 final class Condicoes {
@@ -47,13 +50,40 @@ final class Condicoes {
                 });
     }
 
-    /** Client e DTOs externos: tudo em gateway que não seja *Gateway, *GatewayAdapter nem *Exception. */
+    /**
+     * O que não sai do gateway: o client e o modelo do sistema externo. Modelo externo é a classe que usa o
+     * catálogo corporativo, que aparece no *Client (direta ou indiretamente) ou que depende de uma dessas.
+     * O que sobra (*Gateway, *Exception e os records próprios, no nosso vocabulário) pode ser usado pelo use case.
+     */
     static DescribedPredicate<JavaClass> internoDoGateway() {
-        return DescribedPredicate.describe("são client ou DTO de sistema externo",
+        return DescribedPredicate.describe("são client ou modelo de sistema externo",
                 c -> estaEm(c, Raiz.pacote("gateway"))
-                        && !c.getSimpleName().endsWith("Gateway")
-                        && !c.getSimpleName().endsWith("GatewayAdapter")
-                        && !c.getSimpleName().endsWith("Exception"));
+                        && !fachadaDoGateway(c)
+                        && (modeloExterno(c, new HashSet<>())
+                                || c.getDirectDependenciesFromSelf().stream()
+                                        .map(Dependency::getTargetClass)
+                                        .anyMatch(alvo -> modeloExterno(alvo, new HashSet<>()))));
+    }
+
+    private static boolean fachadaDoGateway(JavaClass c) {
+        return c.getSimpleName().endsWith("Gateway")
+                || c.getSimpleName().endsWith("GatewayAdapter")
+                || c.getSimpleName().endsWith("Exception");
+    }
+
+    private static boolean modeloExterno(JavaClass c, Set<JavaClass> visitadas) {
+        if (!estaEm(c, Raiz.pacote("gateway")) || fachadaDoGateway(c) || !visitadas.add(c)) {
+            return false;
+        }
+        if (c.getSimpleName().endsWith("Client") || c.isAnnotatedWith(RegisterRestClient.class)) {
+            return true;
+        }
+        if (c.getDirectDependenciesFromSelf().stream().anyMatch(d -> Catalogo.ehDoCatalogo(d.getTargetClass()))) {
+            return true;
+        }
+        return c.getDirectDependenciesToSelf().stream()
+                .map(Dependency::getOriginClass)
+                .anyMatch(origem -> modeloExterno(origem, visitadas));
     }
 
     /** Classe que implementa uma interface declarada em domain. */
