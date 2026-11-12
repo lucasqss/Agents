@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      { "type": "command", "bash": "bash .github/hooks/inicio-da-sessao.sh", "timeoutSec": 10 }
+    ],
+    "preToolUse": [
+      { "type": "command", "matcher": "edit|create|str_replace_editor|apply_patch", "bash": "bash .github/hooks/proteger-arquivos.sh", "timeoutSec": 5 }
+    ],
+    "agentStop": [
+      { "type": "command", "bash": "bash .github/hooks/verificar-antes-de-terminar.sh", "timeoutSec": 900 }
+    ]
+  }
+}

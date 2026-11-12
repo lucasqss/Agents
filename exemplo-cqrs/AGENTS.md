@@ -4,10 +4,26 @@ Serviço Java 25 + Quarkus 3.33 com domínio puro e padrões do *Patterns of Ent
 
 **Use as skills:** `arquiteto-padrao` ao criar ou alterar código; `adequar-ao-padrao` ao trazer código legado para o padrão; `teste-aceitacao-modelos` ao criar ou alterar testes de aceitação de usuário a partir do requisito; `teste-aceitacao-legado` quando não há requisito e as regras saem do código existente.
 
+## Como trabalhar
+
+Vale para qualquer tarefa:
+
+1. **Entenda antes de mexer.** Leia o código envolvido e quem o chama. Procure como o projeto já resolve algo parecido e faça igual.
+2. **Planeje o que tem mais de um passo.** Liste os passos antes de editar e siga a lista.
+3. **Mude o mínimo.** Só o que a tarefa pede. Não refatore, renomeie nem "melhore" o que está em volta.
+4. **Verifique rodando.** Código que você não rodou não está pronto. Ao final de cada turno com mudança de código, o harness (`.github/hooks/`) roda a verificação rápida e devolve a falha para você corrigir.
+5. **Relate o que é fato.** Diga o que mudou, o que você rodou e o resultado, e o que não conseguiu verificar. Teste que falhou é relatado como falha.
+
+Conforme o tipo da tarefa:
+
+- **Código novo.** Use a skill `arquiteto-padrao` e a receita da operação. O teste nasce junto com o código.
+- **Avaliação de código legado.** Não altere nenhum arquivo. Cada achado traz `arquivo:linha`, a evidência e a gravidade. Separe o que você confirmou lendo ou rodando do que é suspeita. Para comparar com o padrão, use o diagnóstico da skill `adequar-ao-padrao`.
+- **Correção de bug.** Primeiro reproduza com um teste que falha pelo motivo do bug. Ache a causa, não o sintoma, e corrija na camada dona da regra. O teste novo passa e os antigos continuam passando sem terem sido alterados.
+
 ## Antes de terminar qualquer tarefa
 
 1. Rode `./mvnw verify`.
-2. **Se uma regra ArchUnit falhar, corrija o código, nunca a regra.** Não edite, apague nem afrouxe nada em `src/test/java/**/arquitetura/`. A falha traz um ID e um "Corrija:". Se achar que a regra está errada, diga isso e pare.
+2. **Se uma regra ArchUnit falhar, corrija o código, nunca a regra.** Não edite, apague nem afrouxe nada em `src/test/java/**/arquitetura/` nem em `.github/hooks/`. A falha traz um ID e um "Corrija:". Se achar que a regra está errada, diga isso e pare.
 3. Não edite migrations existentes. Mudança de schema é sempre um arquivo novo `V<n+1>__descricao.sql`.
 
 ## Proibido

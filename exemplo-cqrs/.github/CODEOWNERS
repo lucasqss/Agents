@@ -23,3 +23,6 @@
 # Padrão de apresentação dos canais (padrão da empresa) e contratos dos fronts.
 /src/main/java/**/entrypoint/apresentacao/      @lucasqss
 /src/main/java/**/entrypoint/*/*/*Response.java @lucasqss
+
+# Hooks do agente de IA: o que ele não pode alterar e o que roda antes de ele terminar.
+/.github/hooks/                                 @lucasqss
