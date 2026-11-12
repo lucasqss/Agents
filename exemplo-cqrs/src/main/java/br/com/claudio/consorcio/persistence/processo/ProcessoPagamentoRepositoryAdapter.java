@@ -4,6 +4,7 @@ import br.com.claudio.consorcio.domain.AlteracaoConcorrenteException;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
 import jakarta.data.exceptions.OptimisticLockingFailureException;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.Arrays;
@@ -32,6 +33,9 @@ public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepo
             dados.inserir(entity);
         } else {
             atualizar(entity);
+        }
+        for (Transicao transicao : processo.novasTransicoes()) {
+            dados.inserirTransicao(ProcessoPagamentoMapper.paraEntidade(entity.getId(), transicao));
         }
         return ProcessoPagamentoMapper.paraDominio(entity);
     }

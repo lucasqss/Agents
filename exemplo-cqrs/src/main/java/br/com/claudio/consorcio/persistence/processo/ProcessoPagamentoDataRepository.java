@@ -29,6 +29,9 @@ interface ProcessoPagamentoDataRepository {
     @Update
     void atualizar(ProcessoPagamentoEntity processo);
 
+    @Insert
+    void inserirTransicao(ProcessoTransicaoEntity transicao);
+
     @Query("select count(p) from ProcessoPagamentoEntity p where p.cotaId = :cotaId")
     long contarPorCota(Long cotaId);
 

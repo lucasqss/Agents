@@ -4,6 +4,7 @@ import jakarta.data.page.Page;
 import jakarta.data.page.PageRequest;
 import jakarta.data.repository.Query;
 import jakarta.data.repository.Repository;
+import java.util.List;
 
 @Repository
 public interface ProcessoQueryRepository {
@@ -18,4 +19,16 @@ public interface ProcessoQueryRepository {
             order by p.id
             """)
     Page<ProcessoResumo> listar(String tipo, String estado, PageRequest pageRequest);
+
+    @Query("select count(p) from ProcessoPagamentoEntity p where p.id = :id")
+    long contar(Long id);
+
+    @Query("""
+            select new br.com.claudio.consorcio.persistence.processo.ProcessoTransicaoResumo(
+                t.estadoOrigem, t.estadoDestino, t.acao, t.ocorridoEm, t.observacao)
+            from ProcessoTransicaoEntity t
+            where t.processoId = :processoId
+            order by t.id
+            """)
+    List<ProcessoTransicaoResumo> historico(Long processoId);
 }

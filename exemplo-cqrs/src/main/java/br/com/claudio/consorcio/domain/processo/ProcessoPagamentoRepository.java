@@ -8,7 +8,7 @@ import java.util.Optional;
  */
 public interface ProcessoPagamentoRepository {
 
-    /** Lança AlteracaoConcorrenteException se o processo mudou no banco depois de lido. */
+    /** Grava o processo e as suas novas transições. Lança AlteracaoConcorrenteException se o processo mudou no banco depois de lido. */
     ProcessoPagamento salvar(ProcessoPagamento processo);
 
     Optional<ProcessoPagamento> buscarPorId(Long id);

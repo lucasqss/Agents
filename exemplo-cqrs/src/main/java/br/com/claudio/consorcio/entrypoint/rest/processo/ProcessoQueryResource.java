@@ -1,20 +1,50 @@
 package br.com.claudio.consorcio.entrypoint.rest.processo;
 
 import br.com.claudio.consorcio.application.Pagina;
+import br.com.claudio.consorcio.application.processo.ListarAcoesDisponiveisUseCase;
+import br.com.claudio.consorcio.application.processo.ListarHistoricoProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.ListarProcessosUseCase;
 import br.com.claudio.consorcio.persistence.processo.ProcessoResumo;
+import br.com.claudio.consorcio.persistence.processo.ProcessoTransicaoResumo;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.QueryParam;
+import java.util.List;
+import java.util.Locale;
 
 @Path("/processos")
 public class ProcessoQueryResource {
 
-    private final ListarProcessosUseCase listar;
+    /** Ações no mesmo formato do caminho dos endpoints: "concluir-analise" é POST /processos/{id}/concluir-analise. */
+    public record AcoesDisponiveis(List<String> acoes) {
+    }
 
-    public ProcessoQueryResource(ListarProcessosUseCase listar) {
+    private final ListarProcessosUseCase listar;
+    private final ListarAcoesDisponiveisUseCase listarAcoes;
+    private final ListarHistoricoProcessoUseCase listarHistorico;
+
+    public ProcessoQueryResource(ListarProcessosUseCase listar, ListarAcoesDisponiveisUseCase listarAcoes,
+            ListarHistoricoProcessoUseCase listarHistorico) {
         this.listar = listar;
+        this.listarAcoes = listarAcoes;
+        this.listarHistorico = listarHistorico;
+    }
+
+    @GET
+    @Path("/{id}/acoes")
+    public AcoesDisponiveis acoes(Long id) {
+        return new AcoesDisponiveis(listarAcoes.executar(id).stream()
+                .map(acao -> acao.name().toLowerCase(Locale.ROOT).replace('_', '-'))
+                .toList());
+    }
+
+    @GET
+    @Path("/{id}/historico")
+    public List<ProcessoTransicaoResumo> historico(Long id) {
+        return listarHistorico.executar(id)
+                .orElseThrow(() -> new NotFoundException("Processo " + id + " não encontrado"));
     }
 
     @GET

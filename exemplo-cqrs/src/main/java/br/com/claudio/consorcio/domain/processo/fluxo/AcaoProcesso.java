@@ -10,6 +10,7 @@ public enum AcaoProcesso {
     INICIAR_ANALISE("iniciar a análise de"),
     CONCLUIR_ANALISE("concluir a análise de"),
     CONCLUIR_VISTORIA("concluir a vistoria de"),
+    DEVOLVER_PARA_ANALISE("devolver para análise"),
     PAGAR("pagar"),
     CANCELAR("cancelar");
 

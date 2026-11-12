@@ -3,7 +3,11 @@ package br.com.claudio.consorcio.domain.processo;
 import br.com.claudio.consorcio.domain.DominioException;
 import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -19,6 +23,7 @@ public final class ProcessoPagamento {
     private EstadoProcesso estado;
     private String protocoloPagamento;
     private final long versao;
+    private final List<Transicao> novasTransicoes = new ArrayList<>();
 
     private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, EstadoProcesso estado, String protocoloPagamento,
             long versao) {
@@ -54,21 +59,26 @@ public final class ProcessoPagamento {
     }
 
     /** Aplica a ação; se o fluxo do tipo não a aceita no estado atual, lança TransicaoInvalidaException. */
-    public void executar(AcaoProcesso acao) {
-        EstadoProcesso destino = tipo.fluxo().proximo(estado, acao);
-        if (destino == EstadoProcesso.PAGO) {
+    public void executar(AcaoProcesso acao, Instant quando, String observacao) {
+        if (tipo.fluxo().proximo(estado, acao) == EstadoProcesso.PAGO) {
             throw new DominioException("Processo só fica pago com o protocolo da tesouraria");
         }
-        estado = destino;
+        transitar(acao, quando, observacao);
     }
 
     /** Paga o processo e guarda o protocolo emitido pela tesouraria, numa operação só. */
-    public void pagar(String protocolo) {
+    public void pagar(String protocolo, Instant quando) {
         if (protocolo == null || protocolo.isBlank()) {
             throw new DominioException("Protocolo de pagamento é obrigatório");
         }
-        estado = tipo.fluxo().proximo(estado, AcaoProcesso.PAGAR);
+        transitar(AcaoProcesso.PAGAR, quando, null);
         protocoloPagamento = protocolo;
+    }
+
+    private void transitar(AcaoProcesso acao, Instant quando, String observacao) {
+        Transicao transicao = new Transicao(estado, tipo.fluxo().proximo(estado, acao), acao, quando, observacao);
+        estado = transicao.para();
+        novasTransicoes.add(transicao);
     }
 
     /** Confere se a ação vale no estado atual, sem aplicá-la; para validar antes de um efeito externo. */
@@ -79,6 +89,11 @@ public final class ProcessoPagamento {
     /** Ações que o fluxo do tipo aceita no estado atual. */
     public Set<AcaoProcesso> acoesDisponiveis() {
         return tipo.fluxo().acoesDisponiveis(estado);
+    }
+
+    /** Transições feitas desde que o processo foi criado ou lido; o repositório as grava no histórico ao salvar. */
+    public List<Transicao> novasTransicoes() {
+        return List.copyOf(novasTransicoes);
     }
 
     public boolean ativo() {

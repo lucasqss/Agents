@@ -5,10 +5,13 @@ import br.com.claudio.consorcio.application.processo.ExecutarAcaoProcessoUseCase
 import br.com.claudio.consorcio.application.processo.PagarProcessoUseCase;
 import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
 import br.com.claudio.consorcio.entrypoint.IdCriado;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.MediaType;
@@ -26,6 +29,14 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 public class ProcessoResource {
 
     public record NovoProcesso(@NotNull Long cotaId, @NotNull TipoProcesso tipo) {
+    }
+
+    /** Corpo opcional das ações: um texto livre que fica no histórico. */
+    public record Observacao(@Size(max = Transicao.TAMANHO_MAXIMO_DA_OBSERVACAO) String observacao) {
+
+        static String texto(Observacao corpo) {
+            return corpo == null ? null : corpo.observacao();
+        }
     }
 
     public record EstadoAtual(String estado) {
@@ -56,20 +67,30 @@ public class ProcessoResource {
 
     @POST
     @Path("/{id}/iniciar-analise")
-    public EstadoAtual iniciarAnalise(Long id) {
-        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.INICIAR_ANALISE));
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual iniciarAnalise(Long id, @Valid Observacao corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.INICIAR_ANALISE, Observacao.texto(corpo)));
     }
 
     @POST
     @Path("/{id}/concluir-analise")
-    public EstadoAtual concluirAnalise(Long id) {
-        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CONCLUIR_ANALISE));
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual concluirAnalise(Long id, @Valid Observacao corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CONCLUIR_ANALISE, Observacao.texto(corpo)));
     }
 
     @POST
     @Path("/{id}/concluir-vistoria")
-    public EstadoAtual concluirVistoria(Long id) {
-        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CONCLUIR_VISTORIA));
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual concluirVistoria(Long id, @Valid Observacao corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CONCLUIR_VISTORIA, Observacao.texto(corpo)));
+    }
+
+    @POST
+    @Path("/{id}/devolver-para-analise")
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual devolverParaAnalise(Long id, @Valid Observacao corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.DEVOLVER_PARA_ANALISE, Observacao.texto(corpo)));
     }
 
     @POST
@@ -80,7 +101,8 @@ public class ProcessoResource {
 
     @POST
     @Path("/{id}/cancelar")
-    public EstadoAtual cancelar(Long id) {
-        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CANCELAR));
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual cancelar(Long id, @Valid Observacao corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CANCELAR, Observacao.texto(corpo)));
     }
 }

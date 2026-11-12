@@ -13,6 +13,7 @@ import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,6 +26,8 @@ import org.junit.jupiter.api.Test;
 /** Duas operações no mesmo processo ao mesmo tempo: só uma vale, e a tesouraria recebe uma única ordem. */
 @QuarkusTest
 class ConcorrenciaProcessoTest {
+
+    private static final Instant AGORA = Instant.now();
 
     @Inject
     ProcessoPagamentoRepository processos;
@@ -55,7 +58,7 @@ class ConcorrenciaProcessoTest {
 
         acao(id, "iniciar-analise").statusCode(200);
 
-        leituraAntiga.executar(AcaoProcesso.CANCELAR);
+        leituraAntiga.executar(AcaoProcesso.CANCELAR, AGORA, null);
         assertThrows(AlteracaoConcorrenteException.class,
                 () -> QuarkusTransaction.requiringNew().run(() -> processos.salvar(leituraAntiga)));
         EstadoProcesso gravado = QuarkusTransaction.requiringNew()

@@ -8,6 +8,7 @@ import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import br.com.claudio.consorcio.gateway.tesouraria.TesourariaGateway;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import java.time.Instant;
 
 /**
  * Padrão: Service Layer [PoEAA]. Registra a ordem na tesouraria e paga o processo com o protocolo recebido.
@@ -33,7 +34,7 @@ public class PagarProcessoUseCase {
         ProcessoPagamento processo = processos.buscarPorIdComBloqueio(id)
                 .orElseThrow(() -> new NaoEncontradoException("Processo", id));
         processo.exigirQuePode(AcaoProcesso.PAGAR);
-        processo.pagar(tesouraria.registrarPagamento(processo.id(), processo.cotaId()));
+        processo.pagar(tesouraria.registrarPagamento(processo.id(), processo.cotaId()), Instant.now());
         return processos.salvar(processo).estado();
     }
 }

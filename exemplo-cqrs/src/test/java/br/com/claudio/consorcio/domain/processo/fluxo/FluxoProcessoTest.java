@@ -3,6 +3,7 @@ package br.com.claudio.consorcio.domain.processo.fluxo;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CANCELAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCLUIR_ANALISE;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCLUIR_VISTORIA;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.DEVOLVER_PARA_ANALISE;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.INICIAR_ANALISE;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.PAGAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.ABERTO;
@@ -65,7 +66,7 @@ class FluxoProcessoTest {
     @Test
     void acoesDisponiveisSaemDaTabela() {
         assertEquals(Set.of(INICIAR_ANALISE, CANCELAR), comum.acoesDisponiveis(ABERTO));
-        assertEquals(Set.of(PAGAR, CANCELAR), comum.acoesDisponiveis(APROVADO));
+        assertEquals(Set.of(DEVOLVER_PARA_ANALISE, PAGAR, CANCELAR), comum.acoesDisponiveis(APROVADO));
     }
 
     @Test
