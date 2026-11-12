@@ -3,7 +3,6 @@ package br.com.claudio.consorcio.arquitetura;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
-import jakarta.data.repository.Repository;
 
 /** QRY: leitura de tela. entrypoint -> application -> *QueryRepository, sem passar pelo domínio. */
 final class RegrasLeitura {
@@ -30,7 +29,7 @@ final class RegrasLeitura {
     @ArchTest
     static final ArchRule qry003EntrypointSemRepositorio = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(Raiz.pacote("entrypoint"))
-            .should().dependOnClassesThat().areAnnotatedWith(Repository.class)
+            .should().dependOnClassesThat().areAnnotatedWith(Condicoes.REPOSITORY)
             .as("QRY-003: ENTRYPOINT NÃO PODE CHAMAR REPOSITÓRIO")
             .because("o entrypoint chama use cases; dos repositórios ele só vê os records projetados."
                     + " Corrija: crie ou use um *UseCase em application/<agregado>");

@@ -5,7 +5,6 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
 import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition;
 import jakarta.ws.rs.Path;
-import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 /** GER: estrutura geral do projeto. Camadas no topo, agregados dentro delas. */
 final class RegrasGerais {
@@ -18,21 +17,17 @@ final class RegrasGerais {
 
     /**
      * Esta regra NUNCA passa vazia: se a pasta foi copiada para o pacote errado (e nenhuma classe foi
-     * encontrada), ela falha em vez de deixar tudo passar.
+     * encontrada), ela falha em vez de deixar tudo passar. As camadas vêm do {@link Tipo} do componente.
      */
     @ArchTest
     static final ArchRule ger001Estrutura = ArchRuleDefinition.classes()
-            .should().resideInAnyPackage(
-                    Raiz.pacote("entrypoint"),
-                    Raiz.pacote("application"),
-                    Raiz.pacote("domain"),
-                    Raiz.pacote("persistence"),
-                    Raiz.pacote("gateway"))
+            .should().resideInAnyPackage(Tipo.CAMADAS.stream().map(Raiz::pacote).toArray(String[]::new))
             .allowEmptyShould(false)
-            .as("GER-001: TODO CÓDIGO FICA EM UMA DAS CAMADAS")
-            .because("a raiz do projeto só tem entrypoint, application, domain, persistence e gateway."
-                    + " Corrija: mova a classe para a camada e o agregado certos; se nenhuma classe foi analisada,"
-                    + " a pasta arquitetura está no pacote errado (deve ser <raiz>.arquitetura)");
+            .as("GER-001: TODO CÓDIGO FICA EM UMA DAS CAMADAS DO TIPO DO COMPONENTE")
+            .because("um componente " + Tipo.NOME + " só tem " + String.join(", ", Tipo.CAMADAS) + "."
+                    + " Corrija: mova a classe para a camada certa; se a camada não existe neste tipo, o código pertence"
+                    + " a outro componente; se nenhuma classe foi analisada, a pasta arquitetura está no pacote errado"
+                    + " (deve ser <raiz>.arquitetura)");
 
     @ArchTest
     static final ArchRule ger002SemCiclos = SlicesRuleDefinition.slices()
@@ -49,7 +44,8 @@ final class RegrasGerais {
                     Raiz.exato("application"),
                     Raiz.exato("domain"),
                     Raiz.exato("persistence"),
-                    Raiz.exato("gateway"))
+                    Raiz.exato("gateway"),
+                    Raiz.exato("translator"))
             .should().haveNameMatching(TIPOS_DA_RAIZ)
             .as("GER-003: RAIZ DA CAMADA SÓ ACEITA OS TIPOS LISTADOS")
             .because("sem limite, a raiz da camada vira um novo shared."
@@ -70,7 +66,7 @@ final class RegrasGerais {
 
     @ArchTest
     static final ArchRule ger005EndpointNaViaEAgregado = ArchRuleDefinition.classes()
-            .that().areAnnotatedWith(Path.class).and().areNotAnnotatedWith(RegisterRestClient.class)
+            .that().areAnnotatedWith(Path.class).and().areNotAnnotatedWith(Condicoes.REST_CLIENT)
             .should().resideInAPackage(Raiz.exato("entrypoint.*.*"))
             .as("GER-005: ENDPOINT FICA EM ENTRYPOINT.<VIA>.<AGREGADO>")
             .because("primeiro a via (rest, web, mobile, taa), depois o agregado, sempre nessa ordem."

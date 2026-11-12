@@ -12,13 +12,18 @@ import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 /** Predicados e condições customizados usados pelas regras. */
 final class Condicoes {
 
     /** Vias de entrada que não são canal de atendimento. */
     private static final Set<String> VIAS_QUE_NAO_SAO_CANAL = Set.of("rest", "mensageria", "batch", "apresentacao");
+
+    /** Anotações pelo nome: o componente pode não ter a dependência (ACL e BFF não têm JPA, por exemplo). */
+    static final String ENTITY = "jakarta.persistence.Entity";
+    static final String REPOSITORY = "jakarta.data.repository.Repository";
+    static final String TRANSACTIONAL = "jakarta.transaction.Transactional";
+    static final String REST_CLIENT = "org.eclipse.microprofile.rest.client.inject.RegisterRestClient";
 
     private Condicoes() {
     }
@@ -75,7 +80,7 @@ final class Condicoes {
         if (!estaEm(c, Raiz.pacote("gateway")) || fachadaDoGateway(c) || !visitadas.add(c)) {
             return false;
         }
-        if (c.getSimpleName().endsWith("Client") || c.isAnnotatedWith(RegisterRestClient.class)) {
+        if (c.getSimpleName().endsWith("Client") || c.isAnnotatedWith(REST_CLIENT)) {
             return true;
         }
         if (c.getDirectDependenciesFromSelf().stream().anyMatch(d -> ClassesExternas.externa(d.getTargetClass()))) {
@@ -132,14 +137,58 @@ final class Condicoes {
         };
     }
 
-    /** Método público não pode devolver um tipo de nenhum pacote persistence (o contrato do canal é próprio). */
-    static ArchCondition<JavaMethod> naoRetornarTipoDePersistence() {
-        return new ArchCondition<>("não retornar tipo de persistence") {
+    /** Método público não pode devolver um tipo da camada dada (o contrato do canal é próprio). */
+    static ArchCondition<JavaMethod> naoRetornarTipoDe(String camada) {
+        return new ArchCondition<>("não retornar tipo de " + camada) {
             @Override
             public void check(JavaMethod metodo, ConditionEvents eventos) {
-                if (estaEm(metodo.getRawReturnType(), Raiz.pacote("persistence"))) {
+                if (estaEm(metodo.getRawReturnType(), Raiz.pacote(camada))) {
                     eventos.add(SimpleConditionEvent.violated(metodo,
                             metodo.getFullName() + " retorna " + metodo.getRawReturnType().getName()));
+                }
+            }
+        };
+    }
+
+    /**
+     * Onde o modelo de um sistema externo pode aparecer: no gateway e, em ACL (o tipo que tem translator),
+     * também no translator e no use case, que leva o modelo do Gateway ao Translator.
+     */
+    static String[] ondeOModeloExternoPode() {
+        if (Tipo.CAMADAS.contains("translator")) {
+            return new String[] {Raiz.pacote("gateway"), Raiz.pacote("translator"), Raiz.pacote("application")};
+        }
+        return new String[] {Raiz.pacote("gateway")};
+    }
+
+    /** Método público não pode devolver client, DTO externo nem classe de dependência de outro sistema. */
+    static ArchCondition<JavaMethod> naoRetornarModeloExterno() {
+        DescribedPredicate<JavaClass> interno = internoDoGateway();
+        return new ArchCondition<>("não retornar modelo de sistema externo") {
+            @Override
+            public void check(JavaMethod metodo, ConditionEvents eventos) {
+                JavaClass retorno = metodo.getRawReturnType();
+                if (interno.test(retorno) || ClassesExternas.externa(retorno)) {
+                    eventos.add(SimpleConditionEvent.violated(metodo,
+                            metodo.getFullName() + " retorna " + retorno.getName()));
+                }
+            }
+        };
+    }
+
+    /** O componente atende um canal só: no máximo um pacote de canal em entrypoint. */
+    static ArchCondition<JavaClass> estarNoUnicoCanal() {
+        return new ArchCondition<>("estar no único canal do componente") {
+            private String primeiro;
+
+            @Override
+            public void check(JavaClass classe, ConditionEvents eventos) {
+                String canal = segmentoApos(classe.getPackageName(), "entrypoint");
+                if (primeiro == null) {
+                    primeiro = canal;
+                } else if (!primeiro.equals(canal)) {
+                    eventos.add(SimpleConditionEvent.violated(classe,
+                            classe.getName() + " está no canal " + canal + ", mas o componente já atende " + primeiro));
                 }
             }
         };

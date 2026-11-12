@@ -6,7 +6,6 @@ import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
 import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition;
-import jakarta.data.repository.Repository;
 
 /**
  * CAN: canais de atendimento (web, mobile, TAA...). Cada canal fica em entrypoint.&lt;canal&gt;.&lt;agregado&gt;, com o
@@ -59,7 +58,7 @@ final class RegrasCanais {
     static final ArchRule can007ContratoDoCanalIsolado = ArchRuleDefinition.methods()
             .that().areDeclaredInClassesThat(Condicoes.estaoEmCanal())
             .and().arePublic()
-            .should(Condicoes.naoRetornarTipoDePersistence())
+            .should(Condicoes.naoRetornarTipoDe("persistence"))
             .allowEmptyShould(true)
             .as("CAN-007: ENDPOINT DE CANAL NÃO PODE DEVOLVER TIPO DE PERSISTENCE")
             .because("mudar uma projeção não pode mudar o JSON do front."
@@ -81,7 +80,7 @@ final class RegrasCanais {
             .that().haveSimpleNameEndingWith("Assembler")
             .or().haveSimpleNameStartingWith("Padrao")
             .or().resideInAPackage(APRESENTACAO)
-            .should().dependOnClassesThat().areAnnotatedWith(Repository.class)
+            .should().dependOnClassesThat().areAnnotatedWith(Condicoes.REPOSITORY)
             .as("CAN-009: ASSEMBLER E PADRÃO DE CANAL NÃO PODEM CONSULTAR O BANCO")
             .because("montar a resposta não busca dados."
                     + " Corrija: o use case busca tudo que a tela precisa; o Assembler só transforma");

@@ -1,17 +1,19 @@
 ---
 name: arquiteto-padrao
-description: Padrão de arquitetura e de pastas dos projetos Java 25 + Quarkus 3.33 (componentes Domínio, ACL e BFF), com camadas no topo e agregados dentro delas. Use ao criar ou alterar componente, classe, caso de uso, regra de negócio, entidade, repositório Jakarta Data, consulta, integração externa, endpoint, canal, migration ou regra ArchUnit, ou ao decidir em qual pasta algo deve ficar. Não use para testes de aceitação de usuário, que ficam com as skills teste-aceitacao-modelos (a partir do requisito) e teste-aceitacao-legado (a partir do código existente).
+description: Padrão de arquitetura e de pastas dos projetos Java 25 + Quarkus 3.33 (componentes Negocial, ACL e BFF), com camadas no topo e agregados dentro delas. Use ao criar ou alterar componente, tradução de sistema externo (ACL), tela ou composição de canal (BFF), classe, caso de uso, regra de negócio, entidade, repositório Jakarta Data, consulta, integração externa, endpoint, canal, migration ou regra ArchUnit, ou ao decidir em qual pasta algo deve ficar. Não use para testes de aceitação de usuário, que ficam com as skills teste-aceitacao-modelos (a partir do requisito) e teste-aceitacao-legado (a partir do código existente).
 ---
 
 # Arquiteto-padrão
 
-Versão: 2026-11-12. Este documento é a referência da equipe e dos agentes de IA. A decisão completa e os motivos estão em [adr/ADR_001.md](adr/ADR_001.md). Se este texto e o ADR divergirem, **vale o ADR**: avise o dono para corrigir.
+Versão: 2026-11-12 (tipos Negocial, ACL e BFF). Este documento é a referência da equipe e dos agentes de IA. A decisão completa e os motivos estão em [adr/ADR_001.md](adr/ADR_001.md). Se este texto e o ADR divergirem, **vale o ADR**: avise o dono para corrigir.
 
 Para trazer um projeto antigo para este padrão, use a skill `adequar-ao-padrao`. Para testes de aceitação de usuário, use a skill `teste-aceitacao-modelos` (a partir do requisito) ou `teste-aceitacao-legado` (a partir do código existente), e não esta.
 
 Nomes como `cota`, `cliente`, `processo` e `tesouraria` nos exemplos são ilustrativos: não procure essas classes no repositório. Modelos de cada peça estão em [exemplos de código](references/exemplos-codigo.md).
 
 ## Onde cada coisa mora
+
+Esta seção descreve o tipo **Negocial**, o mais comum. Se o componente é ACL ou BFF (veja o `README` dele ou `src/test/java/<pacote raiz>/arquitetura/Tipo.java`), o mapa de pastas é o de [tipo ACL](references/tipo-acl.md) ou [tipo BFF](references/tipo-bff.md).
 
 Para decidir onde um arquivo fica, responda a duas perguntas, nesta ordem:
 
@@ -140,9 +142,9 @@ Se algo usado por vários agregados não está nessa lista, pare e pergunte ao d
 
 ## Passo a passo
 
-1. Confira se `src/test/java/<pacote raiz>/arquitetura/` existe. Se não existir, instale as regras seguindo [archunit](references/archunit.md).
-2. Descubra o **tipo do componente** no `README` dele (linha "Tipo X porque Y"). Se não houver, aplique a árvore de decisão e proponha o tipo ao dono.
-3. Descubra o **agregado** e a **camada** (seção "Onde cada coisa mora").
+1. Descubra o **tipo do componente**: `Tipo.NOME` em `src/test/java/<pacote raiz>/arquitetura/Tipo.java` e a linha "Tipo X porque Y" do `README`. Se não houver, aplique a árvore de decisão e proponha o tipo ao dono.
+2. Confira se `src/test/java/<pacote raiz>/arquitetura/` existe. Se não existir, instale as regras do tipo seguindo [archunit](references/archunit.md).
+3. Descubra o **agregado** e a **camada** (seção "Onde cada coisa mora"; em ACL e BFF, a referência do tipo).
 4. Leia a referência indicada na tabela "Onde coloco X?" **antes** de escrever.
 5. Para tarefa conhecida, siga a receita (seção "Receitas").
 6. Rode `./mvnw verify`. Ele compila (o HQL é validado aqui) e roda domínio, ArchUnit, contrato e integração. Se não houver `mvnw`, ou se ele falhar por fim de linha CRLF, use `mvn verify`.
@@ -150,34 +152,50 @@ Se algo usado por vários agregados não está nessa lista, pare e pergunte ao d
 
 ## Árvore de decisão (qual tipo de componente?)
 
-1. Tem regra de negócio ou é dono de dados? → **Domínio**.
-2. Traduz entre o nosso vocabulário e o de um sistema externo (legado, outro departamento, Bacen, tesouraria)? → **ACL**, só se atender à regra de entrada. Senão vira `gateway/<sistema>/` dentro do domínio que usa.
-3. Adapta ou compõe dados para um canal (web, mobile, TAA)? → **BFF**, só se atender à regra de entrada. Senão vira `entrypoint/<canal>/<agregado>/` dentro do domínio.
-4. Nenhum dos casos → **não crie componente.**
+| | Negocial | ACL | BFF |
+|---|---|---|---|
+| Existe para | regra e dados de um bounded context | traduzir entre um sistema externo e o nosso vocabulário | adaptar os negociais para um canal |
+| Banco | um, só dele | nenhum de negócio | nenhum |
+| Regra de negócio | sim, só aqui | não | não |
+| Unidade | um por contexto | um por sistema externo | um por canal |
+| Pastas | `entrypoint`, `application`, `domain`, `persistence`, `gateway` | `entrypoint`, `application`, `translator`, `gateway` | `entrypoint`, `application`, `gateway` |
 
-Na dúvida entre componente separado e solução interna ao domínio, escolha a **interna**.
+1. Tem regra de negócio ou é dono de dados? → **Negocial**. Processo longo com estado próprio também é Negocial.
+2. Traduz entre o nosso vocabulário e o de um sistema externo (legado, outro departamento, Bacen, tesouraria)? → **ACL**, só se atender à regra de entrada. Senão vira `gateway/<sistema>/` dentro do negocial que usa.
+3. Adapta ou compõe dados para um canal (web, mobile, TAA)? → **BFF**, só se atender à regra de entrada. Senão vira `entrypoint/<canal>/<agregado>/` dentro do negocial.
+4. Serve leitura que filtra, ordena ou pagina por dados de 2 ou mais negociais? → tipo **Consulta**, reservado no ADR: **pare e pergunte ao dono**. Nunca leia o banco de outro componente.
+5. Nenhum dos casos → **não crie componente.**
 
-**Regra de entrada do ACL separado** (pelo menos uma): 2 ou mais domínios consomem o mesmo sistema externo; o sistema externo exige tratamento isolado (cache, rate limit, circuit breaker, disponibilidade ruim); política do outro departamento exige isolamento ou segurança separados.
+Na dúvida entre componente separado e solução interna ao negocial, escolha a **interna**.
 
-**Regra de entrada do BFF separado** (pelo menos uma): a tela compõe dados de 2 ou mais domínios; o canal tem ritmo de entrega próprio e não pode depender do deploy do domínio.
+**Regra de entrada do ACL separado** (pelo menos uma): 2 ou mais negociais consomem o mesmo sistema externo; o sistema externo exige tratamento isolado (cache, rate limit, circuit breaker, disponibilidade ruim); política do outro departamento exige isolamento ou segurança separados.
 
-**Outros departamentos consumindo o nosso componente não é ACL:** é o `entrypoint` do domínio, com contrato versionado.
+**Regra de entrada do BFF separado** (pelo menos uma): a tela compõe dados de 2 ou mais negociais; o canal tem ritmo de entrega próprio e não pode depender do deploy do negocial.
 
-**Proibido: componente "repassador"** (só encaminha chamadas, sem traduzir, compor nem coordenar). Traduz → ACL. Compõe para canal → BFF. Coordena fluxo → caso de uso do domínio dono. Só repassa → API gateway ou barramento do banco, sem componente nosso.
+**Outros departamentos consumindo o nosso componente não é ACL:** é o `entrypoint` do negocial, com contrato versionado.
 
-## Tipos ACL e BFF (mesmo esqueleto)
+**Proibido: componente "repassador"** (só encaminha chamadas, sem traduzir, compor nem coordenar). Traduz → ACL. Compõe para canal → BFF. Coordena fluxo → caso de uso do negocial dono. Só repassa → API gateway ou barramento do banco, sem componente nosso.
 
-O tipo Domínio é o da seção "Onde cada coisa mora". ACL e BFF não têm regra de negócio nem banco:
+### Quem chama quem
 
-```text
-entrypoint/               # ACL: rest ou mensageria | BFF: entrypoint/<canal>/
-translator/               # tradução pura, sem framework e sem estado
-gateway/<sistema>/        # ACL: sistema externo | BFF: API do componente de domínio
-```
+| Quem chama | Pode chamar |
+|---|---|
+| Front | só o BFF do seu canal |
+| BFF | componentes negociais |
+| Negocial | outro negocial (API ou evento) e ACL |
+| ACL de saída | o sistema externo |
+| ACL de entrada | o negocial dono do assunto |
 
-Sem `domain`, sem `persistence`, sem `@Entity`, sem `@Transactional`. O ACL protege o domínio do mundo de fora; o BFF adapta o domínio para o canal.
+Proibido: negocial chamar BFF; BFF chamar BFF, ACL ou sistema externo; ACL chamar ACL; qualquer componente ler o banco de outro. O `verify` de um componente não enxerga isso: antes de criar um `gateway/<sistema>/`, confira nesta tabela se o destino é permitido.
 
-**Atenção:** as regras ArchUnit e os exemplos desta skill cobrem só o tipo Domínio. Em ACL e BFF, o `verify` não valida a estrutura, então peça a revisão do dono.
+## Tipos ACL e BFF
+
+O que vale nos três tipos: **entrypoint só chama caso de uso; só caso de uso chama `*Gateway`; um `*UseCase` por operação.** O que muda:
+
+- **ACL:** `entrypoint → application → gateway e translator`. O Gateway devolve o modelo externo, o caso de uso passa pelo `*Translator` e devolve o record do nosso vocabulário. Leia [tipo ACL](references/tipo-acl.md).
+- **BFF:** `entrypoint/<canal> → application → gateway/<negocial>`. O caso de uso compõe, o Assembler formata. Não tem `translator`. Leia [tipo BFF](references/tipo-bff.md).
+
+Nenhum dos dois tem `domain`, `persistence`, JPA nem transação: o `verify` falha (GER-001, ACL-001, BFF-001).
 
 ## Onde coloco X?
 
@@ -197,7 +215,8 @@ Sem `domain`, sem `persistence`, sem `@Entity`, sem `@Transactional`. O ACL prot
 | Consumidor de fila ou tópico | `entrypoint/mensageria/<agregado>/` (só chama caso de uso) | |
 | Job agendado ou processamento de arquivo | `entrypoint/batch/<agregado>/` (só chama caso de uso) | |
 | Coordenar dois agregados | um caso de uso, em `application/<agregado principal>/` | [use-cases](references/use-cases.md) |
-| Conversão entre modelo externo e interno (ACL/BFF) | `translator/` | |
+| Conversão entre modelo externo e o nosso (só em ACL) | `translator/<sistema>/XTranslator` | [tipo ACL](references/tipo-acl.md) |
+| Tela que junta dados de vários negociais (só em BFF) | `application/<recurso>/XUseCase` + Assembler em `entrypoint/<canal>/<recurso>/` | [tipo BFF](references/tipo-bff.md) |
 | Mudar o banco | nova migration + campo na `*Entity` + mapper (escrita) e/ou HQL (leitura) | [migrations](references/migrations.md) |
 | Criar ou mudar regra ArchUnit | só com pedido do dono | [archunit](references/archunit.md) |
 | Configurar `pom.xml` (versões, dependências, compilador) | `pom.xml` do componente | [pom obrigatório](references/pom-obrigatorio.md) |
@@ -213,6 +232,8 @@ Siga a ordem e pare se algum passo exigir quebrar uma regra.
 - [Nova consulta](references/receitas/nova-consulta.md)
 - [Novo endpoint de canal](references/receitas/novo-endpoint-de-canal.md)
 - [Nova integração externa](references/receitas/nova-integracao-externa.md)
+- [Nova tradução em um ACL](references/tipo-acl.md#receita-nova-operação-de-tradução)
+- [Nova tela em um BFF](references/tipo-bff.md#receita-nova-tela)
 
 ## Convenções
 
@@ -226,8 +247,10 @@ Siga a ordem e pare se algum passo exigir quebrar uma regra.
 
 ## Quando parar e pedir ao dono
 
-- Criar componente, tipo ou agregado novo.
+- Criar componente, tipo ou agregado novo, ou trocar o `Tipo.java` de um componente.
 - Extrair ACL ou BFF para componente separado.
+- Qualquer coisa que pareça o tipo Consulta, ou guardar estado em um ACL (cache, mensagem já processada).
+- BFF que precisaria gravar em dois negociais, ou chamar ACL ou sistema externo.
 - Separar o componente em módulos (só faz sentido quando as partes não têm join nem transação em comum).
 - Alterar, desligar ou afrouxar regra ArchUnit.
 - Editar uma migration existente, ou renomear/remover campo de um `*Response` de canal.

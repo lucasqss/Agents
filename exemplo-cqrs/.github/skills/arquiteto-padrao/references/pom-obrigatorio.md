@@ -18,7 +18,7 @@ A stack é **Java 25 e Quarkus 3.33**. Confira cada trecho abaixo no `pom.xml` d
 
 ## Dependências
 
-Inclua só as dos recursos que o componente usa. Um componente sem sistema externo não precisa das duas de integração.
+Inclua só as dos recursos que o componente usa. Um componente sem sistema externo não precisa das duas de integração. **ACL e BFF não têm o bloco de persistência** (nem o `hibernate-processor` no compilador): a regra ACL-001/BFF-001 falha se houver JPA, Jakarta Data ou transação.
 
 ```xml
 <!-- REST, OpenAPI e validação de formato -->

@@ -3,11 +3,7 @@ package br.com.claudio.consorcio.arquitetura;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
-import jakarta.data.repository.Repository;
-import jakarta.persistence.Entity;
-import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Path;
-import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
 /** TEC: onde cada tecnologia pode aparecer. */
@@ -18,7 +14,7 @@ final class RegrasTecnologia {
 
     @ArchTest
     static final ArchRule tec001EntidadesJpaEmPersistence = ArchRuleDefinition.classes()
-            .that().areAnnotatedWith(Entity.class)
+            .that().areAnnotatedWith(Condicoes.ENTITY)
             .should().resideInAPackage(Raiz.pacote("persistence"))
             .as("TEC-001: @ENTITY SÓ EM PERSISTENCE")
             .because("as entidades são o modelo do nosso banco, compartilhado por escrita e leitura."
@@ -33,7 +29,7 @@ final class RegrasTecnologia {
 
     @ArchTest
     static final ArchRule tec003JakartaDataSoEmPersistence = ArchRuleDefinition.classes()
-            .that().areAnnotatedWith(Repository.class)
+            .that().areAnnotatedWith(Condicoes.REPOSITORY)
             .should().resideInAPackage(Raiz.pacote("persistence"))
             .as("TEC-003: @REPOSITORY (JAKARTA DATA) SÓ EM PERSISTENCE")
             .because("repositório Jakarta Data é detalhe de persistência."
@@ -41,7 +37,7 @@ final class RegrasTecnologia {
 
     @ArchTest
     static final ArchRule tec004RestClientSoNoGateway = ArchRuleDefinition.classes()
-            .that().areAnnotatedWith(RegisterRestClient.class)
+            .that().areAnnotatedWith(Condicoes.REST_CLIENT)
             .should().resideInAPackage(Raiz.pacote("gateway"))
             .as("TEC-004: REST CLIENT SÓ EM GATEWAY")
             .because("chamada HTTP de saída é sempre para um sistema externo, atrás de um Gateway."
@@ -57,7 +53,7 @@ final class RegrasTecnologia {
 
     @ArchTest
     static final ArchRule tec006EndpointsSoNoEntrypoint = ArchRuleDefinition.classes()
-            .that().areAnnotatedWith(Path.class).and().areNotAnnotatedWith(RegisterRestClient.class)
+            .that().areAnnotatedWith(Path.class).and().areNotAnnotatedWith(Condicoes.REST_CLIENT)
             .should().resideInAPackage(Raiz.emQualquer("entrypoint"))
             .as("TEC-006: @PATH SÓ NO ENTRYPOINT")
             .because("só o entrypoint expõe HTTP."
@@ -81,7 +77,7 @@ final class RegrasTecnologia {
 
     @ArchTest
     static final ArchRule tec009TransacaoDeMetodoSoNoUseCase = ArchRuleDefinition.methods()
-            .that().areAnnotatedWith(Transactional.class)
+            .that().areAnnotatedWith(Condicoes.TRANSACTIONAL)
             .should().beDeclaredInClassesThat().resideInAPackage(Raiz.emQualquer("application"))
             .allowEmptyShould(true)
             .as("TEC-009: @TRANSACTIONAL EM MÉTODO SÓ NO USE CASE")
@@ -90,7 +86,7 @@ final class RegrasTecnologia {
 
     @ArchTest
     static final ArchRule tec010TransacaoDeClasseSoNoUseCase = ArchRuleDefinition.classes()
-            .that().areAnnotatedWith(Transactional.class)
+            .that().areAnnotatedWith(Condicoes.TRANSACTIONAL)
             .should().resideInAPackage(Raiz.emQualquer("application"))
             .allowEmptyShould(true)
             .as("TEC-010: @TRANSACTIONAL EM CLASSE SÓ NO USE CASE")
@@ -99,10 +95,12 @@ final class RegrasTecnologia {
 
     @ArchTest
     static final ArchRule tec011ClassesExternasSoNoGatewayENoEntrypoint = ArchRuleDefinition.noClasses()
-            .that().resideOutsideOfPackages(Raiz.pacote("gateway"), Raiz.emQualquer("entrypoint"))
+            .that().resideOutsideOfPackage(Raiz.emQualquer("entrypoint"))
+            .and().resideOutsideOfPackages(Condicoes.ondeOModeloExternoPode())
             .should().dependOnClassesThat(ClassesExternas.externas())
             .as("TEC-011: CLASSE DE DEPENDÊNCIA DE OUTRO SISTEMA SÓ EM GATEWAY E ENTRYPOINT")
             .because("o contrato de outro sistema muda sem nos avisar; application e domain usam só tipos nossos."
                     + " Corrija: ao consumir, o *Gateway devolve tipo simples ou record próprio de gateway/<sistema>;"
-                    + " ao prover, o entrypoint converte a classe externa no DadosX do use case");
+                    + " ao prover, o entrypoint converte a classe externa no DadosX do use case."
+                    + " Em ACL, o use case leva a classe externa até o *Translator, que a converte");
 }

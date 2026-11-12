@@ -18,6 +18,8 @@ O client e os DTOs de muitos sistemas chegam prontos, como dependência Maven ge
 - **Record próprio é só nosso:** não tem campo, parâmetro nem método com classe do catálogo, e não aparece na assinatura de um `XClient`. Se tiver, ele conta como modelo externo e não sai do gateway (SHR-003).
 - Ao prover para outro sistema, veja "Contrato do catálogo" em [canais](canais.md).
 
+Em um componente **ACL**, o Gateway não traduz: devolve o modelo externo, e o caso de uso o leva ao `*Translator` ([tipo ACL](tipo-acl.md)). Nos tipos Negocial e BFF vale o que está abaixo.
+
 Regras:
 
 - O Gateway **não importa nada de `application/` nem de `domain/`.** Quem converte o retorno (tipo simples ou record próprio) para o domínio é o caso de uso.

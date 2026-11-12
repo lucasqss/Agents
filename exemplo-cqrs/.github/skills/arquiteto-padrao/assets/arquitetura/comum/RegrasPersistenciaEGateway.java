@@ -11,6 +11,9 @@ final class RegrasPersistenciaEGateway {
 
     private static final String GATEWAY = Raiz.pacote("gateway");
 
+    /** Só existe em ACL: lá o Translator lê o modelo externo que o Gateway devolve. */
+    private static final String TRANSLATOR = Raiz.pacote("translator");
+
     private RegrasPersistenciaEGateway() {
     }
 
@@ -18,7 +21,8 @@ final class RegrasPersistenciaEGateway {
     static final ArchRule shr001GatewayNaoConheceONegocio = ArchRuleDefinition.noClasses()
             .that().resideInAPackage(GATEWAY).and().haveSimpleNameNotEndingWith("GatewayAdapter")
             .should().dependOnClassesThat().resideInAnyPackage(
-                    Raiz.pacote("application"), Raiz.pacote("domain"), Raiz.pacote("entrypoint"), Raiz.pacote("persistence"))
+                    Raiz.pacote("application"), Raiz.pacote("domain"), Raiz.pacote("entrypoint"),
+                    Raiz.pacote("persistence"), Raiz.pacote("translator"))
             .as("SHR-001: GATEWAY NÃO PODE DEPENDER DAS OUTRAS CAMADAS")
             .because("o gateway só conhece o sistema externo; a exceção é o *GatewayAdapter, que implementa interface do domínio."
                     + " Corrija: use tipos próprios do gateway e converta no use case");
@@ -34,16 +38,17 @@ final class RegrasPersistenciaEGateway {
 
     @ArchTest
     static final ArchRule shr003ClientEDtoExternoNaoSaemDoGateway = ArchRuleDefinition.noClasses()
-            .that().resideOutsideOfPackage(GATEWAY)
+            .that().resideOutsideOfPackages(Condicoes.ondeOModeloExternoPode())
             .should().dependOnClassesThat(Condicoes.internoDoGateway())
             .as("SHR-003: CLIENT E MODELO DE SISTEMA EXTERNO NÃO SAEM DO GATEWAY")
             .because("se o sistema externo mudar o contrato, só o gateway muda."
                     + " Corrija: fora de gateway/<sistema> use o *Gateway, as *Exception e os records próprios do gateway;"
-                    + " record próprio não aparece no *Client nem usa classe de dependência de outro sistema");
+                    + " record próprio não aparece no *Client nem usa classe de dependência de outro sistema."
+                    + " Em ACL, o use case leva o modelo externo do *Gateway ao *Translator e mais ninguém o vê");
 
     @ArchTest
     static final ArchRule shr004GatewaySoNosUseCases = ArchRuleDefinition.noClasses()
-            .that().resideOutsideOfPackages(GATEWAY, Raiz.pacote("application"), Raiz.pacote("entrypoint"))
+            .that().resideOutsideOfPackages(GATEWAY, TRANSLATOR, Raiz.pacote("application"), Raiz.pacote("entrypoint"))
             .should().dependOnClassesThat().resideInAPackage(GATEWAY)
             .as("SHR-004: SÓ USE CASE CHAMA GATEWAY DE SISTEMA EXTERNO")
             .because("chamada externa é orquestração, papel do Service Layer; o entrypoint só traduz a exceção para HTTP."
