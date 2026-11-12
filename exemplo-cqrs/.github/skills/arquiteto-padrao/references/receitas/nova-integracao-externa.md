@@ -2,7 +2,7 @@
 
 Entradas necessárias: o nome do sistema (ex.: "cadastro-corporativo"), a operação (ex.: "consultar restrições de um CPF") e o contrato da API (endpoint e JSON, ou link da documentação). Se faltar, pergunte. Veja [gateway](../gateway.md) e os modelos de Client, Gateway e Service Stub em [exemplos de código](../exemplos-codigo.md).
 
-0. **O sistema está no catálogo corporativo?** Se há dependência Maven gerada, use o client e os DTOs dela em vez de escrever os passos 2 e 3, e confira se o pacote está em `Catalogo.PACOTES` (se não estiver, peça ao dono). Essas classes não saem de `gateway/<sistema>/`.
+0. **O sistema está no catálogo corporativo?** Se há dependência Maven gerada, use o client e os DTOs dela em vez de escrever os passos 2 e 3, e confira se o `groupId` dela está na lista de `ClassesExternas.java` (se não estiver, peça ao dono). Essas classes não saem de `gateway/<sistema>/`.
 1. Pacote `gateway/<sistema>/`, pelo nome do sistema externo, não pelo agregado.
 2. DTOs (records) com os nomes de campo **exatos da API externa**.
 3. `XClient` com `@RegisterRestClient(configKey = "<sistema>")`, `@Timeout`, `@Retry` e `@CircuitBreaker`.

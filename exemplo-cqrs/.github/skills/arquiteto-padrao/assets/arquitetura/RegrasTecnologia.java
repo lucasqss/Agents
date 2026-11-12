@@ -98,11 +98,11 @@ final class RegrasTecnologia {
                     + " Corrija: tire a anotação da classe e coloque no *UseCase");
 
     @ArchTest
-    static final ArchRule tec011CatalogoSoNoGatewayENoEntrypoint = ArchRuleDefinition.noClasses()
+    static final ArchRule tec011ClassesExternasSoNoGatewayENoEntrypoint = ArchRuleDefinition.noClasses()
             .that().resideOutsideOfPackages(Raiz.pacote("gateway"), Raiz.emQualquer("entrypoint"))
-            .should().dependOnClassesThat(Catalogo.classeDoCatalogo())
-            .as("TEC-011: CLASSE DO CATÁLOGO CORPORATIVO SÓ EM GATEWAY E ENTRYPOINT")
+            .should().dependOnClassesThat(ClassesExternas.externas())
+            .as("TEC-011: CLASSE DE DEPENDÊNCIA DE OUTRO SISTEMA SÓ EM GATEWAY E ENTRYPOINT")
             .because("o contrato de outro sistema muda sem nos avisar; application e domain usam só tipos nossos."
                     + " Corrija: ao consumir, o *Gateway devolve tipo simples ou record próprio de gateway/<sistema>;"
-                    + " ao prover, o entrypoint converte a classe do catálogo no DadosX do use case");
+                    + " ao prover, o entrypoint converte a classe externa no DadosX do use case");
 }

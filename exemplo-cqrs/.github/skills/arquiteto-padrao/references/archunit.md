@@ -10,7 +10,7 @@ Se `src/test/java/<pacote raiz>/arquitetura/` já existe, não há nada a instal
 
 1. Copie todos os `.java` de `assets/arquitetura/` para `src/test/java/<pacote raiz>/arquitetura/`.
 2. Em cada arquivo copiado, troque `PACOTE_RAIZ` pelo pacote raiz.
-3. Em `Catalogo.java`, troque o exemplo `org.acme.sistema..` de `PACOTES` pelos pacotes das dependências do catálogo corporativo que o componente usa, um por sistema. Se não usa nenhuma, deixe como está. Jars com o mesmo `groupId` do componente já são detectados sozinhos; se um deles não for do catálogo, liste o pacote em `FORA_DO_CATALOGO`. É o único arquivo da pasta que muda de projeto para projeto.
+3. Em `ClassesExternas.java`, ajuste a lista de `CONFIGURACAO`: um `groupId` Maven por sistema externo cujas dependências o componente usa, no lugar do exemplo `org.acme.sistema`. O `GROUP_ID_DO_PROJETO` (lido do `pom.xml`) já cobre as dependências do catálogo corporativo que têm o mesmo `groupId` do componente. Se um jar desses `groupId`s não for de sistema externo, liste o pacote em `PACOTES_QUE_NAO_SAO_EXTERNOS`. É o único arquivo da pasta que muda de projeto para projeto.
 4. Confira as dependências em [pom obrigatório](pom-obrigatorio.md).
 5. **Código já no padrão ou projeto novo:** rode `./mvnw verify`.
 6. **Código legado:** não rode o `verify` agora. Continue no baseline da skill `adequar-ao-padrao`, em `references/metodo-archignore.md`.
@@ -27,7 +27,7 @@ sed -i 's/PACOTE_RAIZ/org.acme.consorcio/' "$DESTINO"/*.java
 ## Regras em vigor
 
 - **Não altere, apague, desligue nem afrouxe regras para fazer o build passar.** Quando uma regra falha, o código está no lugar errado: corrija o código. A falha traz um ID (ex.: `DOM-002`): procure-o nessa pasta e siga o "Corrija:" da mensagem.
-- `Catalogo.PACOTES` e `Catalogo.FORA_DO_CATALOGO` são configuração do projeto, mantida pelo dono: acrescentar um sistema do catálogo é esperado; tirar um pacote para o build passar é afrouxar regra.
+- A lista de `groupId`s em `ClassesExternas` é configuração do projeto, mantida pelo dono: acrescentar um sistema externo é esperado; tirar um `groupId` para o build passar é afrouxar regra.
 - Não adicione `allowEmptyShould`, exceções, `FreezingArchRule` nem `@ArchIgnore` sem pedido explícito do dono. A única exceção é o baseline da skill `adequar-ao-padrao`.
 - Os padrões são sempre montados com `Raiz.pacote(...)`, `Raiz.exato(...)` e `Raiz.emQualquer(...)`, nunca com o nome do projeto escrito à mão: é isso que deixa a pasta pronta para copiar entre projetos.
 - Mudança de regra é decisão de arquitetura: descreva o motivo no PR e espere a revisão do dono da arquitetura.

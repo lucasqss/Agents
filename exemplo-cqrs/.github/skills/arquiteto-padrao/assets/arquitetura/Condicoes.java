@@ -51,8 +51,8 @@ final class Condicoes {
     }
 
     /**
-     * O que não sai do gateway: o client e o modelo do sistema externo. Modelo externo é a classe que usa o
-     * catálogo corporativo, que aparece no *Client (direta ou indiretamente) ou que depende de uma dessas.
+     * O que não sai do gateway: o client e o modelo do sistema externo. Modelo externo é a classe que usa
+     * {@link ClassesExternas}, que aparece no *Client (direta ou indiretamente) ou que depende de uma dessas.
      * O que sobra (*Gateway, *Exception e os records próprios, no nosso vocabulário) pode ser usado pelo use case.
      */
     static DescribedPredicate<JavaClass> internoDoGateway() {
@@ -78,7 +78,7 @@ final class Condicoes {
         if (c.getSimpleName().endsWith("Client") || c.isAnnotatedWith(RegisterRestClient.class)) {
             return true;
         }
-        if (c.getDirectDependenciesFromSelf().stream().anyMatch(d -> Catalogo.ehDoCatalogo(d.getTargetClass()))) {
+        if (c.getDirectDependenciesFromSelf().stream().anyMatch(d -> ClassesExternas.externa(d.getTargetClass()))) {
             return true;
         }
         return c.getDirectDependenciesToSelf().stream()

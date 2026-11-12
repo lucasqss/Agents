@@ -8,7 +8,7 @@ import com.tngtech.archunit.junit.ArchTests;
 /**
  * Fitness functions da arquitetura. Nenhum arquivo desta pasta tem o nome do projeto: o pacote raiz é
  * descoberto por {@link Raiz}. Para usar em outro projeto, copie a pasta para
- * {@code src/test/java/<pacote raiz>/arquitetura/} e ajuste {@link Catalogo}.
+ * {@code src/test/java/<pacote raiz>/arquitetura/} e ajuste {@link ClassesExternas}.
  */
 @AnalyzeClasses(locations = Raiz.class, importOptions = ImportOption.DoNotIncludeTests.class)
 class ArquiteturaTest {

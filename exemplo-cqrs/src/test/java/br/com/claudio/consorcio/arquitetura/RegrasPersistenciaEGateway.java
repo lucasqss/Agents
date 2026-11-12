@@ -39,7 +39,7 @@ final class RegrasPersistenciaEGateway {
             .as("SHR-003: CLIENT E MODELO DE SISTEMA EXTERNO NÃO SAEM DO GATEWAY")
             .because("se o sistema externo mudar o contrato, só o gateway muda."
                     + " Corrija: fora de gateway/<sistema> use o *Gateway, as *Exception e os records próprios do gateway;"
-                    + " record próprio não aparece no *Client nem usa classe do catálogo corporativo");
+                    + " record próprio não aparece no *Client nem usa classe de dependência de outro sistema");
 
     @ArchTest
     static final ArchRule shr004GatewaySoNosUseCases = ArchRuleDefinition.noClasses()

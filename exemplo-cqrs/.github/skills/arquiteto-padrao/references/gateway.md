@@ -14,7 +14,7 @@ Cada sistema tem seu pacote, com o padrão Gateway [PoEAA] ([exemplo](exemplos-c
 O client e os DTOs de muitos sistemas chegam prontos, como dependência Maven gerada pelo catálogo corporativo. Nesse caso não se escreve `XClient` nem DTO à mão: o `XGateway` usa as classes do catálogo e devolve tipo simples ou record próprio.
 
 - **Classe do catálogo só aparece em `gateway/` (ao consumir) e em `entrypoint/` (ao prover).** Nunca em `application/`, `domain/` nem `persistence/` (TEC-011).
-- Uma classe é do catálogo quando o pacote dela está em `Catalogo.PACOTES` (em `src/test/java/<pacote raiz>/arquitetura/Catalogo.java`) ou quando ela vem de um jar com o mesmo `groupId` do componente, detectado sozinho pelo `pom.xml`. Sistema novo do catálogo: peça ao dono para acrescentar o pacote em `Catalogo.PACOTES`.
+- Uma classe é externa quando vem de um jar cujo `groupId` está listado em `src/test/java/<pacote raiz>/arquitetura/ClassesExternas.java`. O `groupId` do próprio componente já vem na lista (as dependências do catálogo usam o mesmo). Sistema externo com outro `groupId`: peça ao dono para acrescentá-lo à lista.
 - **Record próprio é só nosso:** não tem campo, parâmetro nem método com classe do catálogo, e não aparece na assinatura de um `XClient`. Se tiver, ele conta como modelo externo e não sai do gateway (SHR-003).
 - Ao prover para outro sistema, veja "Contrato do catálogo" em [canais](canais.md).
 
