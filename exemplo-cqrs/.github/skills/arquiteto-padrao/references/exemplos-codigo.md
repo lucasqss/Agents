@@ -44,67 +44,147 @@ public class Cota {
 }
 ```
 
-## Estados (State)
+## Ciclo de vida (State dirigido por tabela)
 
-`domain/processo/estado/EstadoProcesso.java`. Cada ação devolve o próximo estado. Por padrão ela é inválida, e só os estados que a permitem sobrescrevem.
+Estados e ações são enums; a tabela diz de qual estado se vai para qual. Ficam em `domain/processo/fluxo/`.
+
+`domain/processo/fluxo/EstadoProcesso.java`. O nome da constante é o código gravado no banco.
 
 ```java
-/** Padrão: State, interface do estado [GoF]. */
-public sealed interface EstadoProcesso permits Aberto, Pago {
+public enum EstadoProcesso {
 
-    /** Estado novo: crie o record, inclua em permits e aqui. */
-    static List<EstadoProcesso> todos() {
-        return List.of(new Aberto(), new Pago());
+    ABERTO(false),
+    EM_ANALISE(false),
+    AGUARDANDO_VISTORIA(false),
+    APROVADO(false),
+    PAGO(true),
+    CANCELADO(true);
+
+    private final boolean finalizado;
+
+    EstadoProcesso(boolean finalizado) {
+        this.finalizado = finalizado;
     }
 
-    /** Reconstrói o estado pelo código gravado no banco. */
-    static EstadoProcesso porNome(String nome) {
-        return todos().stream()
-                .filter(estado -> estado.nome().equals(nome))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Estado desconhecido: " + nome));
-    }
-
-    String nome();
-
-    default EstadoProcesso pagar() {
-        throw new TransicaoInvalidaException("pagar", nome());
+    /** Estado final não aceita nenhuma ação. */
+    public boolean finalizado() {
+        return finalizado;
     }
 }
 ```
 
-`domain/processo/estado/Aberto.java`:
+`domain/processo/fluxo/AcaoProcesso.java`:
 
 ```java
-/** Padrão: State, estado concreto [GoF]. */
-public record Aberto() implements EstadoProcesso {
+public enum AcaoProcesso {
+    INICIAR_ANALISE, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, DEVOLVER_PARA_ANALISE, PAGAR, CANCELAR
+}
+```
 
-    @Override
-    public String nome() {
-        return "ABERTO";
+`domain/processo/fluxo/FluxoProcesso.java`. Tabela imutável. `comum()` é o caminho de todo tipo; cada tipo troca só as linhas em que difere.
+
+```java
+/** Padrão: State dirigido por tabela [GoF, State, "table-driven approach"]. */
+public final class FluxoProcesso {
+
+    private final Map<EstadoProcesso, Map<AcaoProcesso, EstadoProcesso>> transicoes;
+
+    private FluxoProcesso(Map<EstadoProcesso, Map<AcaoProcesso, EstadoProcesso>> transicoes) {
+        this.transicoes = transicoes;
     }
 
-    @Override
-    public EstadoProcesso pagar() {
-        return new Pago();
+    /** Caminho que todo tipo segue, salvo as linhas que ele trocar. */
+    public static Builder comum() {
+        return new Builder()
+                .transicao(EstadoProcesso.ABERTO, AcaoProcesso.INICIAR_ANALISE, EstadoProcesso.EM_ANALISE)
+                .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.CONCLUIR_ANALISE, EstadoProcesso.APROVADO)
+                .transicao(EstadoProcesso.APROVADO, AcaoProcesso.PAGAR, EstadoProcesso.PAGO);
+    }
+
+    /** Próximo estado, ou TransicaoInvalidaException se a ação não vale no estado atual. */
+    public EstadoProcesso proximo(EstadoProcesso atual, AcaoProcesso acao) {
+        EstadoProcesso destino = transicoes.get(atual).get(acao);
+        if (destino == null) {
+            throw new TransicaoInvalidaException(acao, atual);
+        }
+        return destino;
+    }
+
+    public Set<AcaoProcesso> acoesDisponiveis(EstadoProcesso atual) {
+        return transicoes.get(atual).keySet();
+    }
+
+    public static final class Builder {
+
+        private final Map<EstadoProcesso, Map<AcaoProcesso, EstadoProcesso>> transicoes =
+                new EnumMap<>(EstadoProcesso.class);
+
+        private Builder() {
+            for (EstadoProcesso estado : EstadoProcesso.values()) {
+                transicoes.put(estado, new EnumMap<>(AcaoProcesso.class));
+            }
+        }
+
+        /** Acrescenta a linha; se já existe uma para o mesmo estado e ação, troca o destino. */
+        public Builder transicao(EstadoProcesso de, AcaoProcesso acao, EstadoProcesso para) {
+            if (de.finalizado()) {
+                throw new IllegalArgumentException("Estado final não tem saída: " + de);
+            }
+            transicoes.get(de).put(acao, para);
+            return this;
+        }
+
+        /** Fecha a tabela. Regra de todos os tipos: qualquer estado não final pode ser cancelado. */
+        public FluxoProcesso construir() {
+            Map<EstadoProcesso, Map<AcaoProcesso, EstadoProcesso>> tabela = new EnumMap<>(EstadoProcesso.class);
+            transicoes.forEach((estado, saidas) -> {
+                Map<AcaoProcesso, EstadoProcesso> linhas = new EnumMap<>(saidas);
+                if (!estado.finalizado()) {
+                    linhas.put(AcaoProcesso.CANCELAR, EstadoProcesso.CANCELADO);
+                }
+                tabela.put(estado, Collections.unmodifiableMap(linhas));
+            });
+            return new FluxoProcesso(Collections.unmodifiableMap(tabela));
+        }
     }
 }
 ```
 
-## Variação por tipo (Strategy)
-
-`domain/processo/FluxoProcesso.java` e `domain/processo/TipoProcesso.java`. Tipo novo é uma constante no enum e uma implementação da interface, sem subclasse do agregado.
+`domain/processo/fluxo/Transicao.java`. O registro de cada mudança de estado, que vira o histórico.
 
 ```java
-/** Padrão: Strategy, interface da estratégia [GoF]. */
-public interface FluxoProcesso {
-    EstadoProcesso aposAnalise();
+public record Transicao(EstadoProcesso de, EstadoProcesso para, AcaoProcesso acao, Instant quando, String observacao) {
 }
+```
 
-/** Padrão: Strategy, escolhe a estratégia de cada tipo [GoF]. */
+## Fluxo que muda por tipo
+
+Em `domain/processo/tipo/`. Tipo novo é uma constante no enum e uma classe com os desvios dele, sem subclasse do agregado e sem tocar na entidade.
+
+`domain/processo/tipo/FluxoImobiliario.java`:
+
+```java
+/** Imobiliário: depois da análise, passa pela vistoria antes de ser aprovado. */
+final class FluxoImobiliario {
+
+    private FluxoImobiliario() {
+    }
+
+    static FluxoProcesso definir() {
+        return FluxoProcesso.comum()
+                .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.CONCLUIR_ANALISE, EstadoProcesso.AGUARDANDO_VISTORIA)
+                .transicao(EstadoProcesso.AGUARDANDO_VISTORIA, AcaoProcesso.CONCLUIR_VISTORIA, EstadoProcesso.APROVADO)
+                .construir();
+    }
+}
+```
+
+`domain/processo/tipo/TipoProcesso.java`. O nome da constante é o código gravado no banco.
+
+```java
 public enum TipoProcesso {
-    IMOBILIARIO(new FluxoImobiliario()),
-    SERVICO(new FluxoServico());
+    IMOBILIARIO(FluxoImobiliario.definir()),
+    SERVICO(FluxoProcesso.comum().construir());
 
     private final FluxoProcesso fluxo;
 
@@ -118,9 +198,33 @@ public enum TipoProcesso {
 }
 ```
 
+## Entidade que usa o fluxo
+
+`domain/processo/Processo.java` (só a parte do ciclo de vida). A entidade não conhece nenhum tipo: pergunta à tabela do tipo.
+
+```java
+/** Aplica a ação; se o fluxo do tipo não a aceita no estado atual, lança TransicaoInvalidaException. */
+public void executar(AcaoProcesso acao, Instant quando, String observacao) {
+    Transicao transicao = new Transicao(estado, tipo.fluxo().proximo(estado, acao), acao, quando, observacao);
+    estado = transicao.para();
+    novasTransicoes.add(transicao);
+}
+
+public Set<AcaoProcesso> acoesDisponiveis() {
+    return tipo.fluxo().acoesDisponiveis(estado);
+}
+
+/** Transições feitas desde que o processo foi criado ou lido; o repositório as grava no histórico ao salvar. */
+public List<Transicao> novasTransicoes() {
+    return List.copyOf(novasTransicoes);
+}
+```
+
+Um único caso de uso atende todas as ações que só mudam o estado: `application/processo/ExecutarAcaoProcessoUseCase` recebe o id e a `AcaoProcesso`, chama `processo.executar(...)` e salva. Ação com efeito fora do agregado (pagar, que chama a tesouraria) tem o próprio caso de uso.
+
 ## Mapper
 
-`persistence/processo/ProcessoMapper.java`. Tipo e estado são reconstruídos sem `switch`. Valor desconhecido vindo do banco vira `IllegalStateException` com o valor na mensagem.
+`persistence/processo/ProcessoMapper.java`. Tipo e estado são reconstruídos pelo `valueOf` do enum, sem `switch`. Valor desconhecido vindo do banco vira `IllegalStateException` com o valor na mensagem.
 
 ```java
 /** Padrão: Data Mapper [PoEAA]. */
@@ -132,7 +236,7 @@ final class ProcessoMapper {
     static Processo paraDominio(ProcessoEntity entity) {
         try {
             return Processo.reconstituir(entity.getId(), entity.getCotaId(),
-                    TipoProcesso.valueOf(entity.getTipo()), EstadoProcesso.porNome(entity.getEstado()));
+                    TipoProcesso.valueOf(entity.getTipo()), EstadoProcesso.valueOf(entity.getEstado()));
         } catch (IllegalArgumentException e) {
             throw new IllegalStateException("Valor desconhecido no banco: " + e.getMessage(), e);
         }
@@ -143,7 +247,7 @@ final class ProcessoMapper {
         entity.setId(processo.id());
         entity.setCotaId(processo.cotaId());
         entity.setTipo(processo.tipo().name());
-        entity.setEstado(processo.estado().nome());
+        entity.setEstado(processo.estado().name());
         return entity;
     }
 }

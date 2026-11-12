@@ -35,7 +35,7 @@ Se encontrar um dos casos abaixo, **pare e pergunte** antes de seguir:
 - **Referência a outro agregado** (`@ManyToOne Cliente cliente`) vira só o id (`Long clienteId`). A existência do outro agregado é verificada no use case, pelo repositório dele.
 - **Objeto que pertence ao agregado:** um `@Embedded` vira um `record` no domínio (Value Object); filhos `@OneToMany` com cascade/orphanRemoval viram uma lista dentro do agregado, alterada só por métodos dele.
 - **Enum:** fica um enum de domínio.
-- **Estados fechados:** `sealed` + `record` (State). **Variação por tipo:** enum com Strategy (o enum do tipo escolhe a implementação da interface de fluxo), sem subclasse por tipo.
+- **Ciclo de vida:** enum de estados, enum de ações e tabela de transições em `domain/<agregado>/fluxo/` (State dirigido por tabela). **Fluxo que muda por tipo:** o enum do tipo guarda a tabela dele, que parte da comum, em `domain/<agregado>/tipo/`; sem subclasse por tipo. Os nomes das constantes são os valores já gravados na coluna.
 - **Versão:** se havia `@Version`, o domínio carrega `versao` (Long) só para devolvê-la ao mapper.
 
 ## Passo 2: interface de repositório no domínio (`domain/<agregado>/<Nome>Repository.java`)
@@ -63,7 +63,7 @@ Se encontrar um dos casos abaixo, **pare e pergunte** antes de seguir:
 
 - Classe `final`, package-private, métodos estáticos `paraDominio(entity)` e `paraEntidade(dominio)`, escrita à mão, sem MapStruct.
 - `paraDominio` usa `reconstituir(...)`. Valor inválido vindo do banco (enum desconhecido) lança `IllegalStateException` com a mensagem do valor.
-- Tipo e estado são reconstruídos pelo `valueOf` do enum e por `porNome` da interface de estado, sem `switch` no mapper.
+- Tipo e estado são reconstruídos pelo `valueOf` do enum, sem `switch` no mapper.
 
 ## Passo 6: adapter (`persistence/<agregado>/<Nome>RepositoryAdapter.java`)
 

@@ -2,6 +2,7 @@
 
 ## Proibido
 
+- Uma classe por estado, um método por ação na entidade ou `if (tipo == ...)` para decidir transição. O ciclo de vida é enum + tabela em `domain/<agregado>/fluxo/`.
 - Pastas `shared`, `common`, `util`, `command` ou `query`.
 - `jakarta.validation` (Bean Validation) fora de `entrypoint/`.
 - `domain/` importar JPA, Jakarta Data, CDI (`@Inject`, `@ApplicationScoped`), JAX-RS, Bean Validation, Quarkus, Hibernate ou MicroProfile.
@@ -22,7 +23,7 @@
 
 ## Estilo
 
-- Java moderno: `record` para dados imutáveis, `sealed` + `switch` com pattern matching onde há estados fechados.
+- Java moderno: `record` para dados imutáveis; `enum` + tabela de transições para ciclo de vida ([dominio](dominio.md)); `sealed` + `switch` com pattern matching quando os **dados** mudam por tipo.
 - Injeção por construtor. Assemblers e `Padrao*` são classes puras, sem CDI.
 - Nomes em português no domínio e nos casos de uso, seguindo o vocabulário já existente.
 - Exceções e seus códigos HTTP: veja [canais](canais.md).

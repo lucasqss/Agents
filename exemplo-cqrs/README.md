@@ -173,29 +173,30 @@ Os fronts são gerados por low-code e não formatam nada, então o backend entre
 
 ### Processo de pagamento
 
-`ProcessoPagamento` é o motor único de todos os tipos de pagamento. Dois padrões do GoF dividem o trabalho:
+`ProcessoPagamento` é o motor único de todos os tipos de pagamento. Ele não conhece nenhum tipo em particular: pergunta ao fluxo do tipo se a ação vale no estado atual e para onde ela leva.
 
-- **State** (`domain.processo.estado`): o estado atual decide se a ação é válida e qual o próximo estado.
-- **Strategy** (`FluxoProcesso`, escolhida por `TipoProcesso`): o tipo decide os desvios do fluxo. Hoje, só o que vem depois da análise.
+- **State dirigido por tabela** (`domain.processo.fluxo`): `EstadoProcesso` e `AcaoProcesso` são enums, e `FluxoProcesso` é a tabela imutável `(estado, ação) → próximo estado`. As ações disponíveis em cada estado saem da mesma tabela.
+- **Um fluxo por tipo** (`domain.processo.tipo`): `TipoProcesso` guarda a tabela do tipo. Toda tabela parte de `FluxoProcesso.comum()` e troca só as linhas em que o tipo difere (`FluxoImobiliario`, `FluxoServico`).
 
 ```
 Imobiliário: ABERTO → EM_ANALISE → AGUARDANDO_VISTORIA → APROVADO → PAGO
 Serviço:     ABERTO → EM_ANALISE → APROVADO → PAGO
+Devolver para análise: APROVADO → EM_ANALISE (e AGUARDANDO_VISTORIA → EM_ANALISE no imobiliário)
 Qualquer estado não final → CANCELADO
 ```
 
-Transições inválidas lançam `TransicaoInvalidaException` (HTTP 409). Cada cota tem no máximo um processo em andamento. No banco existe uma única tabela, `processo_pagamento`, com `tipo` e `estado` em texto. O mapper reconstrói o tipo e o estado pelo código gravado (`TipoProcesso.valueOf`, `EstadoProcesso.porNome`), sem herança JPA.
+Transições inválidas lançam `TransicaoInvalidaException` (HTTP 409). Cada cota tem no máximo um processo em andamento. No banco, `processo_pagamento` guarda `tipo` e `estado` em texto, e `processo_transicao` guarda o histórico: uma linha por mudança de estado, com a ação, a data e a observação. O mapper reconstrói o tipo e o estado pelo código gravado (`TipoProcesso.valueOf`, `EstadoProcesso.valueOf`), sem herança JPA. A coluna `versao` impede que duas operações simultâneas gravem por cima uma da outra.
+
+Um único caso de uso, `ExecutarAcaoProcessoUseCase`, atende as ações que só mudam o estado. `PagarProcessoUseCase` é separado porque chama a tesouraria.
 
 **Como estender o motor**
 
 | Quero... | Faça |
 |---|---|
-| Um tipo novo de pagamento | constante em `TipoProcesso` + uma implementação de `FluxoProcesso` + rótulo em `Rotulos` |
-| Um estado novo | record em `estado/`, incluir em `permits` e em `EstadoProcesso.todos()` + rótulo em `Rotulos` |
-| Uma ação nova | método em `EstadoProcesso` (inválido por padrão) + método em `ProcessoPagamento` + caso de uso e endpoint |
-| Um desvio novo por tipo | método em `FluxoProcesso` e em cada fluxo concreto |
-
-Cada classe do motor traz no Javadoc uma linha com o padrão, o papel e a fonte. Fontes: **[GoF]** Gamma, Helm, Johnson e Vlissides, *Design Patterns* (1994); **[PoEAA]** Fowler, *Patterns of Enterprise Application Architecture* (2002).
+| Um tipo novo de pagamento | constante em `TipoProcesso` + um `Fluxo<Tipo>` partindo de `FluxoProcesso.comum()` + rótulo em `Rotulos` |
+| Um estado novo | constante em `EstadoProcesso` + as linhas no fluxo que o usa + rótulo em `Rotulos` |
+| Uma ação nova | constante em `AcaoProcesso` + as linhas nos fluxos que a aceitam + endpoint em `ProcessoResource` |
+| Um desvio novo por tipo | uma linha `.transicao(...)` no `Fluxo<Tipo>` |
 
 ## Guardrails para IA e revisão
 
@@ -226,13 +227,14 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 | Escrita | `POST /clientes`, `PUT/DELETE /clientes/{id}` | CRUD de cliente (CPF único) |
 | Escrita | `POST /cotas`, `PUT/DELETE /cotas/{id}` | CRUD de cota |
 | Escrita | `POST /processos` `{cotaId, tipo}` | Cria processo (`IMOBILIARIO` ou `SERVICO`) |
-| Escrita | `POST /processos/{id}/iniciar-analise` · `concluir-analise` · `concluir-vistoria` · `pagar` · `cancelar` | Transições (`pagar` registra a ordem na Tesouraria) |
+| Escrita | `POST /processos/{id}/iniciar-analise` · `concluir-analise` · `concluir-vistoria` · `devolver-para-analise` · `pagar` · `cancelar` | Transições (`pagar` registra a ordem na Tesouraria) |
 | Leitura | `GET /clientes` | Clientes com a quantidade de cotas |
 | Leitura | `GET /cotas/{id}` | Cota com o nome do cliente e o processo atual |
 | Canal web | `GET /web/v1/cotas/{id}` | Cota no padrão web, com o processo atual |
 | Canal mobile | `GET /mobile/v1/cotas/{id}` · `GET /mobile/v1/clientes` | Card da cota; clientes com o total de cotas somado |
 | Canal TAA | `GET /taa/v1/cotas/{id}` | Cota no padrão do terminal |
 | Leitura | `GET /processos?tipo=&estado=&pagina=1&tamanho=20` | Processos filtrados e paginados, com o protocolo de pagamento |
+| Leitura | `GET /processos/{id}/acoes` · `GET /processos/{id}/historico` | Ações que o processo aceita no estado atual; histórico das transições |
 
 Validação em duas camadas: o **formato** da entrada (obrigatório, tamanho, faixa) é checado com Bean Validation nos requests do entrypoint (`ClienteRequest`, `CotaRequest`), antes do use case, e as restrições aparecem no OpenAPI; a **regra de negócio** continua no domínio, que vale para qualquer chamador. Todo erro sai no mesmo formato, e `campos` só vem preenchido em erro de formato:
 

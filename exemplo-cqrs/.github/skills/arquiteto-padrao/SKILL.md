@@ -67,8 +67,10 @@ src/main/java/org/acme/consorcio/
 ├── domain/
 │   ├── cliente/         Cliente.java, ClienteRepository.java
 │   ├── cota/            Cota.java, CotaRepository.java
-│   ├── processo/        ProcessoPagamento.java, ProcessoPagamentoRepository.java,
-│   │                    TipoProcesso.java, FluxoProcesso.java, TransicaoInvalidaException.java, estado/
+│   ├── processo/        ProcessoPagamento.java, ProcessoPagamentoRepository.java
+│   │   ├── fluxo/       EstadoProcesso.java, AcaoProcesso.java, FluxoProcesso.java, Transicao.java,
+│   │   │                TransicaoInvalidaException.java
+│   │   └── tipo/        TipoProcesso.java, FluxoImobiliario.java, FluxoServico.java
 │   └── DominioException.java
 ├── persistence/
 │   ├── cliente/         ClienteEntity.java, ClienteDataRepository.java, ClienteMapper.java,
@@ -106,6 +108,10 @@ src/main/java/org/acme/consorcio/
 | `src/test/java/.../integracao/CanaisContratoTest.java` (crie se ainda não existir) | nomes exatos dos campos |
 
 Repare que a leitura não passa por `domain/`.
+
+### Subpastas dentro do agregado
+
+Um agregado pode ter subpastas em `domain/<agregado>/` quando um conceito dele junta várias classes. O nome é o do conceito, nunca o de um padrão ou de uma técnica: `fluxo/` (estados, ações e a tabela de transições), `tipo/` (o que muda por tipo). A raiz do agregado fica com a entidade e a interface de repositório. As dependências vão num sentido só, sem ciclo (GER-002): `fluxo` ← `tipo` ← raiz do agregado.
 
 ### Errado × certo
 
@@ -201,7 +207,8 @@ Nenhum dos dois tem `domain`, `persistence`, JPA nem transação: o `verify` fal
 
 | Preciso de... | Coloque em | Leia |
 |---|---|---|
-| Regra de negócio, validação de negócio, transição de estado | `domain/<agregado>/`, na entidade. Nunca no use case, no resource nem na `*Entity` | [dominio](references/dominio.md) |
+| Regra de negócio, validação de negócio | `domain/<agregado>/`, na entidade. Nunca no use case, no resource nem na `*Entity` | [dominio](references/dominio.md) |
+| Ciclo de vida: estado, ação ou transição nova; fluxo que muda por tipo | enums e tabela de transições em `domain/<agregado>/fluxo/`; desvios de cada tipo em `domain/<agregado>/tipo/`. Sem `if (tipo == ...)` na entidade | [dominio](references/dominio.md) |
 | Consultar algo para decidir uma escrita (existe? está ativo?) | método novo em `domain/<agregado>/XRepository`, implementado em `persistence/<agregado>/`. Nunca um `*QueryRepository` | [use-cases](references/use-cases.md) |
 | Validar o formato da entrada (obrigatório, tamanho, faixa) | `XRequest` (record) em `entrypoint/<via>/<agregado>/`, com Bean Validation | [canais](references/canais.md) |
 | Gravar algo | `application/<agregado>/XUseCase`: carrega pelo repositório, chama o método de negócio, salva | [use-cases](references/use-cases.md) |
@@ -229,6 +236,7 @@ Antes de terminar: confira [estilo e proibidos](references/estilo-e-proibidos.md
 Siga a ordem e pare se algum passo exigir quebrar uma regra.
 
 - [Novo caso de uso de escrita](references/receitas/novo-caso-de-uso-escrita.md)
+- [Novo estado, ação ou tipo em um fluxo](references/receitas/novo-estado-acao-ou-tipo.md)
 - [Nova consulta](references/receitas/nova-consulta.md)
 - [Novo endpoint de canal](references/receitas/novo-endpoint-de-canal.md)
 - [Nova integração externa](references/receitas/nova-integracao-externa.md)
@@ -237,7 +245,7 @@ Siga a ordem e pare se algum passo exigir quebrar uma regra.
 
 ## Convenções
 
-- **Javadoc de cada classe de padrão** declara padrão, papel e fonte, de forma curta. Ex.: `Padrão: State, estado concreto [GoF].` ou `Padrão: Data Mapper [PoEAA].`. A citação completa dos livros fica uma vez só, no `package-info.java`.
+- **Javadoc de cada classe de padrão** declara padrão, papel e fonte, de forma curta. Ex.: `Padrão: State dirigido por tabela [GoF].` ou `Padrão: Data Mapper [PoEAA].`. A citação completa dos livros fica uma vez só, no `package-info.java`.
 - A descrição de cada pacote vive em `package-info.java`, inclusive na raiz da camada.
 - De `gateway/<sistema>/`, o caso de uso só importa o `*Gateway`, as `*Exception` e os records próprios; nunca o client, o DTO externo nem classe do catálogo corporativo.
 - `entrypoint/` nunca acessa `gateway/` direto. De `persistence/<agregado>/`, só pode importar os records projetados; nunca `*Entity`, `*QueryRepository`, `*DataRepository`, `*Mapper` nem `*RepositoryAdapter`.
