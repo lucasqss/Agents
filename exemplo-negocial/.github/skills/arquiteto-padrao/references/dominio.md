@@ -6,9 +6,13 @@ Aqui mora a regra de negócio. É Java puro: o ArchUnit falha se aparecer import
 - **Ciclo de vida** usa State dirigido por tabela [GoF] ([exemplo](exemplos-codigo.md)), em `domain/<agregado>/fluxo/`: os estados são um `enum`, as ações são outro `enum`, e uma classe imutável guarda a tabela `(estado, ação) → próximo estado`. A entidade não decide transição: pergunta à tabela (`fluxo.proximo(estado, acao)`), que lança `TransicaoInvalidaException` quando a ação não vale no estado atual. Não crie uma classe por estado nem um método por ação na entidade.
 - "Quais ações valem agora?" sai da mesma tabela (`acoesDisponiveis(estado)`); não escreva essa lista em outro lugar.
 - Ação que tem efeito fora do agregado (pagar exige o protocolo da tesouraria) ganha método próprio na entidade, que confere o dado e usa a mesma tabela.
+- **Ação com dado próprio** (novo valor, nova lista), e não só motivo: o enum de ações marca `comMetodoProprio()`; a raiz tem método para ela, que confere o dado e usa a mesma tabela, e o executar genérico a recusa. Ações que só mudam estado ou aplicam o que a raiz já guarda (aceitar ou recusar uma proposta) seguem pelo genérico. Veja `AcaoProcesso.comMetodoProprio` no exemplo.
 - **Ação com dado obrigatório** (ex.: motivo): a regra "esta ação exige o dado" é atributo da ação, no enum (`exigeMotivo()`), e a raiz do agregado recusa a ação sem o dado com `DominioException`, antes de mudar o estado. Assim vale para qualquer chamador (REST, job, outro caso de uso). Continua um único caso de uso genérico de executar ação: não se cria caso de uso por ação só porque ela tem dado. O dado vai ao histórico da transição (`Transicao`). Veja `AcaoProcesso.exigeMotivo` no exemplo.
 - O fluxo pode ter **laço** (estado que volta a um anterior) e **mais de um estado final**; o estado final é marcado no enum de estados, e a tabela não tem saída dele.
 - Toda mudança de estado gera um registro (`Transicao`: de, para, ação, quando, observação), guardado pela entidade até o repositório gravar o histórico.
+- **Histórico com dado da ação:** quando a ação muda um valor, a `Transicao` guarda o valor anterior e o novo.
+  - Colunas anuláveis, preenchidas só nessas ações; nas demais ficam nulas.
+  - Veja `processo_transicao` (migration V7) no exemplo.
 - **Fluxo que muda por tipo:** cada tipo tem a sua tabela, que parte da comum e acrescenta ou troca só as linhas em que difere (`FluxoProcesso.comum().transicao(...).construir()`), em `domain/<agregado>/tipo/`. O enum do tipo guarda a tabela dele. A entidade não conhece nenhum tipo em particular: nada de `if (tipo == ...)` nem de subclasse do agregado por tipo.
 - Subpastas do agregado levam o nome do conceito (`fluxo/`, `tipo/`) e dependem num sentido só: `fluxo` ← `tipo` ← raiz do agregado.
 - Toda classe de padrão traz no Javadoc uma linha curta com o padrão, o papel e a fonte. Ex.: `Padrão: State dirigido por tabela [GoF].`
@@ -21,4 +25,8 @@ Aqui mora a regra de negócio. É Java puro: o ArchUnit falha se aparecer import
 - **Recusa que é conflito com o estado atual** (limite estourado, ação que não vale mais), e não dado malformado, ganha subclasse própria de `DominioException` (`CreditoInsuficienteException`), mapeada para 409 em `ExceptionMappers` ([canais](canais.md)). `DominioException` genérica continua 400.
 - **Valor com regra própria** (dinheiro, CPF, período) é Value Object, e dinheiro é sempre `Dinheiro`, de ponta a ponta no domínio, inclusive o campo do agregado ([valores](valores.md)).
 - Se uma regra precisar de um sistema externo, declare uma interface aqui. A implementação é um `gateway/<sistema>/XGatewayAdapter.java`, que delega ao `XGateway`. O domínio nunca importa o Gateway.
+- **Mudança que só vale se outra parte concordar** (o cliente aceita a alteração que o backoffice propôs): a proposta é um Value Object guardado pela raiz, separado dos dados vigentes, com o mesmo critério de invariantes dos dados que pretende trocar.
+  - Um estado próprio de espera no fluxo, e o invariante da raiz: há proposta se, e somente se, o estado é o de espera.
+  - Aceitar promove a proposta a vigente. Recusar ou cancelar a descarta: desfazer é descartar a proposta, sem "undo" dos dados.
+  - Leituras e regras seguem com os dados vigentes até a resposta. A proposta tem tabelas próprias, não uma flag nas vigentes ([persistência](persistencia-jakarta-data.md)). Veja `AlteracaoProposta` e `AGUARDANDO_CONCORDANCIA` no exemplo.
 - Todo comportamento novo ganha teste JUnit puro, sem Quarkus.

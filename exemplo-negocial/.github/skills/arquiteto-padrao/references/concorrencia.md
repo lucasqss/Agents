@@ -24,6 +24,8 @@ Duas requisições podem chegar juntas, e a mesma requisição pode chegar duas 
 - Exposto pelo repositório do domínio como `buscarPorIdComBloqueio`, para o caso de uso não conhecer o mecanismo ([persistência](persistencia-jakarta-data.md)).
 - Dura até o fim da transação do caso de uso. Bloqueie o mínimo e o mais tarde possível, e sempre na mesma ordem quando forem dois agregados, para não haver impasse.
 - Quem espera o bloqueio relê o estado depois de consegui-lo: a regra do domínio é que recusa o segundo pedido.
+- **Ordem entre casos de uso:** quem bloqueia duas raízes sempre o faz na mesma ordem (ex.: a dona do limite primeiro, depois a outra), em todos os casos de uso. Ordem invertida em outro caso de uso vira impasse.
+- Para achar o id da primeira raiz, pode-se ler sem bloqueio; depois relê-la com bloqueio, e é essa releitura que vale. A leitura sem bloqueio só descobre o id, nunca decide. Veja `AlterarProcessoUseCase` no exemplo.
 
 ## Idempotência
 

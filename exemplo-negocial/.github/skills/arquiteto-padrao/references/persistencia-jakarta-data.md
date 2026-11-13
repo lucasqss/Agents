@@ -49,6 +49,12 @@ interface XDataRepository {
 
 **`XRepositoryAdapter`** ([exemplo](exemplos-codigo.md)): `@ApplicationScoped`, `implements XRepository`, injeção por construtor do `XDataRepository`. `salvar`: `paraEntidade`, depois `inserir` se o id for nulo ou `atualizar` se não, e devolve `paraDominio(entity)`. Com filhos: grave o agregado, depois os filhos (apague os removidos), tudo na transação do caso de uso. Filho Value Object: `salvar` grava os itens da raiz (na ordem, preenchendo a coluna de ordem) e `reconstituir` os carrega na mesma ordem; a consulta dos filhos para tela vai em `XQueryRepository`. Histórico de transições: o adapter insere uma linha por item de `novasTransicoes()` do agregado; nunca altera nem apaga as antigas.
 
+- **Troca de filhos** (filhos Value Object que podem mudar, como a proposta pendente): o `salvar` confere a versão antes de tudo, e quem perdeu a disputa falha sem tocar nos filhos.
+  - Compara os filhos gravados com os do agregado, e só apaga e regrava quando mudaram.
+  - Veja `trocarFavorecidosSeMudaram` e `trocarPropostaSeMudou` no adapter do exemplo.
+- **Leitura sem bloqueio e agregado incoerente:** raiz e filhos vêm de consultas separadas. Na leitura sem bloqueio, outra transação pode confirmar entre elas, o conjunto fica incoerente, e a recusa do domínio ao montar o agregado vira `AlteracaoConcorrenteException` (409), com a recusa original como causa.
+  - Na leitura com bloqueio, e logo após gravar, os dados são coerentes: a mesma recusa é dado inválido no banco e sai como `IllegalStateException`. Veja `reconstituir(entity, leituraSemBloqueio)` no exemplo.
+
 **Versão:** agregado que é alterado tem coluna de versão e `@Version` na `*Entity`; o mapper leva e traz a versão, e o adapter converte a falha de gravação concorrente na exceção do domínio. Quando usar versão e quando usar bloqueio: [concorrência](concorrencia.md).
 
 **Bloqueio pessimista:** use quando duas requisições simultâneas não podem passar juntas por uma verificação ("já existe processo em andamento?"). O Jakarta Data não expressa bloqueio, então declare `StatelessSession sessao();` no `XDataRepository` e um método `default` com `sessao().get(XEntity.class, id, LockMode.PESSIMISTIC_WRITE)` ([exemplo](exemplos-codigo.md)). Exponha no domínio como `buscarPorIdComBloqueio`, para o caso de uso não conhecer JPA nem Hibernate. O bloqueio dura até o fim da transação do caso de uso.
