@@ -12,6 +12,10 @@ Recebe HTTP, chama o caso de uso e devolve o resultado. Sem regra de negócio, s
 
 **Entrada:** um `XRequest` (record) por operação, com Bean Validation para o **formato** (`@NotBlank`, `@NotNull`, `@Size(max = <tamanho da coluna>)`, `@Positive`), recebido como `@Valid @NotNull XRequest` e convertido para o comando do caso de uso (`paraDados()`). Valor monetário leva `@Positive` (se a regra pede) e `@Digits(integer = <colunas>, fraction = 2)`. Formato inválido responde 400 antes de qualquer busca. Não anote os records de `application/` nem o domínio: a regra de negócio continua no domínio.
 
+**Lista no request:** `@NotEmpty List<@NotNull @Valid Item> itens` no record, e o item (também record de request) leva o Bean Validation de formato dos seus campos. O nome do campo no erro traz o caminho com índice (`itens[1].campo`), montado em `ExceptionMappers`. Regra do conjunto (soma, repetição) é do domínio e sai como `DominioException` (400 com mensagem), não como erro de campo.
+
+**Ordem das conferências:** formato (Bean Validation) e invariantes do domínio recusam com 400 antes de qualquer busca; só depois vêm 404 (agregado ou referência inexistente) e 409 (estado atual). O caso de uso constrói o agregado antes de buscar o que precisa para decidir.
+
 **Ação com dado obrigatório:** o dado vem em um record de request próprio (`@NotBlank`, `@Size(max = <tamanho da coluna>)`), com o corpo declarado obrigatório (`@RequestBody(required = true) @Valid @NotNull`), para o OpenAPI mostrar o corpo como obrigatório. Corpo ausente, vazio ou grande demais responde 400 com o nome do campo, antes de buscar o agregado (400 vence 404 e 409). Ações sem dado seguem aceitando requisição sem corpo (`required = false`); os dois estilos convivem no mesmo resource. Quem decide se a ação exige o dado é o domínio ([domínio](dominio.md)); o entrypoint só confere o formato.
 
 **Erros:** saem como `ErroResponse`, com a lista `campos`. Exceção vira HTTP em `ExceptionMappers`, na raiz de `entrypoint/`:

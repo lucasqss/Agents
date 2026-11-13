@@ -7,6 +7,9 @@ Um conceito que tem regra própria e não tem identidade (dinheiro, CPF, períod
 - O mesmo dado carrega uma validação ou uma conta que se repete (formato, arredondamento, intervalo).
 - Dois dados andam sempre juntos (início e fim, valor e moeda).
 
+- O dado é um identificador com formato (documento, código): `record` que valida o formato no construtor; a entity de persistência guarda o tipo simples, e o mapper converte (exemplo: `Documento`).
+- O item de uma lista que só existe dentro da raiz do agregado ([domínio](dominio.md)).
+
 Um `String` ou `BigDecimal` solto serve enquanto ninguém faz conta nem valida nada com ele.
 
 ## Como escrever
@@ -42,4 +45,5 @@ Todo valor monetário do domínio é `Dinheiro` ([exemplo](exemplos-codigo.md)),
 | `application/` | `DadosX` leva o tipo simples; o caso de uso constrói o Value Object ao chamar o domínio |
 | `persistence/` (escrita) | a `*Entity` guarda o tipo simples da coluna (`BigDecimal`; `numeric(15,2)` na migration); o mapper converte nos dois sentidos (Embedded Value [PoEAA]). Valor de dois componentes ocupa duas colunas |
 | `persistence/` (leitura) | o record projetado leva o tipo simples; leitura não usa o domínio |
+| Lista de itens (filhos) | `entrypoint/`: `List<ItemRequest>` com `@NotEmpty` e `@Valid` nos itens; `application/`: `List<DadosItem>`; o caso de uso constrói os Value Objects e entrega a lista à fábrica da raiz |
 | Canal | o Assembler formata (símbolo, separadores). O Value Object não formata para tela |

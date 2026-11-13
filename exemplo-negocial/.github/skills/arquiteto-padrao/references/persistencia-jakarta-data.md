@@ -15,7 +15,7 @@ Uma pasta, dois caminhos:
 
 - Só campos, anotações de mapeamento, getters e setters. Nenhum outro método (o ArchUnit falha). Sem herança JPA, sem construtor com lógica, sem Bean Validation, sem callbacks.
 - Sem associações JPA para outros agregados: a FK é um campo simples (`@Column(name = "cliente_id") Long clienteId`).
-- Filho do agregado é a própria `*Entity`, com a coluna de FK. `@Embedded` fica com as colunas achatadas ou num `@Embeddable` no mesmo pacote.
+- Filho do agregado é a própria `*Entity` (tabela filha), com a coluna de FK, uma coluna de ordem se a ordem importa e `unique` que espelha a invariante de não repetição do domínio. `@Embedded` fica com as colunas achatadas ou num `@Embeddable` no mesmo pacote.
 - Enum é `String` (ou `@Enumerated(EnumType.STRING)`); a conversão é do mapper.
 
 ## Escrita
@@ -47,7 +47,7 @@ interface XDataRepository {
 
 **`XMapper`:** classe `final`, package-private, métodos estáticos `paraDominio(entity)` e `paraEntidade(dominio)`, escrita à mão. `paraDominio` usa `reconstituir(...)`. Valor inválido vindo do banco (enum desconhecido) lança `IllegalStateException` com o valor na mensagem. Tipo e estado são reconstruídos pelo `valueOf` do enum, sem `switch` no mapper ([exemplo](exemplos-codigo.md)).
 
-**`XRepositoryAdapter`** ([exemplo](exemplos-codigo.md)): `@ApplicationScoped`, `implements XRepository`, injeção por construtor do `XDataRepository`. `salvar`: `paraEntidade`, depois `inserir` se o id for nulo ou `atualizar` se não, e devolve `paraDominio(entity)`. Com filhos: grave o agregado, depois os filhos (apague os removidos), tudo na transação do caso de uso. Histórico de transições: o adapter insere uma linha por item de `novasTransicoes()` do agregado; nunca altera nem apaga as antigas.
+**`XRepositoryAdapter`** ([exemplo](exemplos-codigo.md)): `@ApplicationScoped`, `implements XRepository`, injeção por construtor do `XDataRepository`. `salvar`: `paraEntidade`, depois `inserir` se o id for nulo ou `atualizar` se não, e devolve `paraDominio(entity)`. Com filhos: grave o agregado, depois os filhos (apague os removidos), tudo na transação do caso de uso. Filho Value Object: `salvar` grava os itens da raiz (na ordem, preenchendo a coluna de ordem) e `reconstituir` os carrega na mesma ordem; a consulta dos filhos para tela vai em `XQueryRepository`. Histórico de transições: o adapter insere uma linha por item de `novasTransicoes()` do agregado; nunca altera nem apaga as antigas.
 
 **Versão:** agregado que é alterado tem coluna de versão e `@Version` na `*Entity`; o mapper leva e traz a versão, e o adapter converte a falha de gravação concorrente na exceção do domínio. Quando usar versão e quando usar bloqueio: [concorrência](concorrencia.md).
 

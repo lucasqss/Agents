@@ -15,4 +15,6 @@ Entregue em **fatias**: cada fatia é uma operação que funciona do endpoint ao
    6. `./mvnw verify` verde, com o teste de aceitação da fatia passando.
 4. **Ao fim de cada fatia**, diga o que ficou pronto, o que falta e o que você não conseguiu verificar. Divergência entre o caso de uso e o que foi possível fazer é pergunta para o dono, não decisão sua.
 
+Funcionalidade que acrescenta filhos a um agregado já existente: a migration vem com o filho padrão para as linhas atuais ([migrations](../migrations.md)), e a consulta dos filhos é fatia própria ([nova consulta](nova-consulta.md)).
+
 Não antecipe: campo, estado, endpoint ou tabela que nenhuma fatia pedida usa fica para quando for pedido.
