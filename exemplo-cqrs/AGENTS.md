@@ -2,7 +2,7 @@
 
 Serviço Java 25 + Quarkus 3.33 com domínio puro e padrões do *Patterns of Enterprise Application Architecture* (Fowler). A arquitetura é verificada a cada build por testes ArchUnit.
 
-**Use as skills:** `arquiteto-padrao` ao criar ou alterar código; `adequar-ao-padrao` ao trazer código legado para o padrão; `teste-aceitacao-modelos` ao criar ou alterar testes de aceitação de usuário a partir do requisito; `teste-aceitacao-legado` quando não há requisito e as regras saem do código existente.
+**Use as skills:** `especificar-caso-de-uso` ao transformar um pedido de negócio em requisito escrito, antes de qualquer código; `arquiteto-padrao` ao criar ou alterar código; `adequar-ao-padrao` ao trazer código legado para o padrão; `teste-aceitacao-modelos` ao criar ou alterar testes de aceitação de usuário a partir do requisito; `teste-aceitacao-legado` quando não há requisito e as regras saem do código existente.
 
 ## Como trabalhar
 
@@ -16,7 +16,7 @@ Vale para qualquer tarefa:
 
 Conforme o tipo da tarefa:
 
-- **Código novo.** Use a skill `arquiteto-padrao` e a receita da operação. O teste nasce junto com o código.
+- **Código novo.** Funcionalidade nova começa pelo caso de uso confirmado (skill `especificar-caso-de-uso`). Depois, use a skill `arquiteto-padrao` e a receita da operação. O teste nasce junto com o código.
 - **Avaliação de código legado.** Não altere nenhum arquivo. Cada achado traz `arquivo:linha`, a evidência e a gravidade. Separe o que você confirmou lendo ou rodando do que é suspeita. Para comparar com o padrão, use o diagnóstico da skill `adequar-ao-padrao`.
 - **Correção de bug.** Primeiro reproduza com um teste que falha pelo motivo do bug. Ache a causa, não o sintoma, e corrija na camada dona da regra. O teste novo passa e os antigos continuam passando sem terem sido alterados.
 

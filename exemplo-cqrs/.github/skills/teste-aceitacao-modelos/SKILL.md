@@ -13,7 +13,7 @@ Este documento é a referência da equipe e dos agentes de IA. Nomes como `cota`
 
 Cada teste roda duas vezes, sem duplicar código: na fase de teste unitário (`*Test`, com `@QuarkusTest`) e na fase de integração (`*IT`, com `@QuarkusIntegrationTest`, contra o sistema empacotado).
 
-Esta skill cobre apenas testes de aceitação pelos endpoints. Não use para testes de unidade, de arquitetura ou de componentes internos. Sistema existente sem requisito escrito, em que as regras precisam sair do código: use a skill [`teste-aceitacao-legado`](../teste-aceitacao-legado/SKILL.md).
+Esta skill cobre apenas testes de aceitação pelos endpoints. Não use para testes de unidade, de arquitetura ou de componentes internos. Requisito ainda não escrito, para funcionalidade nova: use antes a skill [`especificar-caso-de-uso`](../especificar-caso-de-uso/SKILL.md), e parta do `caso-de-uso.md` que ela grava. Sistema existente sem requisito escrito, em que as regras precisam sair do código: use a skill [`teste-aceitacao-legado`](../teste-aceitacao-legado/SKILL.md).
 
 ## Passo a passo
 

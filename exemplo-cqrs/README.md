@@ -206,6 +206,7 @@ O ArchUnit detecta o erro no build. Estas peças evitam que ele aconteça e impe
 |---|---|---|
 | Orientar | Regras sempre ativas para qualquer agente de IA | `AGENTS.md` |
 | Impor | Hooks do agente (Copilot CLI): arquivo protegido não é alterado e o turno só termina com a verificação rápida passando | `.github/hooks/` |
+| Orientar | Do pedido de negócio ao caso de uso confirmado, antes do código: `/especificar-caso-de-uso` | `.github/skills/especificar-caso-de-uso/` |
 | Orientar | O padrão de arquitetura, o ADR e as receitas de código novo: `/arquiteto-padrao` | `.github/skills/arquiteto-padrao/` |
 | Orientar | Como trazer um projeto legado para o padrão: `/adequar-ao-padrao` | `.github/skills/adequar-ao-padrao/` |
 | Orientar | Testes de aceitação pelos endpoints: `/teste-aceitacao-modelos` a partir do requisito, `/teste-aceitacao-legado` a partir do código existente | `.github/skills/teste-aceitacao-modelos/`, `.github/skills/teste-aceitacao-legado/` |
