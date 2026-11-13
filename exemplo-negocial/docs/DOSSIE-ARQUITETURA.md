@@ -1,6 +1,6 @@
 # Dossiê de arquitetura: um processo que se desdobra em vários tipos
 
-O que precisa mudar no `exemplo-cqrs` antes de implementar as próximas features, o padrão arquitetural alvo e a organização de pastas.
+O que precisa mudar no `exemplo-negocial` antes de implementar as próximas features, o padrão arquitetural alvo e a organização de pastas.
 
 **Premissas confirmadas:** os tipos (imobiliário, móveis, serviços) variam em quatro eixos (etapas, dados, regras por etapa, integrações), sempre com parte comum e parte específica; são poucos tipos, estáveis e definidos em código; é preciso histórico de transições e retorno de etapa.
 

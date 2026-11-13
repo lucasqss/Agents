@@ -259,4 +259,4 @@ docker compose up --build     # app empacotada + PostgreSQL (rode ./mvnw package
 
 Em produção, informe o banco com `DB_URL`, `DB_USER` e `DB_PASSWORD`, e a tesouraria com `TESOURARIA_URL`. Em `quarkus:dev`, sem uma tesouraria em `http://localhost:8089`, o `pagar` retorna 503.
 
-Cópia do exemplo mantido em um repositório privado (branch `exemplo-cqrs`). Rode os comandos acima de dentro desta pasta.
+Cópia do exemplo mantido em um repositório privado (branch `exemplo-negocial`). Rode os comandos acima de dentro desta pasta.
