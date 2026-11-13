@@ -12,7 +12,8 @@ A pasta é a do agregado principal da operação. Excluir uma cota verifica proc
 - Roteiro: buscar o agregado pelo repositório do domínio (`orElseThrow(() -> new NaoEncontradoException(...))`), chamar o método de negócio, salvar.
 - A regra fica no domínio. Se o caso de uso começar a ter `if` de negócio, mova para a entidade.
 - Pode usar repositórios de vários agregados: é aqui que dois agregados se encontram.
-- Pode chamar `*Gateway`. Faça a transição do domínio **antes** da chamada externa, para que uma transição inválida nem chegue ao sistema externo.
+- Pode chamar `*Gateway`. Confira a regra do domínio **antes** da chamada externa, para que um pedido inválido nem chegue ao sistema externo. Se a chamada tem efeito lá (cria, paga, envia), siga [transação e sistema externo](transacao-e-sistema-externo.md).
+- Diga o que acontece com duas requisições simultâneas e com a mesma requisição repetida: [concorrência](concorrencia.md).
 - Proibido importar `*Entity`, Jakarta Data, JPA, as implementações de `persistence/` ou qualquer `*QueryRepository`.
 
 Precisa consultar algo para validar ou decidir a escrita?

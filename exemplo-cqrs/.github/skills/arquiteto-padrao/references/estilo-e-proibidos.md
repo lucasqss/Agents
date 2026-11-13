@@ -13,6 +13,8 @@
 - Panache. A persistência é só Jakarta Data; gravar é sempre explícito (`@Insert`/`@Update`), sem dirty checking.
 - `*Entity` com qualquer método além de getter e setter.
 - Lombok, MapStruct, `@Query(nativeQuery)` ou SQL nativo. Mappers são escritos à mão; consultas são HQL validado na compilação.
+- `double` ou `float` para dinheiro, e conta com `BigDecimal` solto no domínio. Valor monetário é `Dinheiro` ([valores](valores.md)).
+- Chamar sistema externo com efeito sem chave de idempotência ([concorrência](concorrencia.md)).
 - Herança JPA. Uma tabela por agregado; subtipos são reconstruídos pelo mapper.
 - DTO ou client de sistema externo fora de `gateway/<sistema>/`. Gateway nunca importa o domínio; a única exceção é o `XGatewayAdapter` ([gateway](gateway.md)).
 - Classe do catálogo corporativo (dependência Maven gerada de outro sistema) fora de `gateway/` e `entrypoint/`. Para o caso de uso, o Gateway devolve tipo simples ou record próprio ([gateway](gateway.md)).

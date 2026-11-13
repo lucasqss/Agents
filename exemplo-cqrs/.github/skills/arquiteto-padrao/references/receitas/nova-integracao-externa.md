@@ -9,4 +9,5 @@ Entradas necessárias: o nome do sistema (ex.: "cadastro-corporativo"), a opera�
 4. `XGateway` com uma API simples no nosso vocabulário, devolvendo tipo simples ou record próprio (sem classe do catálogo nem DTO externo dentro); traduz e converte qualquer falha em `SistemaExternoIndisponivelException("<Sistema>", causa)`. Não importa nada de `application/` nem de `domain/`.
 5. Configuração: `quarkus.rest-client.<sistema>.url=${<SISTEMA>_URL:http://localhost:...}` e `%test.quarkus.rest-client.<sistema>.url` apontando para o stub.
 6. Service Stub de teste em `src/test/java/**/integracao/` (recurso JAX-RS) com chave para simular falha, e um teste do 503.
-7. Só um caso de uso chama o Gateway. Rode `./mvnw verify`.
+7. Só um caso de uso chama o Gateway. Se a operação tem efeito no sistema externo e o caso de uso também grava, escolha a forma em [transação e sistema externo](../transacao-e-sistema-externo.md) e envie chave de idempotência.
+8. Rode `./mvnw verify`.

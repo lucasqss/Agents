@@ -44,6 +44,84 @@ public class Cota {
 }
 ```
 
+## Value Object e Money
+
+Em `domain/` (raiz, porque vários agregados usam). Regras em [valores](valores.md).
+
+```java
+/** Padrão: Money [PoEAA], como Value Object. Valor monetário com duas casas. */
+public record Dinheiro(BigDecimal valor) implements Comparable<Dinheiro> {
+
+    private static final int CASAS = 2;
+
+    public static final Dinheiro ZERO = new Dinheiro(BigDecimal.ZERO);
+
+    public Dinheiro {
+        if (valor == null) {
+            throw new DominioException("Valor monetário é obrigatório");
+        }
+        if (valor.stripTrailingZeros().scale() > CASAS) {
+            throw new DominioException("Valor monetário tem no máximo " + CASAS + " casas decimais");
+        }
+        valor = valor.setScale(CASAS);
+    }
+
+    public static Dinheiro de(BigDecimal valor) {
+        return new Dinheiro(valor);
+    }
+
+    public Dinheiro somar(Dinheiro outro) {
+        return new Dinheiro(valor.add(outro.valor));
+    }
+
+    /** Multiplica por um fator (ex.: taxa) e arredonda o centavo para o par mais próximo. */
+    public Dinheiro multiplicar(BigDecimal fator) {
+        return new Dinheiro(valor.multiply(fator).setScale(CASAS, RoundingMode.HALF_EVEN));
+    }
+
+    /** Partes que somam exatamente o total: os centavos que sobram vão para as primeiras. */
+    public List<Dinheiro> ratear(int partes) {
+        if (partes <= 0) {
+            throw new DominioException("Rateio precisa de ao menos uma parte");
+        }
+        BigInteger[] divisao = valor.unscaledValue().divideAndRemainder(BigInteger.valueOf(partes));
+        int sobra = divisao[1].abs().intValue();
+        BigInteger centavo = BigInteger.valueOf(divisao[1].signum());
+        List<Dinheiro> resultado = new ArrayList<>(partes);
+        for (int i = 0; i < partes; i++) {
+            BigInteger centavos = i < sobra ? divisao[0].add(centavo) : divisao[0];
+            resultado.add(new Dinheiro(new BigDecimal(centavos, CASAS)));
+        }
+        return List.copyOf(resultado);
+    }
+
+    public boolean positivo() {
+        return valor.signum() > 0;
+    }
+
+    @Override
+    public int compareTo(Dinheiro outro) {
+        return valor.compareTo(outro.valor);
+    }
+}
+```
+
+A entidade recebe o valor pronto e o mapper converte para a coluna:
+
+```java
+// domínio
+if (valorCredito == null || !valorCredito.positivo()) {
+    throw new DominioException("Valor do crédito precisa ser positivo");
+}
+
+// caso de uso: o DadosX traz BigDecimal
+Cota cota = Cota.nova(dados.numero(), Dinheiro.de(dados.valorCredito()), dados.clienteId());
+
+// mapper
+Cota.reconstituir(entity.getId(), entity.getNumero(), Dinheiro.de(entity.getValorCredito()), entity.getClienteId());
+entity.setValorCredito(cota.valorCredito().valor());
+```
+
 ## Ciclo de vida (State dirigido por tabela)
 
 Estados e ações são enums; a tabela diz de qual estado se vai para qual. Ficam em `domain/processo/fluxo/`.

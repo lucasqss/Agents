@@ -137,7 +137,7 @@ Só o que 2 ou mais agregados usam, e só estes tipos (além deles, toda camada 
 |---|---|
 | `entrypoint/` | `ExceptionMappers`, `ErroResponse`, `IdCriado` |
 | `application/` | exceções comuns (`NaoEncontradoException`, `ConflitoException`), `Pagina` |
-| `domain/` | `DominioException` |
+| `domain/` | `DominioException`, `Dinheiro` |
 | `gateway/` | `SistemaExternoIndisponivelException` |
 
 Se algo usado por vários agregados não está nessa lista, pare e pergunte ao dono.
@@ -209,6 +209,7 @@ Nenhum dos dois tem `domain`, `persistence`, JPA nem transação: o `verify` fal
 |---|---|---|
 | Regra de negócio, validação de negócio | `domain/<agregado>/`, na entidade. Nunca no use case, no resource nem na `*Entity` | [dominio](references/dominio.md) |
 | Ciclo de vida: estado, ação ou transição nova; fluxo que muda por tipo | enums e tabela de transições em `domain/<agregado>/fluxo/`; desvios de cada tipo em `domain/<agregado>/tipo/`. Sem `if (tipo == ...)` na entidade | [dominio](references/dominio.md) |
+| Valor com regra própria e sem identidade (dinheiro, CPF, período) | `record` em `domain/<agregado>/`, ou na raiz de `domain/` se vários agregados usam. Dinheiro é sempre `Dinheiro`, nunca `BigDecimal` solto | [valores](references/valores.md) |
 | Consultar algo para decidir uma escrita (existe? está ativo?) | método novo em `domain/<agregado>/XRepository`, implementado em `persistence/<agregado>/`. Nunca um `*QueryRepository` | [use-cases](references/use-cases.md) |
 | Validar o formato da entrada (obrigatório, tamanho, faixa) | `XRequest` (record) em `entrypoint/<via>/<agregado>/`, com Bean Validation | [canais](references/canais.md) |
 | Gravar algo | `application/<agregado>/XUseCase`: carrega pelo repositório, chama o método de negócio, salva | [use-cases](references/use-cases.md) |
@@ -221,6 +222,9 @@ Nenhum dos dois tem `domain`, `persistence`, JPA nem transação: o `verify` fal
 | Número com significado de negócio (total pago, saldo) | uma consulta em `persistence/<agregado>/`, não o Assembler | [canais](references/canais.md) |
 | Consumidor de fila ou tópico | `entrypoint/mensageria/<agregado>/` (só chama caso de uso) | |
 | Job agendado ou processamento de arquivo | `entrypoint/batch/<agregado>/` (só chama caso de uso) | |
+| Duas requisições ao mesmo tempo, ou a mesma duas vezes | versão no agregado; bloqueio quando o caso de uso confere e depois age | [concorrência](references/concorrencia.md) |
+| Gravar e chamar sistema externo na mesma operação | caso de uso, numa das três formas descritas; a escolha do projeto fica em ADR | [transação e sistema externo](references/transacao-e-sistema-externo.md) |
+| Usar um padrão que o projeto ainda não usa (Special Case, Query Object, Plugin...) | confira antes se é usado, proibido ou sob demanda | [padrões do PoEAA](references/padroes-poeaa.md) |
 | Coordenar dois agregados | um caso de uso, em `application/<agregado principal>/` | [use-cases](references/use-cases.md) |
 | Conversão entre modelo externo e o nosso (só em ACL) | `translator/<sistema>/XTranslator` | [tipo ACL](references/tipo-acl.md) |
 | Tela que junta dados de vários negociais (só em BFF) | `application/<recurso>/XUseCase` + Assembler em `entrypoint/<canal>/<recurso>/` | [tipo BFF](references/tipo-bff.md) |
@@ -235,6 +239,8 @@ Antes de terminar: confira [estilo e proibidos](references/estilo-e-proibidos.md
 
 Siga a ordem e pare se algum passo exigir quebrar uma regra.
 
+- [Nova funcionalidade, de ponta a ponta](references/receitas/nova-funcionalidade.md)
+- [Novo agregado](references/receitas/novo-agregado.md)
 - [Novo caso de uso de escrita](references/receitas/novo-caso-de-uso-escrita.md)
 - [Novo estado, ação ou tipo em um fluxo](references/receitas/novo-estado-acao-ou-tipo.md)
 - [Nova consulta](references/receitas/nova-consulta.md)
@@ -242,6 +248,7 @@ Siga a ordem e pare se algum passo exigir quebrar uma regra.
 - [Nova integração externa](references/receitas/nova-integracao-externa.md)
 - [Nova tradução em um ACL](references/tipo-acl.md#receita-nova-operação-de-tradução)
 - [Nova tela em um BFF](references/tipo-bff.md#receita-nova-tela)
+- [Nova decisão de arquitetura (ADR)](references/receitas/nova-decisao.md)
 
 ## Convenções
 

@@ -26,5 +26,6 @@ Regras:
 - **A única exceção é o `XGatewayAdapter`**, usado quando uma regra do domínio precisa de um sistema externo: a interface fica em `domain/<agregado>/` e a implementação em `gateway/<sistema>/XGatewayAdapter.java`. Ele só traduz entre domínio e Gateway, não orquestra nem acessa banco, e ninguém o referencia pelo nome, só pela interface (CMD-006, CMD-007, CMD-008).
 - Um sistema externo não depende de outro; quem combina dois sistemas é o caso de uso.
 - Só casos de uso chamam gateways.
+- Operação com efeito no sistema externo envia uma chave de idempotência estável, montada no Gateway a partir do que identifica a operação no nosso lado ([concorrência](concorrencia.md)). `@Retry` em operação com efeito só com essa chave.
 - `@RegisterRestClient`, `@Timeout`, `@Retry` e `@CircuitBreaker` só existem em `gateway/`.
 - Nos testes, nunca chame o sistema real: crie um Service Stub (recurso JAX-RS fake, [exemplo](exemplos-codigo.md)) e aponte `%test.quarkus.rest-client.<sistema>.url` para ele.
