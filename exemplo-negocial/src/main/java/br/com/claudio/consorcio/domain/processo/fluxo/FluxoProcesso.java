@@ -22,6 +22,9 @@ public final class FluxoProcesso {
     public static Builder comum() {
         return new Builder()
                 .transicao(EstadoProcesso.ABERTO, AcaoProcesso.INICIAR_ANALISE, EstadoProcesso.EM_ANALISE)
+                .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.SOLICITAR_DOCUMENTO, EstadoProcesso.PENDENTE_DOCUMENTO)
+                .transicao(EstadoProcesso.PENDENTE_DOCUMENTO, AcaoProcesso.RECEBER_DOCUMENTO, EstadoProcesso.EM_ANALISE)
+                .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.REPROVAR, EstadoProcesso.REPROVADO)
                 .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.CONCLUIR_ANALISE, EstadoProcesso.APROVADO)
                 .transicao(EstadoProcesso.APROVADO, AcaoProcesso.DEVOLVER_PARA_ANALISE, EstadoProcesso.EM_ANALISE)
                 .transicao(EstadoProcesso.APROVADO, AcaoProcesso.PAGAR, EstadoProcesso.PAGO);

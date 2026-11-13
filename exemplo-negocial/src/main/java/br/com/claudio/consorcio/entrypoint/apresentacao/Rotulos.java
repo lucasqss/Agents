@@ -11,9 +11,11 @@ public final class Rotulos {
     private static final Map<String, String> ESTADOS = Map.of(
             "ABERTO", "Aberto",
             "EM_ANALISE", "Em análise",
+            "PENDENTE_DOCUMENTO", "Pendente de documento",
             "AGUARDANDO_VISTORIA", "Aguardando vistoria",
             "APROVADO", "Aprovado",
             "PAGO", "Pago",
+            "REPROVADO", "Reprovado",
             "CANCELADO", "Cancelado");
 
     private static final Map<String, String> TIPOS = Map.of(

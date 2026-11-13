@@ -58,7 +58,7 @@ class ConcorrenciaProcessoTest {
 
         acao(id, "iniciar-analise").statusCode(200);
 
-        leituraAntiga.executar(AcaoProcesso.CANCELAR, AGORA, null);
+        leituraAntiga.executar(AcaoProcesso.CANCELAR, AGORA, "desistência");
         assertThrows(AlteracaoConcorrenteException.class,
                 () -> QuarkusTransaction.requiringNew().run(() -> processos.salvar(leituraAntiga)));
         EstadoProcesso gravado = QuarkusTransaction.requiringNew()

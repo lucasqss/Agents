@@ -34,7 +34,7 @@ class FluxoProcessoImobiliarioTest {
 
         acao(processo, "concluir-vistoria").statusCode(200).body("estado", equalTo("APROVADO"));
         acao(processo, "pagar").statusCode(200).body("estado", equalTo("PAGO"));
-        acao(processo, "cancelar").statusCode(409);
+        Api.acaoComMotivo(processo, "cancelar", "desistência").statusCode(409);
 
         given().queryParam("tipo", "IMOBILIARIO").queryParam("estado", "PAGO").queryParam("tamanho", 100)
                 .when().get("/processos").then().statusCode(200)

@@ -6,12 +6,17 @@ import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCLU
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.DEVOLVER_PARA_ANALISE;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.INICIAR_ANALISE;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.PAGAR;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.RECEBER_DOCUMENTO;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.REPROVAR;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.SOLICITAR_DOCUMENTO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.ABERTO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.AGUARDANDO_VISTORIA;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.APROVADO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.CANCELADO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.EM_ANALISE;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.PAGO;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.PENDENTE_DOCUMENTO;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.REPROVADO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -20,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import br.com.claudio.consorcio.domain.DominioException;
 import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
 import br.com.claudio.consorcio.domain.processo.fluxo.TransicaoInvalidaException;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
@@ -85,7 +91,7 @@ class ProcessoPagamentoTest {
         void podeCancelarAguardandoVistoria() {
             processo.executar(INICIAR_ANALISE, AGORA, null);
             processo.executar(CONCLUIR_ANALISE, AGORA, null);
-            processo.executar(CANCELAR, AGORA, null);
+            processo.executar(CANCELAR, AGORA, "desistência");
 
             assertEquals(CANCELADO, processo.estado());
         }
@@ -135,11 +141,11 @@ class ProcessoPagamentoTest {
     @EnumSource(TipoProcesso.class)
     void cancelaEmEstadosNaoFinais(TipoProcesso tipo) {
         ProcessoPagamento aberto = ProcessoPagamento.novo(tipo, COTA);
-        aberto.executar(CANCELAR, AGORA, null);
+        aberto.executar(CANCELAR, AGORA, "desistência");
         assertEquals(CANCELADO, aberto.estado());
 
         ProcessoPagamento aprovado = aprovado(tipo);
-        aprovado.executar(CANCELAR, AGORA, null);
+        aprovado.executar(CANCELAR, AGORA, "desistência");
         assertEquals(CANCELADO, aprovado.estado());
     }
 
@@ -154,7 +160,7 @@ class ProcessoPagamentoTest {
         }
 
         ProcessoPagamento cancelado = ProcessoPagamento.novo(tipo, COTA);
-        cancelado.executar(CANCELAR, AGORA, null);
+        cancelado.executar(CANCELAR, AGORA, "desistência");
         assertFalse(cancelado.ativo());
         for (AcaoProcesso acao : AcaoProcesso.values()) {
             invalida(cancelado, acao);
@@ -229,7 +235,7 @@ class ProcessoPagamentoTest {
         ProcessoPagamento imobiliario = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA);
         imobiliario.executar(INICIAR_ANALISE, AGORA, null);
         imobiliario.executar(CONCLUIR_ANALISE, AGORA, null);
-        imobiliario.executar(DEVOLVER_PARA_ANALISE, AGORA, null);
+        imobiliario.executar(DEVOLVER_PARA_ANALISE, AGORA, "documento divergente");
         assertEquals(EM_ANALISE, imobiliario.estado());
 
         ProcessoPagamento servico = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA);
@@ -268,6 +274,101 @@ class ProcessoPagamentoTest {
     void processoReconstituidoNaoTrazTransicoesAntigas() {
         ProcessoPagamento lido = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, EM_ANALISE, null, 1);
         assertTrue(lido.novasTransicoes().isEmpty());
+    }
+
+    @ParameterizedTest
+    @EnumSource(TipoProcesso.class)
+    void solicitarDocumentoLevaAPendenteEReceberVoltaParaAnalise(TipoProcesso tipo) {
+        ProcessoPagamento processo = emAnalise(tipo);
+
+        processo.executar(SOLICITAR_DOCUMENTO, AGORA, "certidão vencida");
+        assertEquals(PENDENTE_DOCUMENTO, processo.estado());
+        assertEquals(Set.of(RECEBER_DOCUMENTO, CANCELAR), processo.acoesDisponiveis());
+
+        processo.executar(RECEBER_DOCUMENTO, AGORA, null);
+        assertEquals(EM_ANALISE, processo.estado());
+        assertEquals(List.of(
+                new Transicao(EM_ANALISE, PENDENTE_DOCUMENTO, SOLICITAR_DOCUMENTO, AGORA, "certidão vencida"),
+                new Transicao(PENDENTE_DOCUMENTO, EM_ANALISE, RECEBER_DOCUMENTO, AGORA, null)),
+                processo.novasTransicoes().subList(1, 3));
+    }
+
+    @ParameterizedTest
+    @EnumSource(TipoProcesso.class)
+    void reprovarSoValeEmAnaliseELevaAEstadoFinal(TipoProcesso tipo) {
+        ProcessoPagamento processo = emAnalise(tipo);
+
+        processo.executar(REPROVAR, AGORA, "favorecido divergente");
+
+        assertEquals(REPROVADO, processo.estado());
+        assertFalse(processo.ativo());
+        assertTrue(processo.acoesDisponiveis().isEmpty());
+        for (AcaoProcesso acao : AcaoProcesso.values()) {
+            invalida(processo, acao);
+        }
+        invalida(ProcessoPagamento.novo(tipo, COTA), REPROVAR);
+        invalida(aprovado(tipo), REPROVAR);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = AcaoProcesso.class, names = {"SOLICITAR_DOCUMENTO", "REPROVAR", "DEVOLVER_PARA_ANALISE",
+            "CANCELAR"})
+    void acaoQueExigeMotivoERecusadaSemEle(AcaoProcesso acao) {
+        assertTrue(acao.exigeMotivo());
+        for (String motivo : new String[] {null, "", "   \t "}) {
+            ProcessoPagamento processo = aprovadoOuEmAnalise(acao);
+            EstadoProcesso antes = processo.estado();
+            int transicoes = processo.novasTransicoes().size();
+
+            assertThrows(DominioException.class, () -> processo.executar(acao, AGORA, motivo));
+
+            assertEquals(antes, processo.estado(), "recusa não muda o estado");
+            assertEquals(transicoes, processo.novasTransicoes().size(), "recusa não entra no histórico");
+        }
+    }
+
+    @Test
+    void soEstasAcoesExigemMotivo() {
+        Set<AcaoProcesso> exigem = Set.of(SOLICITAR_DOCUMENTO, REPROVAR, DEVOLVER_PARA_ANALISE, CANCELAR);
+        for (AcaoProcesso acao : AcaoProcesso.values()) {
+            assertEquals(exigem.contains(acao), acao.exigeMotivo(), acao.name());
+        }
+    }
+
+    @Test
+    void motivoFicaNoHistoricoSemOsEspacosDasPontas() {
+        ProcessoPagamento processo = emAnalise(TipoProcesso.SERVICO);
+
+        processo.executar(CANCELAR, AGORA, "  desistência da cota  ");
+
+        assertEquals("desistência da cota", processo.novasTransicoes().getLast().observacao());
+    }
+
+    @Test
+    void motivoComMaisDe500CaracteresERecusado() {
+        ProcessoPagamento processo = emAnalise(TipoProcesso.SERVICO);
+
+        assertThrows(DominioException.class, () -> processo.executar(CANCELAR, AGORA, "x".repeat(501)));
+        processo.executar(CANCELAR, AGORA, "x".repeat(500));
+        assertEquals(CANCELADO, processo.estado());
+    }
+
+    @Test
+    void acaoForaDeOrdemContinuaSendoTransicaoInvalidaMesmoSemMotivo() {
+        ProcessoPagamento aberto = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA);
+
+        assertThrows(TransicaoInvalidaException.class, () -> aberto.executar(REPROVAR, AGORA, null));
+    }
+
+    private static ProcessoPagamento emAnalise(TipoProcesso tipo) {
+        ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA);
+        processo.executar(INICIAR_ANALISE, AGORA, null);
+        return processo;
+    }
+
+    /** Um processo no estado em que a ação vale (devolver vale em aprovado; as demais, em análise). */
+    private static ProcessoPagamento aprovadoOuEmAnalise(AcaoProcesso acao) {
+        return acao == DEVOLVER_PARA_ANALISE ? aprovado(TipoProcesso.SERVICO) : emAnalise(TipoProcesso.SERVICO);
     }
 
     private static void invalida(ProcessoPagamento processo, AcaoProcesso acao) {

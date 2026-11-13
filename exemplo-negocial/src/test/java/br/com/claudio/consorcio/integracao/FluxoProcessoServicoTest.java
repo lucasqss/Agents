@@ -50,7 +50,7 @@ class FluxoProcessoServicoTest {
         long cota = Api.criarCota(cliente);
         long processo = Api.criarProcesso(cota, "SERVICO");
 
-        acao(processo, "cancelar").statusCode(200).body("estado", equalTo("CANCELADO"));
+        Api.acaoComMotivo(processo, "cancelar", "desistência da cota").statusCode(200).body("estado", equalTo("CANCELADO"));
         acao(processo, "iniciar-analise").statusCode(409);
 
         given().when().delete("/clientes/" + cliente).then().statusCode(409);

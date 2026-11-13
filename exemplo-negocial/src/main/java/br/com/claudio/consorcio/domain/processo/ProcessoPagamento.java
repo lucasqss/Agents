@@ -58,10 +58,17 @@ public final class ProcessoPagamento {
         return new ProcessoPagamento(id, cotaId, tipo, estado, protocoloPagamento, versao);
     }
 
-    /** Aplica a ação; se o fluxo do tipo não a aceita no estado atual, lança TransicaoInvalidaException. */
+    /**
+     * Aplica a ação; se o fluxo do tipo não a aceita no estado atual, lança TransicaoInvalidaException.
+     * Ação que exige motivo ({@link AcaoProcesso#exigeMotivo()}) é recusada sem ele; o motivo vai ao histórico
+     * como observação.
+     */
     public void executar(AcaoProcesso acao, Instant quando, String observacao) {
         if (tipo.fluxo().proximo(estado, acao) == EstadoProcesso.PAGO) {
             throw new DominioException("Processo só fica pago com o protocolo da tesouraria");
+        }
+        if (acao.exigeMotivo() && (observacao == null || observacao.isBlank())) {
+            throw new DominioException("Motivo é obrigatório para " + acao.descricao() + " um processo");
         }
         transitar(acao, quando, observacao);
     }

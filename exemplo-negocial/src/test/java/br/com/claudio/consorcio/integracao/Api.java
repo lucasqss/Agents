@@ -38,6 +38,11 @@ final class Api {
         return given().when().post("/processos/" + processoId + "/" + acao).then();
     }
 
+    /** Ação cujo corpo é obrigatório e traz o motivo. */
+    static ValidatableResponse acaoComMotivo(long processoId, String acao, String motivo) {
+        return post("/processos/" + processoId + "/" + acao, Map.of("motivo", motivo));
+    }
+
     static ValidatableResponse post(String path, Object corpo) {
         return given().contentType(ContentType.JSON).body(corpo).when().post(path).then();
     }

@@ -23,11 +23,20 @@ class OpenApiTest {
     @Test
     void corpoDasAcoesDoProcessoEhOpcional() {
         for (String acao : new String[] {"iniciar-analise", "concluir-analise", "concluir-vistoria",
-                "devolver-para-analise", "cancelar"}) {
+                "receber-documento"}) {
             given().when().get("/q/openapi?format=json").then()
                     .statusCode(200)
                     .body("paths.'/processos/{id}/" + acao + "'.post.requestBody.required",
                             anyOf(nullValue(), equalTo(false)));
+        }
+    }
+
+    @Test
+    void corpoDasAcoesComMotivoEhObrigatorio() {
+        for (String acao : new String[] {"solicitar-documento", "reprovar", "devolver-para-analise", "cancelar"}) {
+            given().when().get("/q/openapi?format=json").then()
+                    .statusCode(200)
+                    .body("paths.'/processos/{id}/" + acao + "'.post.requestBody.required", equalTo(true));
         }
     }
 }

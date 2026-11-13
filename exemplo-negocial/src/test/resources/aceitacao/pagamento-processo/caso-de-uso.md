@@ -309,3 +309,115 @@ Nenhuma vira regra, teste ou código enquanto estiver sem resposta. Dúvida resp
 | D36 | O backoffice pode alterar valor e favorecidos em pendente de documento? (O dono disse "só em análise".) | Não: recusada, só em análise (R25). | RESPONDIDA em 13/11/2026: aceita a proposta. Não: recusada, só em análise. R25. |
 | D37 | Quem é "o cliente" que altera, concorda ou discorda: o cliente da cota, só ele? Ele consulta a alteração proposta e por qual canal? | Só o cliente da cota altera em aberto, concorda e discorda, e consulta a proposta e o histórico. | RESPONDIDA em 13/11/2026: aceita a proposta. Só o cliente da cota altera em aberto, concorda e discorda, e consulta a proposta e o histórico. R18, R24, R26, R27. |
 | D38 | Enquanto aguarda a concordância, o valor vigente (consulta e conta do crédito, R13) continua o anterior? | Sim: a alteração só vale com a concordância (R26). | RESPONDIDA em 13/11/2026: aceita a proposta. Sim: a alteração só vale com a concordância. R25, R26. |
+
+## Contrato usado
+
+Seção mantida pela skill de testes. Estado: **fatia 1 de 7** (a implementação ainda não existe; o contrato abaixo foi definido pelo time de implementação e é o que os testes usam). O que não está aqui não é conhecido pelos testes.
+
+### Ações sobre o processo (fatia 1)
+
+Todas `POST /processos/{id}/<acao>`, resposta `200` com `{"estado": "<SITUACAO>"}`.
+
+| Ação | Corpo |
+|---|---|
+| `iniciar-analise`, `concluir-analise`, `concluir-vistoria`, `receber-documento` | opcional: `{"observacao": "texto"}` (até 500 caracteres). Sem corpo e sem Content-Type também vale |
+| `solicitar-documento`, `reprovar`, `devolver-para-analise`, `cancelar` | obrigatório: `{"motivo": "texto"}`, não vazio nem só espaços, até 500 caracteres |
+| `pagar` | nenhum (como hoje; some na fatia 5) |
+
+| Status | Quando |
+|---|---|
+| 400 | motivo ausente, vazio, só espaços ou acima de 500 caracteres; corpo ausente em ação que exige motivo; JSON malformado. Quando o problema é o motivo, `campos` traz o campo `motivo`. O processo não muda |
+| 404 | processo inexistente |
+| 409 | ação fora da ordem (R5); a situação não muda |
+| 415 | corpo com conteúdo e tipo que não é JSON |
+| 503 | `pagar` com a tesouraria indisponível (comportamento de hoje; muda na fatia 5) |
+
+Formato único de erro: `{"mensagem": "...", "campos": [{"campo": "...", "mensagem": "..."}]}`.
+
+### Consultas
+
+| Operação | Resposta |
+|---|---|
+| `GET /processos/{id}/acoes` | `{"acoes": ["iniciar-analise", ...]}`: as ações aceitas na situação atual, com os nomes das ações acima |
+| `GET /processos/{id}/historico` | lista em ordem cronológica; cada item tem `de`, `para`, `acao`, `quando`, `observacao`. O motivo informado aparece em `observacao` (um campo só, para motivo e observação). `acao` segue o padrão observado no sistema de hoje: nome do caminho em maiúsculas com `_` (`INICIAR_ANALISE`, `CONCLUIR_VISTORIA`, `PAGAR`, `CANCELAR`); as novas seguem o mesmo padrão (`SOLICITAR_DOCUMENTO`, `RECEBER_DOCUMENTO`, `REPROVAR`, `DEVOLVER_PARA_ANALISE`) |
+| `GET /processos?tipo=&estado=&pagina=&tamanho=` | `{"itens": [{"id", "cotaId", "tipo", "estado", "protocoloPagamento", ...}], "pagina", "tamanho", "total"}`; `estado` aceita também `PENDENTE_DOCUMENTO` e `REPROVADO` |
+
+### Que continua como hoje (testes mantidos)
+
+| Operação | Entrada e resposta |
+|---|---|
+| `POST /processos` | `{"cotaId", "tipo"}` (`SERVICO` ou `IMOBILIARIO`); `201` com `{"id"}`; `400` com `campos` (`cotaId` ou `tipo` ausente, tipo fora da lista, corpo vazio ou malformado); `404` cota inexistente; `409` cota com processo em andamento. Valor e favorecidos entram nas fatias 2 e 3 |
+| `pagar` | de APROVADO para PAGO, com `protocoloPagamento` do processo preenchido pelo protocolo da tesouraria; tesouraria indisponível: 503, e o processo continua APROVADO |
+| Pré-condições de cadastro | `POST /clientes` e `POST /cotas`, só para criar dados próprios de cada caso |
+
+## Modelo
+
+Máquina de estados de negócio da **fatia 1** (o que não está listado numa situação é recusado, R5, com 409). Implementada em `ModeloPagamentoProcesso`, que gera os casos.
+
+| Situação | Serviço | Imobiliário |
+|---|---|---|
+| ABERTO | iniciar análise → EM_ANALISE; cancelar* → CANCELADO | igual |
+| EM_ANALISE | solicitar documento* → PENDENTE_DOCUMENTO; reprovar* → REPROVADO; concluir análise → APROVADO; cancelar* → CANCELADO | igual, mas concluir análise → AGUARDANDO_VISTORIA |
+| PENDENTE_DOCUMENTO | receber documento → EM_ANALISE; cancelar* → CANCELADO | igual |
+| AGUARDANDO_VISTORIA | não existe | concluir vistoria → APROVADO; devolver para análise* → EM_ANALISE; cancelar* → CANCELADO |
+| APROVADO | pagar → PAGO; devolver para análise* → EM_ANALISE; cancelar* → CANCELADO | igual |
+| PAGO, REPROVADO, CANCELADO | final: toda ação é recusada | igual |
+
+\* ação com motivo obrigatório. As demais ações com corpo (iniciar análise, concluir análise, concluir vistoria, receber documento) têm observação opcional.
+
+Critérios aplicados:
+
+- Máquina de estados: todas as transições (cada transição usada ao menos uma vez, em caminhos de ABERTO a uma situação final, sem repetir transição dentro de um caminho: 43 caminhos); cada situação final alcançada (PAGO, REPROVADO e CANCELADO, nos dois tipos); cada ação inválida em cada situação (110 pares: 52 no serviço e 58 no imobiliário, com a situação e o histórico conferidos depois).
+- Particionamento do motivo: ausente (objeto sem o campo, e corpo ausente), vazio, só espaços, 1, 500 e 501 caracteres (e 500 acentuados, para contar caracteres e não bytes).
+- Particionamento da observação: ausente (`{}` e sem corpo), curta, 500 caracteres.
+- Tabela de decisão da cota (R6): cada situação em andamento recusa; cada situação final libera; reprovado conferido à parte.
+- Cobertura de terminais: as nove ações do caminho, os campos `motivo` e `observacao`, os campos do histórico, os filtros `estado` novos, e os status 200, 400, 404, 409, 415 e 503.
+- Suposição de erro: JSON malformado e tipo de conteúdo que não é JSON em toda ação que recebe corpo.
+
+## Rastreabilidade
+
+Casos da fatia 1: 290 no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoAceitacaoIT` herda os mesmos). "Pendente: fatia N" marca regra cuja fatia ainda não chegou, sem teste.
+
+| Regra | Modelo e critério | Teste | Casos |
+|---|---|---|---|
+| R1 (parte: cota e tipo; hoje vale como antes) | Particionamento com Base Choice | `escolhaBaseAbreProcesso`, `tipoImobiliarioAbreProcesso`, `cotaInexistente`, `cotaAusente`, `tipoInvalido`, `tipoAusente`, `corpoMalformado`, `corpoVazio` | 8 |
+| R1 (valor e favorecidos obrigatórios) | | pendente: fatias 2 e 3 | |
+| R1 ("só o cliente abre") | | pendente: fatia 7 | |
+| R2 e R3 (parte: abertura, análise, documento, vistoria, aprovação, pagamento direto) | Máquina de estados: todas as transições e cada final | `fluxoChegaASituacaoFinal` | 43 |
+| R2 e R3 (aguardando alçada, aguardando concordância, pagamento solicitado) | | pendente: fatias 4, 5 e 6 | |
+| R4 (parte: reprovado final; cancelar com motivo) | Máquina de estados: finais e ação inválida; particionamento do motivo | `fluxoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada`, `motivoAusenteERecusado`, `corpoAusenteEmAcaoComMotivo`, `motivoInvalidoERecusado`, `motivoValidoFicaNoHistorico` | contado em cada teste |
+| R4 (cancelar em pagamento solicitado; só backoffice e aprovador; descartar alteração) | | pendente: fatias 5, 7 e 4 | |
+| R5 | Máquina de estados: cada ação inválida em cada situação; 404 em processo inexistente | `acaoForaDaOrdemERecusada`, `acaoEmProcessoInexistente` | 110, 9 |
+| R6 | Tabela de decisão: cada situação em andamento recusa, cada final libera, outra cota não impede, simultâneos | `cotaComProcessoEmAndamentoNaoAbreOutro`, `cotaComProcessoFinalizadoAbreOutro`, `reprovadoLiberaACota`, `processoDeOutraCotaNaoImpede`, `pedidosSimultaneosAbremUmUnicoProcesso` | 9, 6, 1, 1, 1 |
+| R7, R8 | | `pagamentoGuardaProtocolo`, `tesourariaIndisponivel` descrevem o comportamento de HOJE (pagar direto) e serão substituídos na fatia 5; regra nova: pendente: fatia 5 | 2 |
+| R9 | Cobertura de terminais: toda recusa traz `mensagem` | asserção de `mensagem` nos testes de recusa acima | contado em cada teste |
+| R10 | Máquina de estados: solicitar documento (com motivo) e receber documento; particionamento do motivo e da observação | `fluxoChegaASituacaoFinal`, `motivoAusenteERecusado`, `motivoValidoFicaNoHistorico`, `observacaoOpcionalAceitaObjetoVazio`, `observacaoFicaNoHistorico`, `acoesAceitasNaSituacao` | contado em cada teste |
+| R11 (parte: reprovar em análise) | Máquina de estados: transição, final e ação inválida (inclusive reprovar em aprovado); particionamento do motivo | os mesmos de R10 e `acaoForaDaOrdemERecusada` | contado em cada teste |
+| R11 (reprovar em aguardando alçada) | | pendente: fatia 6 | |
+| R12, R13, R14 | | pendente: fatia 2 (a parte de liberar a cota, R6, já tem teste) | |
+| R15, R29 | | pendente: fatia 3 | |
+| R16 | | pendente: fatia 6 | |
+| R17, R18 | | pendente: fatia 7 | |
+| R19 (parte: motivo ou observação de cada ação aceita no histórico; recusada não entra) | Efeito observável pelo histórico: `de`, `para`, `acao`, `quando` em ordem, `observacao` | `fluxoChegaASituacaoFinal`, `motivoValidoFicaNoHistorico`, `observacaoFicaNoHistorico`, `acaoForaDaOrdemERecusada` (histórico não muda), `motivoAusenteERecusado`, `corpoAusenteEmAcaoComMotivo`, `motivoInvalidoERecusado` | contado em cada teste |
+| R19 (autor da ação; tentativas e resultados da rotina; valores anterior e novo) | | pendente: fatia 7 (autor); fatias 4 e 5 (alterações e rotina) | |
+| R20, R21, R22, R31 | | pendente: fatia 5 | |
+| R23 (com D18) | Máquina de estados: devolver de aprovado e de aguardando vistoria; particionamento do motivo | `fluxoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada`, `motivoAusenteERecusado`, `motivoValidoFicaNoHistorico` | contado em cada teste |
+| R23 (devolver de aguardando alçada) | | pendente: fatia 6 | |
+| R24 a R28 | | pendente: fatia 4 | |
+| R30 | implantação | sem teste de aceitação | |
+| Contrato: consulta de ações | Cobertura de terminais; máquina de estados | `acoesAceitasNaSituacao` | 15 |
+| Contrato: listagem com `estado` novo | Cobertura de terminais | `listagemFiltraPorSituacoesNovas`, `listagemFiltraPorTipoESituacao`, `listagemPaginada` | 2, 1, 1 |
+| Contrato: 400 por JSON malformado e 415 por tipo de conteúdo | Suposição de erro, em toda ação com corpo | `jsonMalformadoNaAcao`, `corpoQueNaoEJsonNaAcao` | 8, 8 |
+
+### Dúvidas abertas da fatia 1 (nenhuma virou asserção)
+
+| Dúvida | Efeito no teste |
+|---|---|
+| Ação fora da ordem com motivo ausente (por exemplo, reprovar um processo aprovado sem corpo): vale 409 ou 400? | Os casos de ação inválida sempre enviam motivo válido, então só a ordem é testada |
+| Processo inexistente com motivo ausente: 404 ou 400? | `acaoEmProcessoInexistente` envia motivo válido |
+| Corpo ausente em ação que exige motivo: `campos` traz `motivo`? | O teste confere 400 e `mensagem`, não `campos` |
+| Observação vazia, só espaços ou acima de 500 caracteres: aceita ou recusada com 400? O contrato só lista o limite como "até 500" | Não testado: só observação curta e de 500 caracteres |
+| Motivo com espaços nas pontas: o histórico guarda como veio ou aparado? | Não testado |
+| `GET /processos/{id}/acoes` e `/historico` para processo inexistente: 404? | Não testado |
+| `observacao` no histórico quando nenhuma foi informada: `null` ou ausente? | Não testado |
+| Motivo ou observação com tipo errado (número, `null`) | Não testado; fica para a sessão exploratória |

@@ -12,7 +12,6 @@ import static org.hamcrest.Matchers.nullValue;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
@@ -28,13 +27,14 @@ class HistoricoERetornoDeEtapaTest {
         acao(processo, "concluir-analise").statusCode(200).body("estado", equalTo("AGUARDANDO_VISTORIA"));
         acoes(processo).body("acoes", contains("concluir-vistoria", "devolver-para-analise", "cancelar"));
 
-        comObservacao(processo, "devolver-para-analise", "Matrícula ilegível")
+        Api.acaoComMotivo(processo, "devolver-para-analise", "Matrícula ilegível")
                 .statusCode(200).body("estado", equalTo("EM_ANALISE"));
         acao(processo, "concluir-analise").statusCode(200);
         acao(processo, "concluir-vistoria").statusCode(200).body("estado", equalTo("APROVADO"));
         acoes(processo).body("acoes", contains("devolver-para-analise", "pagar", "cancelar"));
 
-        acao(processo, "devolver-para-analise").statusCode(200).body("estado", equalTo("EM_ANALISE"));
+        Api.acaoComMotivo(processo, "devolver-para-analise", "Documento divergente").statusCode(200)
+                .body("estado", equalTo("EM_ANALISE"));
         acao(processo, "concluir-analise").statusCode(200);
         acao(processo, "concluir-vistoria").statusCode(200);
         acao(processo, "pagar").statusCode(200).body("estado", equalTo("PAGO"));
@@ -58,17 +58,56 @@ class HistoricoERetornoDeEtapaTest {
     void servicoSoDevolveDepoisDeAprovado() {
         long processo = Api.criarProcesso(Api.criarCota(Api.criarCliente("Iara")), "SERVICO");
         acao(processo, "iniciar-analise").statusCode(200);
-        acao(processo, "devolver-para-analise").statusCode(409);
+        Api.acaoComMotivo(processo, "devolver-para-analise", "Falta documento").statusCode(409);
 
         acao(processo, "concluir-analise").statusCode(200).body("estado", equalTo("APROVADO"));
-        acao(processo, "devolver-para-analise").statusCode(200).body("estado", equalTo("EM_ANALISE"));
+        Api.acaoComMotivo(processo, "devolver-para-analise", "Falta documento").statusCode(200)
+                .body("estado", equalTo("EM_ANALISE"));
+    }
+
+    @Test
+    void documentoSolicitadoERecebidoFicaNoHistoricoComOMotivo() {
+        long processo = Api.criarProcesso(Api.criarCota(Api.criarCliente("Lia")), "SERVICO");
+        acao(processo, "iniciar-analise").statusCode(200);
+
+        Api.acaoComMotivo(processo, "solicitar-documento", "Certidão vencida").statusCode(200)
+                .body("estado", equalTo("PENDENTE_DOCUMENTO"));
+        acoes(processo).body("acoes", contains("receber-documento", "cancelar"));
+        acao(processo, "concluir-analise").statusCode(409);
+
+        acao(processo, "receber-documento").statusCode(200).body("estado", equalTo("EM_ANALISE"));
+
+        historico(processo)
+                .body("acao", contains("INICIAR_ANALISE", "SOLICITAR_DOCUMENTO", "RECEBER_DOCUMENTO"))
+                .body("[1].para", equalTo("PENDENTE_DOCUMENTO"))
+                .body("[1].observacao", equalTo("Certidão vencida"))
+                .body("[2].observacao", nullValue());
+    }
+
+    @Test
+    void reprovadoEFinalELiberaACota() {
+        long cota = Api.criarCota(Api.criarCliente("Davi"));
+        long processo = Api.criarProcesso(cota, "IMOBILIARIO");
+        acao(processo, "iniciar-analise").statusCode(200);
+
+        Api.acaoComMotivo(processo, "reprovar", "Favorecido divergente").statusCode(200)
+                .body("estado", equalTo("REPROVADO"));
+
+        acoes(processo).body("acoes", empty());
+        Api.acaoComMotivo(processo, "cancelar", "desistência").statusCode(409);
+        historico(processo).body("[1].acao", equalTo("REPROVAR"))
+                .body("[1].observacao", equalTo("Favorecido divergente"));
+        given().queryParam("estado", "REPROVADO").queryParam("tamanho", 100).when().get("/processos").then()
+                .statusCode(200).body("itens.id", org.hamcrest.Matchers.hasItem((int) processo));
+        Api.criarProcesso(cota, "SERVICO");
     }
 
     @Test
     void acaoRecusadaNaoEntraNoHistorico() {
         long processo = Api.criarProcesso(Api.criarCota(Api.criarCliente("João")), "SERVICO");
         acao(processo, "pagar").statusCode(409);
-        comObservacao(processo, "cancelar", "x".repeat(501)).statusCode(400);
+        Api.acaoComMotivo(processo, "cancelar", "x".repeat(501)).statusCode(400);
+        acao(processo, "cancelar").statusCode(400);
 
         historico(processo).body("$", empty());
     }
@@ -91,10 +130,6 @@ class HistoricoERetornoDeEtapaTest {
         return given().when().get("/processos/" + processo + "/historico").then().statusCode(200);
     }
 
-    private static ValidatableResponse comObservacao(long processo, String acao, String observacao) {
-        return given().contentType(ContentType.JSON).body(Map.of("observacao", observacao))
-                .when().post("/processos/" + processo + "/" + acao).then();
-    }
 
     @Test
     void corpoQueNaoEJsonEhRecusadoComFormatoPadraoESemMudarOEstado() {

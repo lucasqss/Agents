@@ -9,9 +9,11 @@ public enum EstadoProcesso {
 
     ABERTO(false),
     EM_ANALISE(false),
+    PENDENTE_DOCUMENTO(false),
     AGUARDANDO_VISTORIA(false),
     APROVADO(false),
     PAGO(true),
+    REPROVADO(true),
     CANCELADO(true);
 
     private final boolean finalizado;

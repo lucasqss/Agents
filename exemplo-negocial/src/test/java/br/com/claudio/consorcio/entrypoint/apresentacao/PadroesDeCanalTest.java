@@ -32,6 +32,8 @@ class PadroesDeCanalTest {
             nome       | Maria Aparecida dos Santos Oliveira | Maria Aparecida dos Santos Oliveira | Maria Oliveira | MARIA APARECIDA DOS
             estado     | AGUARDANDO_VISTORIA | Aguardando vistoria | Aguard. vistoria | AGUARDANDO VISTORIA
             estado     | EM_ANALISE          | Em análise          | Em análise       | EM ANALISE
+            estado     | PENDENTE_DOCUMENTO  | Pendente de documento | Pendente de documento | PENDENTE DE DOCUMENTO
+            estado     | REPROVADO           | Reprovado           | Reprovado        | REPROVADO
             estado     | null                | Sem processo        | Sem processo     | SEM PROCESSO
             tipo       | IMOBILIARIO         | Imobiliário         | Imóvel           | IMOBILIARIO
             tipo       | SERVICO             | Serviço             | Serviço          | SERVICO

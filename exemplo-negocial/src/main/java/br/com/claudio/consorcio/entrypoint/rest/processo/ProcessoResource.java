@@ -9,6 +9,7 @@ import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
 import br.com.claudio.consorcio.entrypoint.IdCriado;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import jakarta.ws.rs.Consumes;
@@ -38,6 +39,10 @@ public class ProcessoResource {
         static String texto(Observacao corpo) {
             return corpo == null ? null : corpo.observacao();
         }
+    }
+
+    /** Corpo obrigatório das ações que exigem motivo: o formato é conferido aqui, a regra é do domínio. */
+    public record Motivo(@NotBlank @Size(max = Transicao.TAMANHO_MAXIMO_DA_OBSERVACAO) String motivo) {
     }
 
     public record EstadoAtual(String estado) {
@@ -90,8 +95,8 @@ public class ProcessoResource {
     @POST
     @Path("/{id}/devolver-para-analise")
     @Consumes(MediaType.WILDCARD)
-    public EstadoAtual devolverParaAnalise(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
-        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.DEVOLVER_PARA_ANALISE, Observacao.texto(corpo)));
+    public EstadoAtual devolverParaAnalise(Long id, @RequestBody(required = true) @Valid @NotNull Motivo corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.DEVOLVER_PARA_ANALISE, corpo.motivo()));
     }
 
     @POST
@@ -103,7 +108,28 @@ public class ProcessoResource {
     @POST
     @Path("/{id}/cancelar")
     @Consumes(MediaType.WILDCARD)
-    public EstadoAtual cancelar(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
-        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CANCELAR, Observacao.texto(corpo)));
+    public EstadoAtual cancelar(Long id, @RequestBody(required = true) @Valid @NotNull Motivo corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CANCELAR, corpo.motivo()));
+    }
+
+    @POST
+    @Path("/{id}/solicitar-documento")
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual solicitarDocumento(Long id, @RequestBody(required = true) @Valid @NotNull Motivo corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.SOLICITAR_DOCUMENTO, corpo.motivo()));
+    }
+
+    @POST
+    @Path("/{id}/receber-documento")
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual receberDocumento(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.RECEBER_DOCUMENTO, Observacao.texto(corpo)));
+    }
+
+    @POST
+    @Path("/{id}/reprovar")
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual reprovar(Long id, @RequestBody(required = true) @Valid @NotNull Motivo corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.REPROVAR, corpo.motivo()));
     }
 }

@@ -50,6 +50,52 @@ public final class ApiAceitacao {
         return given().when().post("/processos/%d/%s".formatted(processo, acao)).then();
     }
 
+    /** Ação cujo corpo é obrigatório e traz o motivo: {"motivo": "..."} . */
+    public static ValidatableResponse executarComMotivo(long processo, String acao, String motivo) {
+        return executarComCorpo(processo, acao, Map.of("motivo", motivo));
+    }
+
+    /** Ação cujo corpo é opcional: {"observacao": "..."} . */
+    public static ValidatableResponse executarComObservacao(long processo, String acao, String observacao) {
+        return executarComCorpo(processo, acao, Map.of("observacao", observacao));
+    }
+
+    /** Corpo JSON como objeto (serializado) ou como texto cru, para poder enviar JSON malformado. */
+    public static ValidatableResponse executarComCorpo(long processo, String acao, Object corpo) {
+        return given().contentType(ContentType.JSON).body(corpo)
+                .when().post("/processos/%d/%s".formatted(processo, acao)).then();
+    }
+
+    /** Corpo com conteúdo e tipo escolhido pelo teste (ex.: text/plain). */
+    public static ValidatableResponse executarComConteudo(long processo, String acao, String tipo, String corpo) {
+        return given().contentType(tipo).body(corpo)
+                .when().post("/processos/%d/%s".formatted(processo, acao)).then();
+    }
+
+    public static List<String> consultarAcoes(long processo) {
+        return given().when().get("/processos/%d/acoes".formatted(processo)).then().statusCode(200)
+                .extract().jsonPath().getList("acoes");
+    }
+
+    public static List<Map<String, Object>> consultarHistorico(long processo) {
+        return given().when().get("/processos/%d/historico".formatted(processo)).then().statusCode(200)
+                .extract().jsonPath().getList("$");
+    }
+
+    /** Todos os processos da listagem filtrada por situação, percorrendo as páginas. */
+    public static List<Map<String, Object>> listarProcessosPorSituacao(String situacao) {
+        List<Map<String, Object>> todos = new ArrayList<>();
+        for (int pagina = 1;; pagina++) {
+            List<Map<String, Object>> itens = given().queryParam("estado", situacao)
+                    .queryParam("pagina", pagina).queryParam("tamanho", 100)
+                    .when().get("/processos").then().statusCode(200).extract().jsonPath().getList("itens");
+            if (itens.isEmpty()) {
+                return todos;
+            }
+            todos.addAll(itens);
+        }
+    }
+
     /** O contrato não tem consulta de processo por id: procura na listagem completa. */
     public static Map<String, Object> consultarProcesso(long processo) {
         return listarProcessos().stream()
