@@ -2,6 +2,7 @@ package br.com.claudio.consorcio.application.cota;
 
 import br.com.claudio.consorcio.application.ConflitoException;
 import br.com.claudio.consorcio.application.NaoEncontradoException;
+import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.cliente.ClienteRepository;
 import br.com.claudio.consorcio.domain.cota.Cota;
 import br.com.claudio.consorcio.domain.cota.CotaRepository;
@@ -23,7 +24,7 @@ public class AtualizarCotaUseCase {
     @Transactional
     public void executar(Long id, DadosCota dados) {
         Cota cota = cotas.buscarPorId(id).orElseThrow(() -> new NaoEncontradoException("Cota", id));
-        cota.alterar(dados.numero(), dados.valorCredito(), dados.clienteId());
+        cota.alterar(dados.numero(), Dinheiro.de(dados.valorCredito()), dados.clienteId());
         if (clientes.buscarPorId(cota.clienteId()).isEmpty()) {
             throw new NaoEncontradoException("Cliente", cota.clienteId());
         }

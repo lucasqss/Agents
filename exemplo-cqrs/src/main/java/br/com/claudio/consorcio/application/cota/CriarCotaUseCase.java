@@ -2,6 +2,7 @@ package br.com.claudio.consorcio.application.cota;
 
 import br.com.claudio.consorcio.application.ConflitoException;
 import br.com.claudio.consorcio.application.NaoEncontradoException;
+import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.cliente.ClienteRepository;
 import br.com.claudio.consorcio.domain.cota.Cota;
 import br.com.claudio.consorcio.domain.cota.CotaRepository;
@@ -22,7 +23,7 @@ public class CriarCotaUseCase {
 
     @Transactional
     public Long executar(DadosCota dados) {
-        Cota cota = Cota.nova(dados.numero(), dados.valorCredito(), dados.clienteId());
+        Cota cota = Cota.nova(dados.numero(), Dinheiro.de(dados.valorCredito()), dados.clienteId());
         if (clientes.buscarPorId(cota.clienteId()).isEmpty()) {
             throw new NaoEncontradoException("Cliente", cota.clienteId());
         }

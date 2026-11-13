@@ -3,9 +3,9 @@ package br.com.claudio.consorcio.domain.cota;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.DominioException;
 import br.com.claudio.consorcio.domain.cliente.Cliente;
-import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -29,15 +29,15 @@ class ClienteCotaTest {
 
     @Test
     void cotaExigeCreditoPositivo() {
-        assertThrows(DominioException.class, () -> Cota.nova("001", BigDecimal.ZERO, 1L));
-        assertThrows(DominioException.class, () -> Cota.nova("001", new BigDecimal("-1"), 1L));
+        assertThrows(DominioException.class, () -> Cota.nova("001", Dinheiro.ZERO, 1L));
+        assertThrows(DominioException.class, () -> Cota.nova("001", Dinheiro.de("-1"), 1L));
         assertThrows(DominioException.class, () -> Cota.nova("001", null, 1L));
-        assertEquals(new BigDecimal("1000"), Cota.nova("001", new BigDecimal("1000"), 1L).valorCredito());
+        assertEquals(Dinheiro.de("1000"), Cota.nova("001", Dinheiro.de("1000"), 1L).valorCredito());
     }
 
     @Test
     void cotaExigeNumeroECliente() {
-        assertThrows(DominioException.class, () -> Cota.nova(" ", BigDecimal.TEN, 1L));
-        assertThrows(DominioException.class, () -> Cota.nova("001", BigDecimal.TEN, null));
+        assertThrows(DominioException.class, () -> Cota.nova(" ", Dinheiro.de("10"), 1L));
+        assertThrows(DominioException.class, () -> Cota.nova("001", Dinheiro.de("10"), null));
     }
 }
