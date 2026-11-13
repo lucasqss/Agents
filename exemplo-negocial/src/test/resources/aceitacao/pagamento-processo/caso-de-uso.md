@@ -312,7 +312,7 @@ Nenhuma vira regra, teste ou código enquanto estiver sem resposta. Dúvida resp
 
 ## Contrato usado
 
-Seção mantida pela skill de testes. Estado: **fatia 2 de 7** (a implementação ainda não existe; o contrato abaixo foi definido pelo time de implementação e é o que os testes usam). O que não está aqui não é conhecido pelos testes.
+Seção mantida pela skill de testes. Estado: **fatia 3 de 7** (a implementação ainda não existe; o contrato abaixo foi definido pelo time de implementação e é o que os testes usam). O que não está aqui não é conhecido pelos testes.
 
 ### Ações sobre o processo (fatia 1)
 
@@ -355,15 +355,30 @@ Decidido pelo time de implementação; os testes usam só isto.
 | `GET /processos` | cada item ganha `valor` (número, comparado numericamente como `BigDecimal`) |
 | `GET /cotas/{id}` | `200` com `creditoDisponivel` (número) = `valorCredito` menos a soma dos valores dos processos PAGOS da cota. Em andamento, reprovado e cancelado não alteram; pago reduz |
 
+### Favorecidos (fatia 3)
+
+Decidido por quem coordena a implementação; os testes usam só isto. Vale para a ABERTURA. Alterar valor e favorecidos fica para a fatia 4.
+
+| Operação | Contrato |
+|---|---|
+| `POST /processos` | `{"cotaId": n, "tipo": "...", "valor": 10000.00, "favorecidos": [{"nome": "...", "documento": "12345678901", "papel": "vendedor", "valor": 9500.00}, {"nome": "Cartório Central", "documento": "12345678000199", "papel": "cartório", "valor": 500.00}]}`. `favorecidos` é obrigatório (R1, R15). `201` com `{"id"}` |
+| Campos do favorecido | `nome` e `papel`: texto não vazio nem só espaços; `nome` até 120 caracteres, `papel` até 50. `documento`: texto só com dígitos, 11 (CPF) ou 14 (CNPJ); **nesta entrega não se confere o dígito verificador** (dúvida F3-1). `valor`: número JSON maior que zero, no máximo duas casas |
+| 400 de FORMATO | `campos` preenchido, com ao menos um campo cujo nome contém `favorecidos` (o caminho exato não é fixado): lista ausente, nula ou vazia; favorecido sem nome, sem documento ou sem papel (ausente, nulo ou em branco); documento com tamanho diferente de 11 ou 14 ou com caractere não dígito; parte ausente, zero, negativa ou com mais de duas casas; nome ou papel acima do tamanho |
+| 400 de REGRA | `mensagem`; a lista `campos` não é conferida: soma das partes diferente do valor do processo (a menos ou a mais, inclusive por um centavo); mesmo documento duas vezes no processo |
+| Precedência | todo 400 de FORMATO (inclusive o de `valor`, fatia 2) vem antes de 404 (cota inexistente) e de 409 (cota com processo em andamento, crédito insuficiente). Entre 400 de REGRA de favorecidos e 404 ou 409 o caso de uso não dá base: não testado (dúvida F3-2) |
+| Recusado | nada é criado: a cota continua livre e o crédito disponível não muda |
+| `GET /processos/{id}/favorecidos` | `200` com a lista `[{"nome", "documento", "papel", "valor"}]`, na ordem em que foram informados (a ordem é do contrato, dúvida F3-5); `valor` é número, comparado como `BigDecimal`. Processo inexistente: `404` com `mensagem` |
+| `GET /processos` e `GET /cotas/{id}` | não mudam |
+
 Canais (`/web`, `/mobile`, `/taa`) ficam fora dos testes de aceitação desta fatia.
 
 ### Que continua como hoje (testes mantidos)
 
 | Operação | Entrada e resposta |
 |---|---|
-| `POST /processos` | ver "Valor e crédito (fatia 2)" abaixo. Favorecidos entram na fatia 3 |
+| `POST /processos` | ver "Valor e crédito (fatia 2)" e "Favorecidos (fatia 3)" acima |
 | `pagar` | de APROVADO para PAGO, com `protocoloPagamento` do processo preenchido pelo protocolo da tesouraria; tesouraria indisponível: 503, e o processo continua APROVADO |
-| Pré-condições de cadastro | `POST /clientes` e `POST /cotas` (com `valorCredito`), só para criar dados próprios de cada caso. Os auxiliares abrem processo com o valor padrão R$ 30.000,00, dentro do crédito padrão de R$ 250.000,00 |
+| Pré-condições de cadastro | `POST /clientes` e `POST /cotas` (com `valorCredito`), só para criar dados próprios de cada caso. Os auxiliares abrem processo com o valor padrão R$ 30.000,00, dentro do crédito padrão de R$ 250.000,00, e (fatia 3) com UM favorecido válido que recebe o valor inteiro |
 
 ## Modelo
 
@@ -397,14 +412,27 @@ Em `ModeloPagamentoProcesso`: cada cenário é uma cota com um crédito e uma se
 - Cenários com processo em andamento (10): um para cada situação em andamento nos dois tipos (9) e pago 100.000 mais outro de 60.000 em análise.
 - Critérios: particionamento do valor (válidos: 0,01, 100, 100,5, 12.500,50, exatamente o crédito; inválidos: ausente, nulo, 0, 0,00, -0,01, -100, 3 casas em 100,005, 0,001 e 100,123); valor-limite do crédito (exatamente o disponível aceito, um centavo acima recusado, em cada cenário com a cota livre); tabela de decisão do crédito (pago consome; andamento, reprovado, cancelado e processo de outra cota não); 400 antes de 404 e de 409.
 
+### Modelo de favorecidos (fatia 3)
+
+Em `ModeloPagamentoProcesso`: cada caso é um pedido de abertura (valor do processo e lista de favorecidos, com campos ausentes, nulos ou em branco quando o caso o exige). O oráculo `CasoFavorecidos.resultado()` aplica R15, R29 e o contrato e devolve `ACEITO` (201 e a consulta devolve os favorecidos informados, na ordem, somando o valor), `RECUSA_DE_FORMATO` (400 com `campos` de favorecidos) ou `RECUSA_DE_REGRA` (400 com `mensagem`); formato é decidido antes de regra, e cada caso tem um único defeito.
+
+- Particionamento e valor-limite: 1, 2, 10 e 100 favorecidos; CPF e CNPJ; parte de 0,01; partes sem casas, com uma e com duas casas; nome e papel com 1, 120 e 50 caracteres (e acentuados) e com 121 e 51; documento com 1, 10, 12, 13 e 15 dígitos, com pontuação, com letra, com espaço e com sinal; parte ausente, nula, zero, 0,00, negativa e com três casas; soma um centavo abaixo e um centavo acima, em 1, 2, 3 e 10 favorecidos; defeito no primeiro e no último favorecido.
+- Rateio com centavos: 33,34 + 33,33 + 33,33 = 100,00 aceito; 33,33 x 3 (99,99) e 33,34 x 3 (100,02) recusados.
+- Tabela de decisão de R15 e R29 (seis linhas): o caso-base aceito, e cada condição sozinha recusa: ao menos um favorecido, dados completos, parte maior que zero, soma exata, sem repetição.
+- Documento repetido: mesmo CPF e mesmo CNPJ, com nome e papel iguais ou diferentes, com partes iguais, no primeiro e no terceiro de três, três vezes e no primeiro e no décimo de dez; mesmo nome e papel com documentos diferentes é aceito (identidade é o documento, dúvida F3-4).
+- Precedência: quatro recusas de formato (lista ausente, lista vazia, documento com 10 dígitos, parte 0,00) contra cota inexistente (404), cota com processo em andamento (409) e valor um centavo acima do crédito (409).
+- Cobertura de terminais: `favorecidos`, `nome`, `documento`, `papel` e `valor` do favorecido; `POST /processos` 201 e 400; `GET /processos/{id}/favorecidos` 200 e 404.
+- Efeito observável nos outros endpoints: a consulta de favorecidos, a listagem (valor) e a cota (crédito disponível inalterado); depois de recusa, a contagem de processos da cota e uma abertura válida em seguida.
+- Consulta: ordem informada (quatro favorecidos fora de ordem de nome, documento e parte); processos diferentes não se confundem; os favorecidos continuam os mesmos em cada uma das 15 situações dos dois tipos.
+
 ## Rastreabilidade
 
-Casos da fatia 1: 290; casos novos da fatia 2: 75 (total 365) no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoAceitacaoIT` herda os mesmos). "Pendente: fatia N" marca regra cuja fatia ainda não chegou, sem teste.
+Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118 (total 483) no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoAceitacaoIT` herda os mesmos). "Pendente: fatia N" marca regra cuja fatia ainda não chegou, sem teste.
 
 | Regra | Modelo e critério | Teste | Casos |
 |---|---|---|---|
 | R1 (parte: cota e tipo; hoje vale como antes) | Particionamento com Base Choice | `escolhaBaseAbreProcesso`, `tipoImobiliarioAbreProcesso`, `cotaInexistente`, `cotaAusente`, `tipoInvalido`, `tipoAusente`, `corpoMalformado`, `corpoVazio` | 8 |
-| R1 (valor e favorecidos obrigatórios) | | pendente: fatias 2 e 3 | |
+| R1 (favorecidos obrigatórios) | Particionamento: lista ausente, nula e vazia; tabela de decisão: ao menos um favorecido | `favorecidosComFormatoInvalidoSaoRecusados` (3 casos de lista), `tabelaDeDecisaoDosFavorecidos`, `favorecidosInvalidosVemAntesDeCotaInexistente` | 3, 1, 1 |
 | R1 ("só o cliente abre") | | pendente: fatia 7 | |
 | R2 e R3 (parte: abertura, análise, documento, vistoria, aprovação, pagamento direto) | Máquina de estados: todas as transições e cada final | `fluxoChegaASituacaoFinal` | 43 |
 | R2 e R3 (aguardando alçada, aguardando concordância, pagamento solicitado) | | pendente: fatias 4, 5 e 6 | |
@@ -417,14 +445,20 @@ Casos da fatia 1: 290; casos novos da fatia 2: 75 (total 365) no `PagamentoProce
 | R10 | Máquina de estados: solicitar documento (com motivo) e receber documento; particionamento do motivo e da observação | `fluxoChegaASituacaoFinal`, `motivoAusenteERecusado`, `motivoValidoFicaNoHistorico`, `observacaoOpcionalAceitaObjetoVazio`, `observacaoFicaNoHistorico`, `acoesAceitasNaSituacao` | contado em cada teste |
 | R11 (parte: reprovar em análise) | Máquina de estados: transição, final e ação inválida (inclusive reprovar em aprovado); particionamento do motivo | os mesmos de R10 e `acaoForaDaOrdemERecusada` | contado em cada teste |
 | R11 (reprovar em aguardando alçada) | | pendente: fatia 6 | |
-| R1 (valor obrigatório) | Particionamento do valor: ausente | `valorInvalidoERecusado` (ausente), `valorAusenteNosDoisTipos` | 1, 2 |
+| R1 (valor obrigatório, fatia 2) | Particionamento do valor: ausente | `valorInvalidoERecusado` (ausente), `valorAusenteNosDoisTipos` | 1, 2 |
 | R12 (abertura) | Particionamento e valor-limite: 0,01, 2 casas aceitos; 0, negativo, 3 casas, ausente, nulo recusados com 400 e `campos` = `valor`; 400 antes de 404 e de 409 | `valorValidoAbreProcesso`, `valorInvalidoERecusado`, `valorInvalidoVemAntesDeCotaInexistente`, `valorAusenteVemAntesDeCotaInexistente`, `valorInvalidoVemAntesDeCotaIndisponivel` | 5, 9, 1, 1, 1 |
 | R12 (alteração) | | pendente: fatia 4 | |
 | R13 (abertura) | Modelo de crédito: igual ao disponível aceito, um centavo acima recusado (409, nada criado, cota livre); crédito esgotado; só o pago consome | `creditoDisponivelConsideraSoOsPagos`, `valorIgualAoCreditoDisponivelEAceito`, `valorUmCentavoAcimaDoCreditoERecusado`, `exemploDoCasoDeUsoCreditoRestante`, `cotaNovaTemOCreditoInteiroDisponivel`, `creditoEsgotadoRecusaQualquerValor`, `processoDeOutraCotaNaoReduzCredito`, `pagamentoNaoConcluidoNaoConsomeCredito`, `creditoSoDiminuiNoPagamento` | 22, 11, 12, 1, 1, 1, 1, 1, 1 |
 | R13 (alteração) | | pendente: fatia 4 | |
 | R14 | Tabela de decisão: cancelado e reprovado não consomem e liberam a cota (e o R6 já testado) | cenários de `creditoDisponivelConsideraSoOsPagos`, `valorIgualAoCreditoDisponivelEAceito`, `cancelarLiberaCotaECredito`, `reprovarLiberaCotaECredito` | contado em cada teste, 1, 1 |
 | Contrato: `valor` na listagem e `creditoDisponivel` na cota | Cobertura de terminais | `listagemMostraOValor`, `listagemMostraOValorDeCadaProcesso`, `escolhaBaseAbreProcesso`, `creditoDisponivelConsideraSoOsPagos` | 2, 1, 1, 22 |
-| R15, R29 | | pendente: fatia 3 | |
+| R15 (abertura) | Particionamento e valor-limite da soma (um centavo abaixo e acima; 1, 2, 3, 10 e 100 favorecidos; parte de 0,01); rateio com centavos; documento repetido; tabela de decisão | `favorecidosValidosAbremProcesso`, `exemploDoCasoDeUsoNosDoisTipos`, `favorecidosQueFeremARegraSaoRecusados`, `tabelaDeDecisaoDosFavorecidos`, `recusaDeFavorecidosNosDoisTipos` | 19, 2, 19, 6, 2 |
+| R15 (em toda alteração) | | pendente: fatia 4 | |
+| R29 (abertura) | Particionamento: nome, documento (CPF, CNPJ, tamanhos, caracteres) e papel obrigatórios e nos limites; cobertura de terminais | `favorecidosComFormatoInvalidoSaoRecusados`, `favorecidosValidosAbremProcesso`, `tabelaDeDecisaoDosFavorecidos` | 40, 19, 1 |
+| R29 (em toda alteração) | | pendente: fatia 4 | |
+| R15 e R29: recusa não cria nada e a cota continua livre | Tabela de decisão da cota (R6) combinada com a recusa | os mesmos testes de recusa acima (contagem de processos, crédito e abertura válida em seguida) | contado em cada teste |
+| Precedência: 400 de formato de favorecidos antes de 404 e 409 | Suposição de erro | `favorecidosInvalidosVemAntesDeCotaInexistente`, `favorecidosInvalidosVemAntesDeCotaIndisponivel`, `favorecidosInvalidosVemAntesDeCreditoInsuficiente` | 4, 4, 4 |
+| R15 e R29: consulta dos favorecidos (contrato) | Cobertura de terminais; efeito por outro endpoint | `favorecidosVoltamNaOrdemInformada`, `favorecidosDeProcessosDiferentesNaoSeConfundem`, `consultaDeFavorecidosEmProcessoInexistente`, `favorecidosPermanecemEmCadaSituacao` | 1, 1, 1, 15 |
 | R16 | | pendente: fatia 6 | |
 | R17, R18 | | pendente: fatia 7 | |
 | R19 (parte: motivo ou observação de cada ação aceita no histórico; recusada não entra) | Efeito observável pelo histórico: `de`, `para`, `acao`, `quando` em ordem, `observacao` | `fluxoChegaASituacaoFinal`, `motivoValidoFicaNoHistorico`, `observacaoFicaNoHistorico`, `acaoForaDaOrdemERecusada` (histórico não muda), `motivoAusenteERecusado`, `corpoAusenteEmAcaoComMotivo`, `motivoInvalidoERecusado` | contado em cada teste |
@@ -462,3 +496,21 @@ Casos da fatia 1: 290; casos novos da fatia 2: 75 (total 365) no `PagamentoProce
 | D2-5: `GET /cotas/{id}` de cota inexistente: 404? `valorCredito` aparece na resposta? | Não testado; o crédito esperado é calculado pelo modelo a partir do crédito informado ao criar a cota |
 | D2-6: valor acima de um crédito disponível, mas com número JSON enorme (overflow) | Não testado |
 | D2-7: "Crédito disponível" com processo pago cujo valor foi implantado (R30) | Fora da aceitação (sem teste de R30) |
+
+### Dúvidas abertas da fatia 3 (nenhuma virou asserção)
+
+| Dúvida | Efeito no teste |
+|---|---|
+| F3-1: o documento (CPF ou CNPJ) tem dígito verificador conferido? Nesta entrega o contrato diz que não, mas R29 só diz "CPF ou CNPJ". Documento de 11 ou 14 dígitos com dígito verificador inválido deve ser aceito ou recusado? | Não testado; os documentos dos casos são sintéticos (sem dígito verificador válido) e são aceitos |
+| F3-2: entre uma recusa de REGRA de favorecidos (soma diferente, documento repetido) e 404 (cota inexistente) ou 409 (cota com processo em andamento, crédito insuficiente), qual vem primeiro? A seção Recusas não dá ordem | Só a precedência do 400 de FORMATO é testada (`favorecidosInvalidosVemAntes...`). Regra × 404 e regra × 409 não são testadas |
+| F3-3: favorecidos com tipo errado de JSON (`favorecidos` como objeto ou texto, elemento da lista nulo ou não objeto, `documento` como número JSON sem aspas, `nome` como número): 400 de formato? | Não testado |
+| F3-4: R15 diz "o mesmo favorecido", sem dizer que a identidade é o documento. O contrato de quem coordena usa o documento. Duas pessoas com o mesmo nome e documentos diferentes são favorecidos diferentes? | Testado como aceito (`mesmo nome e papel com documentos diferentes`); documento repetido com nome ou papel diferentes testado como recusado |
+| F3-5: a consulta devolve os favorecidos na ordem informada? O caso de uso (seção Consultas) só diz que o detalhe mostra "favorecidos e partes" | A ordem é do contrato de quem coordena e é conferida em todo caso aceito e em `favorecidosVoltamNaOrdemInformada` |
+| F3-6: espaços nas pontas de `nome`, `papel` e `documento` (" Ana ", "12345678901 "): aparados, recusados ou guardados como vieram? | Não testado (só nome, papel e documento inteiramente em branco, recusados) |
+| F3-7: pedido com mais de um defeito (por exemplo, parte zero e soma diferente): qual recusa vale, formato ou regra? E a lista vazia, em que a soma (zero) também difere do valor? | Cada caso tem um único defeito; a lista vazia é de formato pelo contrato |
+| F3-8: a mensagem de recusa por soma informa "quanto falta ou sobra" (seção Recusas); em que campo e formato? A mensagem de documento repetido e a de dado faltando dizem qual favorecido? | Só se confere que `mensagem` existe (e `campos` nos de formato) |
+| F3-9: "sem limite máximo" de favorecidos: há limite técnico (tamanho do corpo)? | Testado com 100 favorecidos; acima disso não |
+| F3-10: parte com três casas e zeros à direita (40.000), notação científica (4E+1) ou valor como texto ("40.00"): aceita ou 400? (mesma dúvida de D2-3 para o valor do processo) | Não testado |
+| F3-11: nome e papel com mais de uma unidade de caracteres por símbolo (emoji): como se conta o tamanho? | Só caracteres do plano básico são testados (inclusive acentuados) |
+| F3-12: a seção Recusas lista "sem favorecido" em duas linhas (favorecidos, e abrir para cota inexistente, tipo inválido, sem valor ou sem favorecido), com status não definido; o contrato da fatia usa 400 | Não testado além do 400 do contrato |
+| F3-13: R30 dá a cada processo existente um favorecido com o nome do cliente da cota; o que `GET /processos/{id}/favorecidos` devolve para processo anterior à implantação, e qual `documento` ele leva (a cota só informa o CPF do cliente)? | Fora da aceitação (R30 sem teste) |

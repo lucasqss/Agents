@@ -12,6 +12,8 @@ import io.restassured.path.json.JsonPath;
 import io.restassured.response.ValidatableResponse;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -54,8 +56,13 @@ public final class ApiAceitacao {
         return abrirProcesso(cota, tipo, VALOR_PADRAO);
     }
 
+    /** Abre com UM favorecido válido que recebe o valor inteiro (R15, R29). */
     public static long abrirProcesso(long cota, String tipo, BigDecimal valor) {
-        return tentarAbrirProcesso(cota, tipo, valor).statusCode(201).extract().jsonPath().getLong("id");
+        return abrirProcesso(cota, tipo, valor, favorecidoUnico(valor));
+    }
+
+    public static long abrirProcesso(long cota, String tipo, BigDecimal valor, Object favorecidos) {
+        return tentarAbrirProcesso(cota, tipo, valor, favorecidos).statusCode(201).extract().jsonPath().getLong("id");
     }
 
     /** Pedido de abertura sem conferir o resultado, com o valor padrão. */
@@ -64,7 +71,118 @@ public final class ApiAceitacao {
     }
 
     public static ValidatableResponse tentarAbrirProcesso(long cota, String tipo, BigDecimal valor) {
-        return enviar("/processos", Map.of("cotaId", cota, "tipo", tipo, "valor", valor));
+        return tentarAbrirProcesso(cota, tipo, valor, favorecidoUnico(valor));
+    }
+
+    /** {@code favorecidos}: lista de {@link #favorecido}, {@link #AUSENTE} (omite o campo) ou null (JSON null). */
+    public static ValidatableResponse tentarAbrirProcesso(long cota, String tipo, BigDecimal valor, Object favorecidos) {
+        return enviar("/processos", corpoAbertura(cota, tipo, valor, favorecidos));
+    }
+
+    /** Marca um campo que NÃO deve ser enviado (diferente de null, que vai como JSON null). */
+    public static final Object AUSENTE = new Object() {
+        @Override
+        public String toString() {
+            return "<ausente>";
+        }
+    };
+
+    /** Um favorecido do pedido; cada argumento pode ser valor, {@link #AUSENTE} ou null. */
+    public static Map<String, Object> favorecido(Object nome, Object documento, Object papel, Object valor) {
+        Map<String, Object> favorecido = new LinkedHashMap<>();
+        favorecido.put("nome", nome);
+        favorecido.put("documento", documento);
+        favorecido.put("papel", papel);
+        favorecido.put("valor", valor);
+        return favorecido;
+    }
+
+    /** Lista com um favorecido válido, com CPF próprio, que recebe o valor inteiro. */
+    public static List<Map<String, Object>> favorecidoUnico(BigDecimal valor) {
+        return List.of(favorecido("Favorecido de Aceitacao", "%011d".formatted(unico()), "vendedor", valor));
+    }
+
+    /** Corpo do pedido de abertura como texto JSON (o teste controla o que vai, inclusive o que falta). */
+    public static String corpoAbertura(Object cotaId, Object tipo, Object valor, Object favorecidos) {
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("cotaId", cotaId);
+        corpo.put("tipo", tipo);
+        corpo.put("valor", valor);
+        corpo.put("favorecidos", favorecidos);
+        return json(corpo);
+    }
+
+    /** GET /processos/{id}/favorecidos sem conferir o resultado. */
+    public static ValidatableResponse tentarConsultarFavorecidos(long processo) {
+        return given().when().get("/processos/%d/favorecidos".formatted(processo)).then();
+    }
+
+    /** Favorecidos do processo, na ordem devolvida; {@code valor} fica como BigDecimal quando o JSON permite. */
+    public static List<Map<String, Object>> consultarFavorecidos(long processo) {
+        String corpo = tentarConsultarFavorecidos(processo).statusCode(200).extract().asString();
+        return comoBigDecimal(corpo).getList("$");
+    }
+
+    /** Serializa Map, lista, texto, número, booleano e null. Texto fora do ASCII sai em escape unicode, sem depender de charset. */
+    public static String json(Object valor) {
+        StringBuilder texto = new StringBuilder();
+        escrever(texto, valor);
+        return texto.toString();
+    }
+
+    private static void escrever(StringBuilder saida, Object valor) {
+        switch (valor) {
+            case null -> saida.append("null");
+            case BigDecimal decimal -> saida.append(decimal.toPlainString());
+            case Number numero -> saida.append(numero);
+            case Boolean booleano -> saida.append(booleano);
+            case CharSequence texto -> escreverTexto(saida, texto);
+            case Map<?, ?> mapa -> {
+                saida.append('{');
+                boolean primeiro = true;
+                for (Map.Entry<?, ?> entrada : mapa.entrySet()) {
+                    if (entrada.getValue() == AUSENTE) {
+                        continue;
+                    }
+                    if (!primeiro) {
+                        saida.append(',');
+                    }
+                    primeiro = false;
+                    escreverTexto(saida, entrada.getKey().toString());
+                    saida.append(':');
+                    escrever(saida, entrada.getValue());
+                }
+                saida.append('}');
+            }
+            case Collection<?> colecao -> {
+                saida.append('[');
+                boolean primeiro = true;
+                for (Object item : colecao) {
+                    if (!primeiro) {
+                        saida.append(',');
+                    }
+                    primeiro = false;
+                    escrever(saida, item);
+                }
+                saida.append(']');
+            }
+            default -> throw new IllegalArgumentException("Tipo sem JSON no teste: " + valor.getClass());
+        }
+    }
+
+    private static void escreverTexto(StringBuilder saida, CharSequence texto) {
+        saida.append('"');
+        for (int i = 0; i < texto.length(); i++) {
+            char c = texto.charAt(i);
+            if (c == '"' || c == '\\') {
+                saida.append('\\').append(c);
+            } else if (c < 0x20 || c > 0x7e) {
+                saida.append("\\u%04x".formatted((int) c));
+            } else {
+                saida.append(c);
+            }
+        }
+        saida.append('"');
     }
 
     /** Crédito disponível informado pela consulta da cota (R13), lido sem perder casas decimais. */

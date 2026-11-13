@@ -10,6 +10,7 @@ import br.com.claudio.consorcio.gateway.SistemaExternoIndisponivelException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
@@ -107,13 +108,38 @@ public class ExceptionMappers {
         };
     }
 
-    /** Último nó do caminho da violação: "criar.dados.cpf" vira "cpf"; corpo ausente vira "dados". */
+    /**
+     * Caminho do campo a partir do parâmetro: "criar.dados.cpf" vira "cpf"; item de lista mantém o índice
+     * ("favorecidos[1].documento"); corpo ausente vira "dados".
+     */
     private static String campo(ConstraintViolation<?> violacao) {
-        String nome = null;
+        StringBuilder caminho = new StringBuilder();
+        String ultimo = null;
+        boolean aposParametro = false;
+        boolean indiceEscrito = false;
         for (Path.Node no : violacao.getPropertyPath()) {
-            nome = no.getName();
+            ultimo = no.getName();
+            if (no.getKind() == ElementKind.PARAMETER) {
+                aposParametro = true;
+                continue;
+            }
+            if (!aposParametro) {
+                continue;
+            }
+            if (no.isInIterable() && no.getIndex() != null && !indiceEscrito) {
+                caminho.append('[').append(no.getIndex()).append(']');
+                indiceEscrito = true;
+            }
+            if (no.getKind() == ElementKind.CONTAINER_ELEMENT) {
+                continue;
+            }
+            if (!caminho.isEmpty()) {
+                caminho.append('.');
+            }
+            caminho.append(no.getName());
+            indiceEscrito = false;
         }
-        return nome;
+        return caminho.isEmpty() ? ultimo : caminho.toString();
     }
 
     private static Response erro(Response.Status status, RuntimeException e) {

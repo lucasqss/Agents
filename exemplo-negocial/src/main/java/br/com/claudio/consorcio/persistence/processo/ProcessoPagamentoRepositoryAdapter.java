@@ -33,13 +33,22 @@ public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepo
         ProcessoPagamentoEntity entity = ProcessoPagamentoMapper.paraEntidade(processo);
         if (processo.id() == null) {
             dados.inserir(entity);
+            // Os favorecidos nunca mudam depois da abertura nesta entrega: são gravados uma vez, com o processo novo.
+            for (ProcessoFavorecidoEntity favorecido : ProcessoPagamentoMapper.paraEntidades(entity.getId(),
+                    processo.favorecidos())) {
+                dados.inserirFavorecido(favorecido);
+            }
         } else {
             atualizar(entity);
         }
         for (Transicao transicao : processo.novasTransicoes()) {
             dados.inserirTransicao(ProcessoPagamentoMapper.paraEntidade(entity.getId(), transicao));
         }
-        return ProcessoPagamentoMapper.paraDominio(entity);
+        return reconstituir(entity);
+    }
+
+    private ProcessoPagamento reconstituir(ProcessoPagamentoEntity entity) {
+        return ProcessoPagamentoMapper.paraDominio(entity, dados.buscarFavorecidos(entity.getId()));
     }
 
     private void atualizar(ProcessoPagamentoEntity entity) {
@@ -52,12 +61,12 @@ public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepo
 
     @Override
     public Optional<ProcessoPagamento> buscarPorId(Long id) {
-        return dados.buscarPorId(id).map(ProcessoPagamentoMapper::paraDominio);
+        return dados.buscarPorId(id).map(this::reconstituir);
     }
 
     @Override
     public Optional<ProcessoPagamento> buscarPorIdComBloqueio(Long id) {
-        return dados.buscarPorIdComBloqueio(id).map(ProcessoPagamentoMapper::paraDominio);
+        return dados.buscarPorIdComBloqueio(id).map(this::reconstituir);
     }
 
     @Override

@@ -8,6 +8,7 @@ import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -22,13 +23,14 @@ public final class ProcessoPagamento {
     private final Long cotaId;
     private final TipoProcesso tipo;
     private final Dinheiro valor;
+    private final List<Favorecido> favorecidos;
     private EstadoProcesso estado;
     private String protocoloPagamento;
     private final long versao;
     private final List<Transicao> novasTransicoes = new ArrayList<>();
 
-    private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor, EstadoProcesso estado,
-            String protocoloPagamento, long versao) {
+    private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
+            List<Favorecido> favorecidos, EstadoProcesso estado, String protocoloPagamento, long versao) {
         if (cotaId == null) {
             throw new DominioException("Processo precisa de uma cota");
         }
@@ -41,10 +43,12 @@ public final class ProcessoPagamento {
         if (valor == null || !valor.positivo()) {
             throw new DominioException("Valor do processo precisa ser maior que zero");
         }
+        exigirFavorecidosValidos(valor, favorecidos);
         this.id = id;
         this.cotaId = cotaId;
         this.tipo = tipo;
         this.valor = valor;
+        this.favorecidos = List.copyOf(favorecidos);
         if ((estado == EstadoProcesso.PAGO) != (protocoloPagamento != null)) {
             throw new DominioException("Processo pago tem protocolo de pagamento, e só ele");
         }
@@ -53,15 +57,18 @@ public final class ProcessoPagamento {
         this.versao = versao;
     }
 
-    /** Cria um processo novo, no estado Aberto, do tipo e do valor informados (R12: maior que zero, até duas casas). */
-    public static ProcessoPagamento novo(TipoProcesso tipo, Long cotaId, Dinheiro valor) {
-        return new ProcessoPagamento(null, cotaId, tipo, valor, EstadoProcesso.ABERTO, null, 0);
+    /**
+     * Cria um processo novo, no estado Aberto, do tipo e do valor informados (R12: maior que zero, até duas casas),
+     * dividido entre os favorecidos (R15, R29): ao menos um, partes maiores que zero somando o valor, sem documento repetido.
+     */
+    public static ProcessoPagamento novo(TipoProcesso tipo, Long cotaId, Dinheiro valor, List<Favorecido> favorecidos) {
+        return new ProcessoPagamento(null, cotaId, tipo, valor, favorecidos, EstadoProcesso.ABERTO, null, 0);
     }
 
     /** Recria um processo já gravado, no estado em que ele estava. */
     public static ProcessoPagamento reconstituir(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
-            EstadoProcesso estado, String protocoloPagamento, long versao) {
-        return new ProcessoPagamento(id, cotaId, tipo, valor, estado, protocoloPagamento, versao);
+            List<Favorecido> favorecidos, EstadoProcesso estado, String protocoloPagamento, long versao) {
+        return new ProcessoPagamento(id, cotaId, tipo, valor, favorecidos, estado, protocoloPagamento, versao);
     }
 
     /**
@@ -86,6 +93,34 @@ public final class ProcessoPagamento {
         }
         transitar(AcaoProcesso.PAGAR, quando, null);
         protocoloPagamento = protocolo;
+    }
+
+    private static void exigirFavorecidosValidos(Dinheiro valor, List<Favorecido> favorecidos) {
+        if (favorecidos == null || favorecidos.isEmpty()) {
+            throw new DominioException("Processo precisa de ao menos um favorecido");
+        }
+        Set<Documento> documentos = new HashSet<>();
+        Dinheiro soma = Dinheiro.ZERO;
+        for (Favorecido favorecido : favorecidos) {
+            if (favorecido == null) {
+                throw new DominioException("Favorecido não pode ser nulo");
+            }
+            if (!documentos.add(favorecido.documento())) {
+                throw new DominioException("Favorecido repetido: o documento " + favorecido.documento().numero()
+                        + " aparece mais de uma vez");
+            }
+            soma = soma.somar(favorecido.parte());
+        }
+        if (soma.compareTo(valor) < 0) {
+            throw new DominioException("As partes dos favorecidos somam " + soma.valor().toPlainString() + " e faltam "
+                    + valor.subtrair(soma).valor().toPlainString() + " para o valor do processo ("
+                    + valor.valor().toPlainString() + ")");
+        }
+        if (soma.compareTo(valor) > 0) {
+            throw new DominioException("As partes dos favorecidos somam " + soma.valor().toPlainString() + " e passam "
+                    + soma.subtrair(valor).valor().toPlainString() + " do valor do processo ("
+                    + valor.valor().toPlainString() + ")");
+        }
     }
 
     private void transitar(AcaoProcesso acao, Instant quando, String observacao) {
@@ -127,6 +162,11 @@ public final class ProcessoPagamento {
 
     public Dinheiro valor() {
         return valor;
+    }
+
+    /** Favorecidos na ordem em que foram informados; só leitura. */
+    public List<Favorecido> favorecidos() {
+        return favorecidos;
     }
 
     public EstadoProcesso estado() {

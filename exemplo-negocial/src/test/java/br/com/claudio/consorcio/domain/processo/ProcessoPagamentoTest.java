@@ -44,9 +44,13 @@ class ProcessoPagamentoTest {
     private static final Dinheiro VALOR = Dinheiro.de("30000.00");
     private static final Instant AGORA = Instant.parse("2026-01-15T12:00:00Z");
 
+    private static List<Favorecido> favorecidoUnico(Dinheiro parte) {
+        return List.of(new Favorecido("Favorecido Único", Documento.de("12345678901"), "vendedor", parte));
+    }
+
     @Test
     void novoProcessoComecaAbertoESemId() {
-        ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR);
+        ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
 
         assertEquals(TipoProcesso.SERVICO, processo.tipo());
         assertEquals(ABERTO, processo.estado());
@@ -56,34 +60,34 @@ class ProcessoPagamentoTest {
 
     @Test
     void exigeTipoECota() {
-        assertThrows(DominioException.class, () -> ProcessoPagamento.novo(null, COTA, VALOR));
-        assertThrows(DominioException.class, () -> ProcessoPagamento.novo(TipoProcesso.SERVICO, null, VALOR));
+        assertThrows(DominioException.class, () -> ProcessoPagamento.novo(null, COTA, VALOR, favorecidoUnico(VALOR)));
+        assertThrows(DominioException.class, () -> ProcessoPagamento.novo(TipoProcesso.SERVICO, null, VALOR, favorecidoUnico(VALOR)));
     }
 
     @Test
     void guardaOValorInformado() {
         assertEquals(Dinheiro.de("12500.50"),
-                ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, Dinheiro.de("12500.50")).valor());
+                ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, Dinheiro.de("12500.50"), favorecidoUnico(Dinheiro.de("12500.50"))).valor());
     }
 
     @Test
     void valorEhObrigatorioEMaiorQueZero() {
-        assertThrows(DominioException.class, () -> ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, null));
-        assertThrows(DominioException.class, () -> ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, Dinheiro.ZERO));
+        assertThrows(DominioException.class, () -> ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, null, favorecidoUnico(VALOR)));
+        assertThrows(DominioException.class, () -> ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, Dinheiro.ZERO, favorecidoUnico(VALOR)));
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, Dinheiro.de("-0.01")));
+                () -> ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, Dinheiro.de("-0.01"), favorecidoUnico(VALOR)));
     }
 
     @Test
     void valorTemNoMaximoDuasCasas() {
         assertThrows(DominioException.class, () -> Dinheiro.de("100.005"));
-        assertEquals(Dinheiro.de("0.01"), ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, Dinheiro.de("0.01")).valor());
+        assertEquals(Dinheiro.de("0.01"), ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, Dinheiro.de("0.01"), favorecidoUnico(Dinheiro.de("0.01"))).valor());
     }
 
     @Nested
     class Imobiliario {
 
-        private final ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA, VALOR);
+        private final ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA, VALOR, favorecidoUnico(VALOR));
 
         @Test
         void fluxoCompletoPassaPelaVistoria() {
@@ -122,7 +126,7 @@ class ProcessoPagamentoTest {
     @Nested
     class Servico {
 
-        private final ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR);
+        private final ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
 
         @Test
         void fluxoCompletoVaiDiretoParaAprovado() {
@@ -147,7 +151,7 @@ class ProcessoPagamentoTest {
     @ParameterizedTest
     @EnumSource(TipoProcesso.class)
     void transicoesForaDeOrdemSaoInvalidas(TipoProcesso tipo) {
-        ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA, VALOR);
+        ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA, VALOR, favorecidoUnico(VALOR));
 
         invalida(processo, CONCLUIR_ANALISE);
         invalida(processo, CONCLUIR_VISTORIA);
@@ -162,7 +166,7 @@ class ProcessoPagamentoTest {
     @ParameterizedTest
     @EnumSource(TipoProcesso.class)
     void cancelaEmEstadosNaoFinais(TipoProcesso tipo) {
-        ProcessoPagamento aberto = ProcessoPagamento.novo(tipo, COTA, VALOR);
+        ProcessoPagamento aberto = ProcessoPagamento.novo(tipo, COTA, VALOR, favorecidoUnico(VALOR));
         aberto.executar(CANCELAR, AGORA, "desistência");
         assertEquals(CANCELADO, aberto.estado());
 
@@ -181,7 +185,7 @@ class ProcessoPagamentoTest {
             invalida(pago, acao);
         }
 
-        ProcessoPagamento cancelado = ProcessoPagamento.novo(tipo, COTA, VALOR);
+        ProcessoPagamento cancelado = ProcessoPagamento.novo(tipo, COTA, VALOR, favorecidoUnico(VALOR));
         cancelado.executar(CANCELAR, AGORA, "desistência");
         assertFalse(cancelado.ativo());
         for (AcaoProcesso acao : AcaoProcesso.values()) {
@@ -191,10 +195,10 @@ class ProcessoPagamentoTest {
 
     @Test
     void acoesDisponiveisDependemDoTipoEDoEstado() {
-        ProcessoPagamento servico = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR);
+        ProcessoPagamento servico = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
         assertEquals(Set.of(INICIAR_ANALISE, CANCELAR), servico.acoesDisponiveis());
 
-        ProcessoPagamento imobiliario = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA, VALOR);
+        ProcessoPagamento imobiliario = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA, VALOR, favorecidoUnico(VALOR));
         imobiliario.executar(INICIAR_ANALISE, AGORA, null);
         imobiliario.executar(CONCLUIR_ANALISE, AGORA, null);
         assertEquals(Set.of(CONCLUIR_VISTORIA, DEVOLVER_PARA_ANALISE, CANCELAR), imobiliario.acoesDisponiveis());
@@ -223,7 +227,7 @@ class ProcessoPagamentoTest {
 
     @Test
     void exigirQuePodeConfereSemAplicar() {
-        ProcessoPagamento aberto = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR);
+        ProcessoPagamento aberto = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
         assertThrows(TransicaoInvalidaException.class, () -> aberto.exigirQuePode(PAGAR));
 
         ProcessoPagamento aprovado = aprovado(TipoProcesso.SERVICO);
@@ -234,11 +238,11 @@ class ProcessoPagamentoTest {
     @Test
     void reconstituirExigeProtocoloSeESomenteSePago() {
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, APROVADO, "PROT-1", 0));
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), APROVADO, "PROT-1", 0));
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, PAGO, null, 0));
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, null, 0));
 
-        ProcessoPagamento pago = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, PAGO, "PROT-1", 3);
+        ProcessoPagamento pago = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, "PROT-1", 3);
         assertEquals("PROT-1", pago.protocoloPagamento());
         assertEquals(3, pago.versao());
     }
@@ -254,20 +258,20 @@ class ProcessoPagamentoTest {
 
     @Test
     void soOImobiliarioDevolveDaVistoria() {
-        ProcessoPagamento imobiliario = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA, VALOR);
+        ProcessoPagamento imobiliario = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA, VALOR, favorecidoUnico(VALOR));
         imobiliario.executar(INICIAR_ANALISE, AGORA, null);
         imobiliario.executar(CONCLUIR_ANALISE, AGORA, null);
         imobiliario.executar(DEVOLVER_PARA_ANALISE, AGORA, "documento divergente");
         assertEquals(EM_ANALISE, imobiliario.estado());
 
-        ProcessoPagamento servico = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR);
+        ProcessoPagamento servico = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
         servico.executar(INICIAR_ANALISE, AGORA, null);
         invalida(servico, DEVOLVER_PARA_ANALISE);
     }
 
     @Test
     void cadaTransicaoFicaRegistradaParaOHistorico() {
-        ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR);
+        ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
         assertTrue(processo.novasTransicoes().isEmpty());
 
         processo.executar(INICIAR_ANALISE, AGORA, "  Documentos recebidos  ");
@@ -284,7 +288,7 @@ class ProcessoPagamentoTest {
 
     @Test
     void transicaoExigeDataELimitaAObservacao() {
-        ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR);
+        ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
 
         assertThrows(DominioException.class, () -> processo.executar(INICIAR_ANALISE, null, null));
         assertThrows(DominioException.class, () -> processo.executar(INICIAR_ANALISE, AGORA, "x".repeat(501)));
@@ -294,7 +298,7 @@ class ProcessoPagamentoTest {
 
     @Test
     void processoReconstituidoNaoTrazTransicoesAntigas() {
-        ProcessoPagamento lido = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, EM_ANALISE, null, 1);
+        ProcessoPagamento lido = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), EM_ANALISE, null, 1);
         assertTrue(lido.novasTransicoes().isEmpty());
     }
 
@@ -328,7 +332,7 @@ class ProcessoPagamentoTest {
         for (AcaoProcesso acao : AcaoProcesso.values()) {
             invalida(processo, acao);
         }
-        invalida(ProcessoPagamento.novo(tipo, COTA, VALOR), REPROVAR);
+        invalida(ProcessoPagamento.novo(tipo, COTA, VALOR, favorecidoUnico(VALOR)), REPROVAR);
         invalida(aprovado(tipo), REPROVAR);
     }
 
@@ -377,13 +381,13 @@ class ProcessoPagamentoTest {
 
     @Test
     void acaoForaDeOrdemContinuaSendoTransicaoInvalidaMesmoSemMotivo() {
-        ProcessoPagamento aberto = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR);
+        ProcessoPagamento aberto = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
 
         assertThrows(TransicaoInvalidaException.class, () -> aberto.executar(REPROVAR, AGORA, null));
     }
 
     private static ProcessoPagamento emAnalise(TipoProcesso tipo) {
-        ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA, VALOR);
+        ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA, VALOR, favorecidoUnico(VALOR));
         processo.executar(INICIAR_ANALISE, AGORA, null);
         return processo;
     }
@@ -398,7 +402,7 @@ class ProcessoPagamentoTest {
     }
 
     private static ProcessoPagamento aprovado(TipoProcesso tipo) {
-        ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA, VALOR);
+        ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA, VALOR, favorecidoUnico(VALOR));
         processo.executar(INICIAR_ANALISE, AGORA, null);
         processo.executar(CONCLUIR_ANALISE, AGORA, null);
         if (processo.acoesDisponiveis().contains(CONCLUIR_VISTORIA)) {

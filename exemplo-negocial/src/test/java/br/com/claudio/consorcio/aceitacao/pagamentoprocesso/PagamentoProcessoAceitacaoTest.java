@@ -1,9 +1,14 @@
 package br.com.claudio.consorcio.aceitacao.pagamentoprocesso;
 
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.AUSENTE;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.CREDITO_PADRAO;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.VALOR_PADRAO;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.abrirProcesso;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.consultarCreditoDisponivel;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.consultarFavorecidos;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.corpoAbertura;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.favorecidoUnico;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.tentarConsultarFavorecidos;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.tentarAbrirProcesso;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.valorDoProcesso;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.consultarProcesso;
@@ -40,6 +45,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.comparesEqualTo;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.everyItem;
@@ -53,9 +59,11 @@ import br.com.claudio.consorcio.aceitacao.TesourariaStubResource;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.AcaoInvalida;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Base;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Caminho;
+import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CasoFavorecidos;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CenarioCredito;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.ProcessoPlanejado;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Passo;
+import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Resultado;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
@@ -193,7 +201,8 @@ class PagamentoProcessoAceitacaoTest {
     @Test
     @DisplayName("Partição da cota: sem cota é recusado com 400 indicando o campo")
     void cotaAusente() {
-        enviar("/processos", Map.of("tipo", SERVICO, "valor", VALOR_PADRAO)).statusCode(400)
+        enviar("/processos", corpoAbertura(AUSENTE, SERVICO, VALOR_PADRAO, favorecidoUnico(VALOR_PADRAO)))
+                .statusCode(400)
                 .body("mensagem", notNullValue())
                 .body("campos.campo", hasItem("cotaId"));
     }
@@ -201,14 +210,16 @@ class PagamentoProcessoAceitacaoTest {
     @Test
     @DisplayName("Partição do tipo: tipo fora da lista é recusado com 400")
     void tipoInvalido() {
-        enviar("/processos", Map.of("cotaId", novaCota(), "tipo", "CONSTRUCAO", "valor", VALOR_PADRAO)).statusCode(400)
+        enviar("/processos", corpoAbertura(novaCota(), "CONSTRUCAO", VALOR_PADRAO, favorecidoUnico(VALOR_PADRAO)))
+                .statusCode(400)
                 .body("mensagem", notNullValue());
     }
 
     @Test
     @DisplayName("Partição do tipo: sem tipo é recusado com 400 indicando o campo")
     void tipoAusente() {
-        enviar("/processos", Map.of("cotaId", novaCota(), "valor", VALOR_PADRAO)).statusCode(400)
+        enviar("/processos", corpoAbertura(novaCota(), AUSENTE, VALOR_PADRAO, favorecidoUnico(VALOR_PADRAO)))
+                .statusCode(400)
                 .body("mensagem", notNullValue())
                 .body("campos.campo", hasItem("tipo"));
     }
@@ -567,9 +578,21 @@ class PagamentoProcessoAceitacaoTest {
 
     // ---- Fatia 2: valor e crédito (R12, R13, R14) ----
 
+    /** Pedido com um favorecido válido que recebe {@code parteJson} (R15 e R29: o favorecido não é o assunto). */
+    private static String abertura(long cota, String tipo, String valorJson, String parteJson) {
+        return ("{\"cotaId\": %d, \"tipo\": \"%s\"%s, \"favorecidos\": [{\"nome\": \"Favorecido de Aceitacao\", "
+                + "\"documento\": \"12345678901\", \"papel\": \"vendedor\", \"valor\": %s}]}").formatted(cota, tipo,
+                valorJson == null ? "" : ", \"valor\": " + valorJson, parteJson);
+    }
+
+    /** Valor válido: o favorecido recebe o valor inteiro. */
     private static String abertura(long cota, String tipo, String valorJson) {
-        return "{\"cotaId\": %d, \"tipo\": \"%s\"%s}".formatted(cota, tipo,
-                valorJson == null ? "" : ", \"valor\": " + valorJson);
+        return abertura(cota, tipo, valorJson, valorJson);
+    }
+
+    /** Valor inválido ou ausente: o favorecido é válido e recebe 100,00, para o único defeito ser o valor. */
+    private static String aberturaComValorInvalido(long cota, String tipo, String valorJson) {
+        return abertura(cota, tipo, valorJson, "100.00");
     }
 
     // Particionamento do valor (R12): classes válidas e inválidas e valores-limite.
@@ -617,7 +640,7 @@ class PagamentoProcessoAceitacaoTest {
     void valorInvalidoERecusado(String descricao, String valorJson) {
         long cota = novaCota();
 
-        enviar("/processos", abertura(cota, SERVICO, valorJson)).statusCode(400)
+        enviar("/processos", aberturaComValorInvalido(cota, SERVICO, valorJson)).statusCode(400)
                 .body("mensagem", notNullValue())
                 .body("campos.campo", hasItem("valor"));
 
@@ -631,21 +654,21 @@ class PagamentoProcessoAceitacaoTest {
     @ValueSource(strings = {SERVICO, IMOBILIARIO})
     @DisplayName("Valor ausente é recusado nos dois tipos")
     void valorAusenteNosDoisTipos(String tipo) {
-        enviar("/processos", abertura(novaCota(), tipo, null)).statusCode(400)
+        enviar("/processos", aberturaComValorInvalido(novaCota(), tipo, null)).statusCode(400)
                 .body("campos.campo", hasItem("valor"));
     }
 
     @Test
     @DisplayName("Valor inválido em cota inexistente: o 400 vem antes do 404")
     void valorInvalidoVemAntesDeCotaInexistente() {
-        enviar("/processos", abertura(INEXISTENTE, SERVICO, "0")).statusCode(400)
+        enviar("/processos", aberturaComValorInvalido(INEXISTENTE, SERVICO, "0")).statusCode(400)
                 .body("campos.campo", hasItem("valor"));
     }
 
     @Test
     @DisplayName("Valor ausente em cota inexistente: o 400 vem antes do 404")
     void valorAusenteVemAntesDeCotaInexistente() {
-        enviar("/processos", abertura(INEXISTENTE, SERVICO, null)).statusCode(400)
+        enviar("/processos", aberturaComValorInvalido(INEXISTENTE, SERVICO, null)).statusCode(400)
                 .body("campos.campo", hasItem("valor"));
     }
 
@@ -655,7 +678,7 @@ class PagamentoProcessoAceitacaoTest {
         long cota = novaCota();
         abrirProcesso(cota, SERVICO);
 
-        enviar("/processos", abertura(cota, SERVICO, "100.005")).statusCode(400)
+        enviar("/processos", aberturaComValorInvalido(cota, SERVICO, "100.005")).statusCode(400)
                 .body("campos.campo", hasItem("valor"));
 
         assertThat(quantidadeDeProcessosDaCota(cota), equalTo(1L));
@@ -869,6 +892,214 @@ class PagamentoProcessoAceitacaoTest {
 
         assertThat(valorDoProcesso(consultarProcesso(primeiro)), comparesEqualTo(new BigDecimal("0.01")));
         assertThat(valorDoProcesso(consultarProcesso(segundo)), comparesEqualTo(new BigDecimal("99999.99")));
+    }
+
+    // ---- Fatia 3: favorecidos na abertura (R15, R29) ----
+    // Oráculo: ModeloPagamentoProcesso.CasoFavorecidos#resultado (aceito, recusa de formato ou recusa de regra).
+
+    static Stream<CasoFavorecidos> favorecidosAceitos() {
+        return ModeloPagamentoProcesso.favorecidosAceitos();
+    }
+
+    static Stream<CasoFavorecidos> favorecidosRecusadosPorFormato() {
+        return ModeloPagamentoProcesso.favorecidosRecusadosPorFormato();
+    }
+
+    static Stream<CasoFavorecidos> favorecidosRecusadosPorRegra() {
+        return ModeloPagamentoProcesso.favorecidosRecusadosPorRegra();
+    }
+
+    static Stream<CasoFavorecidos> tabelaDeDecisao() {
+        return ModeloPagamentoProcesso.tabelaDeDecisao();
+    }
+
+    static Stream<CasoFavorecidos> favorecidosRecusadosPorFormatoRepresentativos() {
+        return ModeloPagamentoProcesso.favorecidosRecusadosPorFormatoRepresentativos();
+    }
+
+    /** Abre com o caso (que o modelo manda aceitar) e confere o efeito: situação, valor, crédito e consulta. */
+    private static long abrirEConferirAceito(CasoFavorecidos caso, String tipo) {
+        assertThat("o modelo manda aceitar", caso.resultado(), equalTo(Resultado.ACEITO));
+        long cota = novaCota();
+
+        long processo = tentarAbrirProcesso(cota, tipo, caso.valor(), caso.favorecidos()).statusCode(201)
+                .extract().jsonPath().getLong("id");
+
+        Map<String, Object> registrado = consultarProcesso(processo);
+        assertThat(registrado.get("estado"), equalTo(ABERTO));
+        assertThat(valorDoProcesso(registrado), comparesEqualTo(caso.valor()));
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
+        conferirFavorecidos(processo, caso.esperados());
+        BigDecimal soma = consultarFavorecidos(processo).stream().map(f -> parte(f)).reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(soma, comparesEqualTo(caso.valor()));
+        return processo;
+    }
+
+    /** A consulta devolve exatamente os favorecidos informados, na mesma ordem, e as partes somam o valor. */
+    private static void conferirFavorecidos(long processo, List<Map<String, Object>> esperados) {
+        List<Map<String, Object>> obtidos = consultarFavorecidos(processo);
+        assertThat(obtidos.size(), equalTo(esperados.size()));
+        for (int i = 0; i < esperados.size(); i++) {
+            Map<String, Object> esperado = esperados.get(i);
+            Map<String, Object> obtido = obtidos.get(i);
+            assertThat(obtido.get("nome"), equalTo(esperado.get("nome")));
+            assertThat(obtido.get("documento"), equalTo(esperado.get("documento")));
+            assertThat(obtido.get("papel"), equalTo(esperado.get("papel")));
+            assertThat(parte(obtido), comparesEqualTo((BigDecimal) esperado.get("valor")));
+        }
+    }
+
+    /** Parte do favorecido na consulta, sem passar por ponto flutuante quando o JSON permite. */
+    private static BigDecimal parte(Map<String, Object> favorecido) {
+        return new BigDecimal(String.valueOf(favorecido.get("valor")));
+    }
+
+    /**
+     * Abre com o caso (que o modelo manda recusar) e confere: 400 com mensagem (e com campos de favorecidos quando a
+     * recusa é de formato), nada criado, crédito intacto e cota livre, com abertura válida logo em seguida.
+     */
+    private static void abrirEConferirRecusado(CasoFavorecidos caso, Resultado esperado, String tipo) {
+        assertThat("o modelo manda recusar", caso.resultado(), equalTo(esperado));
+        long cota = novaCota();
+
+        ValidatableResponse resposta = tentarAbrirProcesso(cota, tipo, caso.valor(), caso.favorecidos())
+                .statusCode(400).body("mensagem", notNullValue());
+        if (esperado == Resultado.RECUSA_DE_FORMATO) {
+            resposta.body("campos.campo", hasItem(containsString("favorecidos")));
+        }
+
+        assertThat(quantidadeDeProcessosDaCota(cota), equalTo(0L));
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
+        long processo = abrirProcesso(cota, tipo, caso.valor());
+        assertThat(consultarProcesso(processo).get("estado"), equalTo(ABERTO));
+        assertThat(quantidadeDeProcessosDaCota(cota), equalTo(1L));
+        List<Map<String, Object>> favorecidos = consultarFavorecidos(processo);
+        assertThat(favorecidos.size(), equalTo(1));
+        assertThat(parte(favorecidos.getFirst()), comparesEqualTo(caso.valor()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("favorecidosAceitos")
+    @DisplayName("Favorecidos válidos somando o valor abrem o processo e a consulta os devolve na ordem informada")
+    void favorecidosValidosAbremProcesso(CasoFavorecidos caso) {
+        abrirEConferirAceito(caso, SERVICO);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {SERVICO, IMOBILIARIO})
+    @DisplayName("Exemplo do caso de uso (vendedor 9.500,00 e cartório 500,00) é aceito nos dois tipos")
+    void exemploDoCasoDeUsoNosDoisTipos(String tipo) {
+        abrirEConferirAceito(ModeloPagamentoProcesso.exemploDoCasoDeUso(), tipo);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("favorecidosRecusadosPorFormato")
+    @DisplayName("Favorecidos com dado ausente, em branco, fora do tamanho ou do formato: 400 com campos, nada é criado")
+    void favorecidosComFormatoInvalidoSaoRecusados(CasoFavorecidos caso) {
+        abrirEConferirRecusado(caso, Resultado.RECUSA_DE_FORMATO, SERVICO);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("favorecidosRecusadosPorRegra")
+    @DisplayName("Soma das partes diferente do valor ou documento repetido: 400 com mensagem, nada é criado")
+    void favorecidosQueFeremARegraSaoRecusados(CasoFavorecidos caso) {
+        abrirEConferirRecusado(caso, Resultado.RECUSA_DE_REGRA, SERVICO);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tabelaDeDecisao")
+    @DisplayName("Tabela de decisão de R15 e R29: cada condição, sozinha, decide a abertura")
+    void tabelaDeDecisaoDosFavorecidos(CasoFavorecidos caso) {
+        switch (caso.resultado()) {
+            case ACEITO -> abrirEConferirAceito(caso, SERVICO);
+            case RECUSA_DE_FORMATO -> abrirEConferirRecusado(caso, Resultado.RECUSA_DE_FORMATO, SERVICO);
+            case RECUSA_DE_REGRA -> abrirEConferirRecusado(caso, Resultado.RECUSA_DE_REGRA, SERVICO);
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {SERVICO, IMOBILIARIO})
+    @DisplayName("Imobiliário também recusa favorecidos sem nenhum (formato) e soma um centavo abaixo (regra)")
+    void recusaDeFavorecidosNosDoisTipos(String tipo) {
+        abrirEConferirRecusado(ModeloPagamentoProcesso.favorecidosRecusadosPorFormato()
+                .filter(c -> c.nome().equals("lista vazia")).findFirst().orElseThrow(),
+                Resultado.RECUSA_DE_FORMATO, tipo);
+        abrirEConferirRecusado(ModeloPagamentoProcesso.favorecidosRecusadosPorRegra()
+                .filter(c -> c.nome().startsWith("soma um centavo abaixo")).findFirst().orElseThrow(),
+                Resultado.RECUSA_DE_REGRA, tipo);
+    }
+
+    // Precedência: todo 400 de formato dos favorecidos vem antes de 404 e de 409.
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("favorecidosRecusadosPorFormatoRepresentativos")
+    @DisplayName("Favorecidos com formato inválido em cota inexistente: o 400 vem antes do 404")
+    void favorecidosInvalidosVemAntesDeCotaInexistente(CasoFavorecidos caso) {
+        tentarAbrirProcesso(INEXISTENTE, SERVICO, caso.valor(), caso.favorecidos()).statusCode(400)
+                .body("campos.campo", hasItem(containsString("favorecidos")));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("favorecidosRecusadosPorFormatoRepresentativos")
+    @DisplayName("Favorecidos com formato inválido em cota com processo em andamento: o 400 vem antes do 409")
+    void favorecidosInvalidosVemAntesDeCotaIndisponivel(CasoFavorecidos caso) {
+        long cota = novaCota();
+        abrirProcesso(cota, SERVICO);
+
+        tentarAbrirProcesso(cota, SERVICO, caso.valor(), caso.favorecidos()).statusCode(400)
+                .body("campos.campo", hasItem(containsString("favorecidos")));
+
+        assertThat(quantidadeDeProcessosDaCota(cota), equalTo(1L));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("favorecidosRecusadosPorFormatoRepresentativos")
+    @DisplayName("Favorecidos com formato inválido e valor acima do crédito: o 400 vem antes do 409")
+    void favorecidosInvalidosVemAntesDeCreditoInsuficiente(CasoFavorecidos caso) {
+        long cota = novaCota();
+        BigDecimal acimaDoCredito = CREDITO_PADRAO.add(new BigDecimal("0.01"));
+
+        tentarAbrirProcesso(cota, SERVICO, acimaDoCredito, caso.comValor(acimaDoCredito).favorecidos()).statusCode(400)
+                .body("campos.campo", hasItem(containsString("favorecidos")));
+
+        assertThat(quantidadeDeProcessosDaCota(cota), equalTo(0L));
+    }
+
+    // Consulta: GET /processos/{id}/favorecidos.
+
+    @Test
+    @DisplayName("Consulta devolve os favorecidos na ordem em que foram informados")
+    void favorecidosVoltamNaOrdemInformada() {
+        abrirEConferirAceito(ModeloPagamentoProcesso.favorecidosEmOrdemEmbaralhada(), SERVICO);
+    }
+
+    @Test
+    @DisplayName("Favorecidos de processos diferentes não se confundem")
+    void favorecidosDeProcessosDiferentesNaoSeConfundem() {
+        CasoFavorecidos primeiro = ModeloPagamentoProcesso.exemploDoCasoDeUso();
+        CasoFavorecidos segundo = ModeloPagamentoProcesso.favorecidosEmOrdemEmbaralhada();
+        long processoUm = abrirProcesso(novaCota(), SERVICO, primeiro.valor(), primeiro.favorecidos());
+        long processoDois = abrirProcesso(novaCota(), IMOBILIARIO, segundo.valor(), segundo.favorecidos());
+
+        conferirFavorecidos(processoUm, primeiro.esperados());
+        conferirFavorecidos(processoDois, segundo.esperados());
+    }
+
+    @Test
+    @DisplayName("Consulta de favorecidos de processo inexistente é recusada com 404")
+    void consultaDeFavorecidosEmProcessoInexistente() {
+        tentarConsultarFavorecidos(INEXISTENTE).statusCode(404).body("mensagem", notNullValue());
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("caminhosPorSituacao")
+    @DisplayName("Os favorecidos continuam os mesmos em cada situação do processo")
+    void favorecidosPermanecemEmCadaSituacao(Caminho caminho) {
+        CasoFavorecidos caso = ModeloPagamentoProcesso.exemploDoCasoDeUso();
+        long processo = abrirProcesso(novaCota(), caminho.tipo(), caso.valor(), caso.favorecidos());
+        caminho.passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
+
+        conferirFavorecidos(processo, caso.esperados());
     }
 
     /** Ação com o corpo que o contrato exige: motivo nas ações que o pedem, nenhum corpo nas demais. */

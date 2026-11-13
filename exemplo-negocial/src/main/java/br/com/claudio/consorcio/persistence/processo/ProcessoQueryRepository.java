@@ -31,4 +31,13 @@ public interface ProcessoQueryRepository {
             order by t.id
             """)
     List<ProcessoTransicaoResumo> historico(Long processoId);
+
+    @Query("""
+            select new br.com.claudio.consorcio.persistence.processo.ProcessoFavorecidoResumo(
+                f.nome, f.documento, f.papel, f.valor)
+            from ProcessoFavorecidoEntity f
+            where f.processoId = :processoId
+            order by f.ordem
+            """)
+    List<ProcessoFavorecidoResumo> favorecidos(Long processoId);
 }

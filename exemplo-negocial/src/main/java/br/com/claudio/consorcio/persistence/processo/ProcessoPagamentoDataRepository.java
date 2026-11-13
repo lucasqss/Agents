@@ -33,6 +33,12 @@ interface ProcessoPagamentoDataRepository {
     @Insert
     void inserirTransicao(ProcessoTransicaoEntity transicao);
 
+    @Insert
+    void inserirFavorecido(ProcessoFavorecidoEntity favorecido);
+
+    @Query("select f from ProcessoFavorecidoEntity f where f.processoId = :processoId order by f.ordem")
+    List<ProcessoFavorecidoEntity> buscarFavorecidos(Long processoId);
+
     @Query("select count(p) from ProcessoPagamentoEntity p where p.cotaId = :cotaId")
     long contarPorCota(Long cotaId);
 

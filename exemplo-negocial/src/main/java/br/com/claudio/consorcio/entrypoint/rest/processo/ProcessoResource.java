@@ -1,6 +1,7 @@
 package br.com.claudio.consorcio.entrypoint.rest.processo;
 
 import br.com.claudio.consorcio.application.processo.CriarProcessoUseCase;
+import br.com.claudio.consorcio.application.processo.DadosFavorecido;
 import br.com.claudio.consorcio.application.processo.ExecutarAcaoProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.PagarProcessoUseCase;
 import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
@@ -11,7 +12,9 @@ import br.com.claudio.consorcio.entrypoint.IdCriado;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import jakarta.ws.rs.Consumes;
@@ -21,6 +24,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.math.BigDecimal;
 import java.net.URI;
+import java.util.List;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
@@ -34,6 +38,20 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 public class ProcessoResource {
 
     public record NovoProcesso(@NotNull Long cotaId, @NotNull TipoProcesso tipo,
+            @NotNull @Positive @Digits(integer = 13, fraction = 2) BigDecimal valor,
+            @NotEmpty List<@NotNull @Valid NovoFavorecido> favorecidos) {
+
+        List<DadosFavorecido> dadosFavorecidos() {
+            return favorecidos.stream()
+                    .map(f -> new DadosFavorecido(f.nome(), f.documento(), f.papel(), f.valor()))
+                    .toList();
+        }
+    }
+
+    /** Um favorecido do pedido; só o formato é conferido aqui, a soma e a repetição são regras do domínio. */
+    public record NovoFavorecido(@NotBlank @Size(max = 120) String nome,
+            @NotBlank @Pattern(regexp = "\\d{11}|\\d{14}", message = "deve ter 11 (CPF) ou 14 (CNPJ) dígitos") String documento,
+            @NotBlank @Size(max = 50) String papel,
             @NotNull @Positive @Digits(integer = 13, fraction = 2) BigDecimal valor) {
     }
 
@@ -71,7 +89,7 @@ public class ProcessoResource {
     @APIResponse(responseCode = "201", description = "Processo criado",
             content = @Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = IdCriado.class)))
     public Response criar(@Valid @NotNull NovoProcesso dados) {
-        Long id = criar.executar(dados.cotaId(), dados.tipo(), dados.valor());
+        Long id = criar.executar(dados.cotaId(), dados.tipo(), dados.valor(), dados.dadosFavorecidos());
         return Response.created(URI.create("/processos/" + id)).entity(new IdCriado(id)).build();
     }
 

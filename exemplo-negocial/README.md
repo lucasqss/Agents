@@ -193,6 +193,8 @@ Pago, reprovado e cancelado são finais: não aceitam nenhuma ação e liberam a
 
 **Valor e crédito disponível.** Todo processo tem `valor` (`Dinheiro`, maior que zero, até duas casas), protegido em `ProcessoPagamento`; o entrypoint confere o formato (`@NotNull @Positive @Digits`) e responde 400 com o campo `valor`. O crédito disponível da cota é o crédito menos o valor dos processos **pagos** (`Cota.creditoDisponivel`); reprovado e cancelado não consomem crédito. `Cota.exigirCreditoPara` recusa o valor acima do disponível com `CreditoInsuficienteException` (HTTP 409, a mensagem diz quanto há disponível). A abertura lê a soma dos pagos dentro do mesmo bloqueio da cota que garante um só processo em andamento, então pedidos simultâneos não estouram o crédito. `GET /cotas/{id}` devolve o `creditoDisponivel`. A migration `V5` cria a coluna `valor` e, na implantação, dá aos processos existentes o crédito da cota.
 
+**Favorecidos.** O valor do processo é dividido entre favorecidos (`Favorecido`, Value Object do agregado `ProcessoPagamento`: nome, `Documento`, papel e parte em `Dinheiro`). A raiz protege as invariantes em `ProcessoPagamento.novo(...)`, com `DominioException` (400): ao menos um favorecido, cada parte maior que zero, partes somando exatamente o valor (a mensagem diz quanto falta ou passa) e o mesmo documento não se repete. `Documento` é CPF (11) ou CNPJ (14), só dígitos; o dígito verificador não é conferido nesta entrega. O entrypoint confere só o formato (`@NotEmpty`, tamanhos, `@Pattern`, `@Digits`) e responde 400 com `campos` (`favorecidos[1].documento`) antes de qualquer busca; as regras do domínio rodam ao montar o agregado, antes do 404 e do 409. Os favorecidos não têm repositório próprio: o adapter do processo os grava ao inserir o processo (tabela `processo_favorecido`, com a coluna `ordem`) e os carrega ao reconstituí-lo. A migration `V6` dá a cada processo existente um favorecido `titular`, com o nome e o CPF (só dígitos) do cliente da cota e o valor inteiro do processo. Alterar valor e favorecidos fica para outra fatia.
+
 Transições inválidas lançam `TransicaoInvalidaException` (HTTP 409). Cada cota tem no máximo um processo em andamento. No banco, `processo_pagamento` guarda `tipo` e `estado` em texto, e `processo_transicao` guarda o histórico: uma linha por mudança de estado, com a ação, a data e a observação. O mapper reconstrói o tipo e o estado pelo código gravado (`TipoProcesso.valueOf`, `EstadoProcesso.valueOf`), sem herança JPA. A coluna `versao` impede que duas operações simultâneas gravem por cima uma da outra.
 
 Um único caso de uso, `ExecutarAcaoProcessoUseCase`, atende as ações que só mudam o estado. `PagarProcessoUseCase` é separado porque chama a tesouraria.
@@ -236,7 +238,7 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 |---|---|---|
 | Escrita | `POST /clientes`, `PUT/DELETE /clientes/{id}` | CRUD de cliente (CPF único) |
 | Escrita | `POST /cotas`, `PUT/DELETE /cotas/{id}` | CRUD de cota |
-| Escrita | `POST /processos` `{cotaId, tipo, valor}` | Cria processo (`IMOBILIARIO` ou `SERVICO`) com o valor (número maior que zero, até 2 casas, até o crédito disponível da cota) |
+| Escrita | `POST /processos` `{cotaId, tipo, valor, favorecidos: [{nome, documento, papel, valor}]}` | Cria processo (`IMOBILIARIO` ou `SERVICO`) com o valor (número maior que zero, até 2 casas, até o crédito disponível da cota), dividido entre ao menos um favorecido (partes somando o valor) |
 | Escrita | `POST /processos/{id}/iniciar-analise` · `concluir-analise` · `concluir-vistoria` · `receber-documento` | Transições; corpo opcional `{"observacao": "..."}` (até 500 caracteres) |
 | Escrita | `POST /processos/{id}/solicitar-documento` · `reprovar` · `devolver-para-analise` · `cancelar` | Transições; corpo obrigatório `{"motivo": "..."}` (não vazio, até 500 caracteres), gravado no histórico |
 | Escrita | `POST /processos/{id}/pagar` | Transição que registra a ordem na Tesouraria; sem corpo |
@@ -247,6 +249,7 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 | Canal TAA | `GET /taa/v1/cotas/{id}` | Cota no padrão do terminal |
 | Leitura | `GET /processos?tipo=&estado=&pagina=1&tamanho=20` | Processos filtrados (`estado` inclui `PENDENTE_DOCUMENTO` e `REPROVADO`) e paginados, com o valor e o protocolo de pagamento |
 | Leitura | `GET /processos/{id}/acoes` · `GET /processos/{id}/historico` | Ações que o processo aceita no estado atual; histórico das transições |
+| Leitura | `GET /processos/{id}/favorecidos` | Favorecidos `[{nome, documento, papel, valor}]` na ordem informada; 404 se o processo não existe |
 
 Validação em duas camadas: o **formato** da entrada (obrigatório, tamanho, faixa) é checado com Bean Validation nos requests do entrypoint (`ClienteRequest`, `CotaRequest`), antes do use case, e as restrições aparecem no OpenAPI; a **regra de negócio** continua no domínio, que vale para qualquer chamador. Todo erro sai no mesmo formato, e `campos` só vem preenchido em erro de formato:
 

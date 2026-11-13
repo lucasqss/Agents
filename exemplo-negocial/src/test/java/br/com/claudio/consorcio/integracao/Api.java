@@ -5,6 +5,8 @@ import static io.restassured.RestAssured.given;
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -34,8 +36,33 @@ final class Api {
     }
 
     static long criarProcesso(long cotaId, String tipo) {
-        return post("/processos", Map.of("cotaId", cotaId, "tipo", tipo, "valor", VALOR_PADRAO)).statusCode(201)
+        return post("/processos", corpoDeProcesso(cotaId, tipo)).statusCode(201)
                 .extract().jsonPath().getLong("id");
+    }
+
+    /** Pedido de abertura válido: o valor padrão inteiro para um único favorecido com CPF próprio. */
+    static Map<String, Object> corpoDeProcesso(long cotaId, String tipo) {
+        return corpoDeProcesso(cotaId, tipo, VALOR_PADRAO,
+                List.of(favorecido("Favorecido de Teste", "%011d".formatted(SEQUENCIA.incrementAndGet() % 100_000_000_000L),
+                        "vendedor", VALOR_PADRAO)));
+    }
+
+    static Map<String, Object> corpoDeProcesso(long cotaId, String tipo, BigDecimal valor, List<Map<String, Object>> favorecidos) {
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("cotaId", cotaId);
+        corpo.put("tipo", tipo);
+        corpo.put("valor", valor);
+        corpo.put("favorecidos", favorecidos);
+        return corpo;
+    }
+
+    static Map<String, Object> favorecido(String nome, String documento, String papel, BigDecimal valor) {
+        Map<String, Object> favorecido = new LinkedHashMap<>();
+        favorecido.put("nome", nome);
+        favorecido.put("documento", documento);
+        favorecido.put("papel", papel);
+        favorecido.put("valor", valor);
+        return favorecido;
     }
 
     static ValidatableResponse acao(long processoId, String acao) {

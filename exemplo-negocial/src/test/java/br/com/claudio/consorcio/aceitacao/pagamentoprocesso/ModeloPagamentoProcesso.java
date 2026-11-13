@@ -1,5 +1,8 @@
 package br.com.claudio.consorcio.aceitacao.pagamentoprocesso;
 
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.AUSENTE;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.favorecido;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,8 +14,8 @@ import java.util.stream.Stream;
 
 /**
  * Padrão: Máquina de estados como modelo de teste [Ammann e Offutt].
- * Escrita a partir das regras 2 a 6, 10, 11 e 23 do caso de uso (fatia 1) e 12 a 14 (fatia 2, valor e crédito);
- * nada aqui vem do código da aplicação.
+ * Escrita a partir das regras 2 a 6, 10, 11 e 23 do caso de uso (fatia 1), 12 a 14 (fatia 2, valor e crédito)
+ * e 15 e 29 (fatia 3, favorecidos); nada aqui vem do código da aplicação.
  */
 final class ModeloPagamentoProcesso {
 
@@ -244,6 +247,327 @@ final class ModeloPagamentoProcesso {
     /** Todos os cenários, para conferir o crédito disponível. */
     static Stream<CenarioCredito> cenariosDeCredito() {
         return Stream.concat(cenariosComCotaLivre(), cenariosComProcessoEmAndamento());
+    }
+
+    // ---- Favorecidos (fatia 3: R15, R29, na abertura) ----
+
+    /** O que o modelo manda fazer com um pedido de abertura, olhando só os favorecidos. */
+    enum Resultado {
+        /** Todas as regras de R15 e R29 cumpridas: 201 e a consulta devolve os favorecidos informados. */
+        ACEITO,
+        /** Dado de favorecido ausente, em branco, fora do tamanho ou do formato: 400 com {@code campos}. */
+        RECUSA_DE_FORMATO,
+        /** Dados bem formados, mas a soma das partes difere do valor ou há documento repetido: 400 com mensagem. */
+        RECUSA_DE_REGRA
+    }
+
+    /**
+     * Pedido de abertura com valor e favorecidos. {@code favorecidos} é uma lista de mapas (campos com valor,
+     * {@code null} ou {@link br.com.claudio.consorcio.aceitacao.ApiAceitacao#AUSENTE}), ou o próprio
+     * {@code AUSENTE} ou {@code null} para a lista inteira.
+     * O oráculo {@link #resultado()} aplica R15 e R29 e o contrato (nome até 120, papel até 50, documento com
+     * 11 ou 14 dígitos, parte maior que zero com até duas casas); formato é conferido antes de regra.
+     */
+    record CasoFavorecidos(String nome, BigDecimal valor, Object favorecidos) {
+
+        CasoFavorecidos comValor(BigDecimal outroValor) {
+            return new CasoFavorecidos(nome, outroValor, favorecidos);
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> esperados() {
+            return (List<Map<String, Object>>) favorecidos;
+        }
+
+        Resultado resultado() {
+            if (!(favorecidos instanceof List<?> lista) || lista.isEmpty()) {
+                return Resultado.RECUSA_DE_FORMATO;
+            }
+            BigDecimal soma = BigDecimal.ZERO;
+            Set<Object> documentos = new HashSet<>();
+            boolean repetido = false;
+            for (Object item : lista) {
+                if (!(item instanceof Map<?, ?> f)) {
+                    return Resultado.RECUSA_DE_FORMATO;
+                }
+                if (!textoValido(f.get("nome"), 120) || !textoValido(f.get("papel"), 50)
+                        || !documentoValido(f.get("documento"))) {
+                    return Resultado.RECUSA_DE_FORMATO;
+                }
+                if (!(f.get("valor") instanceof BigDecimal parte) || parte.signum() <= 0
+                        || parte.stripTrailingZeros().scale() > 2) {
+                    return Resultado.RECUSA_DE_FORMATO;
+                }
+                soma = soma.add(parte);
+                repetido |= !documentos.add(f.get("documento"));
+            }
+            return soma.compareTo(valor) != 0 || repetido ? Resultado.RECUSA_DE_REGRA : Resultado.ACEITO;
+        }
+
+        private static boolean textoValido(Object texto, int maximo) {
+            return texto instanceof String s && !s.isBlank() && s.length() <= maximo;
+        }
+
+        private static boolean documentoValido(Object documento) {
+            return documento instanceof String s && s.matches("[0-9]{11}|[0-9]{14}");
+        }
+
+        @Override
+        public String toString() {
+            return nome;
+        }
+    }
+
+    private static CasoFavorecidos caso(String nome, String valor, Object favorecidos) {
+        return new CasoFavorecidos(nome, v(valor), favorecidos);
+    }
+
+    private static Map<String, Object> fav(String nome, String documento, String papel, String parte) {
+        return favorecido(nome, documento, papel, v(parte));
+    }
+
+    /** CPF sintético (11 dígitos; esta entrega não confere dígito verificador). */
+    private static String cpf(int n) {
+        return "%011d".formatted(12345678900L + n);
+    }
+
+    /** CNPJ sintético (14 dígitos; esta entrega não confere dígito verificador). */
+    private static String cnpj(int n) {
+        return "%014d".formatted(12345678000100L + n);
+    }
+
+    private static final String NOME_ANA = "Ana Lima";
+    private static final String NOME_CARTORIO = "Cartório Norte";
+
+    /** Base dos casos de formato e de regra: Ana (CPF) com a parte dada e o cartório (CNPJ) com a parte dada. */
+    private static List<Map<String, Object>> parDeFavorecidos(Object parteAna, Object parteCartorio) {
+        return List.of(favorecido(NOME_ANA, cpf(1), "vendedor", parteAna),
+                favorecido(NOME_CARTORIO, cnpj(2), "cartório", parteCartorio));
+    }
+
+    /** Segundo favorecido com o defeito dado; Ana fica com 60,00 e o segundo com 40,00 quando a parte está certa. */
+    private static List<Map<String, Object>> segundoComDefeito(Object nome, Object documento, Object papel, Object parte) {
+        return List.of(fav(NOME_ANA, cpf(1), "vendedor", "60.00"), favorecido(nome, documento, papel, parte));
+    }
+
+    /** n favorecidos distintos (CPF e CNPJ alternados), todos com a mesma parte. */
+    private static List<Map<String, Object>> varios(int quantidade, String parte) {
+        List<Map<String, Object>> lista = new ArrayList<>();
+        for (int i = 0; i < quantidade; i++) {
+            lista.add(fav("Favorecido %03d".formatted(i), i % 2 == 0 ? cpf(100 + i) : cnpj(100 + i), "papel " + i, parte));
+        }
+        return lista;
+    }
+
+    private static List<Map<String, Object>> variosComUm(int quantidade, String parte, int posicao,
+            Map<String, Object> substituto) {
+        List<Map<String, Object>> lista = new ArrayList<>(varios(quantidade, parte));
+        lista.set(posicao, substituto);
+        return lista;
+    }
+
+    /** O exemplo do caso de uso (R15): vendedor R$ 9.500,00 e cartório R$ 500,00 em um processo de R$ 10.000,00. */
+    static CasoFavorecidos exemploDoCasoDeUso() {
+        return caso("exemplo do caso de uso: vendedor 9500,00 e cartório 500,00", "10000.00", List.of(
+                fav("João da Silva", "12345678901", "vendedor", "9500.00"),
+                fav("Cartório Central", "12345678000199", "cartório", "500.00")));
+    }
+
+    /** Aberturas que R15 e R29 mandam aceitar (partição e limites). */
+    static Stream<CasoFavorecidos> favorecidosAceitos() {
+        return Stream.of(
+                exemploDoCasoDeUso(),
+                caso("um favorecido (CPF) com o valor inteiro", "10000.00",
+                        List.of(fav("Maria Souza", cpf(1), "vendedor", "10000.00"))),
+                caso("um favorecido (CNPJ) com o valor inteiro", "10000.00",
+                        List.of(fav("Imobiliária Central Ltda", cnpj(1), "vendedor", "10000.00"))),
+                caso("dois favorecidos, metade para cada um", "10000.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "5000.00"), fav("Bruno Reis", cpf(2), "vendedor", "5000.00"))),
+                caso("dez favorecidos com partes diferentes somando o valor", "5500.00", dezComPartesDiferentes()),
+                caso("cem favorecidos de 1,00 somando 100,00 (sem limite máximo)", "100.00", varios(100, "1.00")),
+                caso("parte de 0,01 e o resto na outra", "10000.00", parDeFavorecidos(v("0.01"), v("9999.99"))),
+                caso("duas partes de 0,01 em um processo de 0,02", "0.02", parDeFavorecidos(v("0.01"), v("0.01"))),
+                caso("um favorecido com 0,01 em um processo de 0,01", "0.01",
+                        List.of(fav("Ana Lima", cpf(1), "vendedor", "0.01"))),
+                caso("rateio com centavos: 33,34 + 33,33 + 33,33 = 100,00", "100.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "33.34"), fav("Bruno Reis", cpf(2), "vendedor", "33.33"),
+                        fav("Carla Dias", cpf(3), "vendedor", "33.33"))),
+                caso("partes sem casas decimais: 9500 + 500", "10000.00", parDeFavorecidos(v("9500"), v("500"))),
+                caso("partes com uma casa decimal: 9500,5 + 499,5", "10000.00",
+                        parDeFavorecidos(v("9500.5"), v("499.5"))),
+                caso("valor com centavos dividido ao meio: 6250,25 + 6250,25", "12500.50",
+                        parDeFavorecidos(v("6250.25"), v("6250.25"))),
+                caso("nome e papel com 1 caractere", "100.00", List.of(fav("A", cpf(1), "v", "100.00"))),
+                caso("nome com 120 e papel com 50 caracteres (limites)", "100.00",
+                        List.of(fav("a".repeat(120), cpf(1), "b".repeat(50), "100.00"))),
+                caso("nome com 120 e papel com 50 caracteres acentuados", "100.00",
+                        List.of(fav("ã".repeat(120), cpf(1), "é".repeat(50), "100.00"))),
+                caso("papel é texto livre: vendedor, cartório, corretor e advogado", "100.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "25.00"), fav("Cartório Norte", cnpj(2), "cartório", "25.00"),
+                        fav("Carla Dias", cpf(3), "corretor", "25.00"), fav("Davi Melo", cpf(4), "advogado", "25.00"))),
+                caso("mesmo nome e papel com documentos diferentes não é o mesmo favorecido", "100.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "50.00"), fav("Ana Lima", cpf(2), "vendedor", "50.00"))),
+                caso("documentos com zeros à esquerda (CPF e CNPJ)", "100.00", List.of(
+                        fav("Ana Lima", "00123456789", "vendedor", "50.00"),
+                        fav("Cartório Norte", "00123456000100", "cartório", "50.00"))));
+    }
+
+    private static List<Map<String, Object>> dezComPartesDiferentes() {
+        List<Map<String, Object>> lista = new ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            lista.add(fav("Favorecido %02d".formatted(i), i % 2 == 0 ? cnpj(i) : cpf(i), "papel " + i, "%d00.00".formatted(i)));
+        }
+        return lista;
+    }
+
+    /** Lista de favorecidos informada em ordem que nenhuma chave (nome, documento, papel, parte) reproduz sozinha. */
+    static CasoFavorecidos favorecidosEmOrdemEmbaralhada() {
+        return caso("quatro favorecidos fora de ordem alfabética, de documento e de parte", "1000.00", List.of(
+                fav("Zélia Prado", cpf(50), "vendedor", "100.50"),
+                fav("Ana Alves", cnpj(10), "cartório", "400.00"),
+                fav("Marcos Dias", cpf(30), "corretor", "250.25"),
+                fav("Beto Nunes", cnpj(70), "advogado", "249.25")));
+    }
+
+    /** Aberturas recusadas por erro de FORMATO nos favorecidos: 400 com {@code campos} (R15, R29 e o contrato). */
+    static Stream<CasoFavorecidos> favorecidosRecusadosPorFormato() {
+        String docB = cnpj(2);
+        return Stream.of(
+                // Lista
+                caso("lista ausente", "100.00", AUSENTE),
+                caso("lista nula", "100.00", null),
+                caso("lista vazia", "100.00", List.of()),
+                // Nome
+                caso("nome ausente", "100.00", segundoComDefeito(AUSENTE, docB, "cartório", v("40.00"))),
+                caso("nome nulo", "100.00", segundoComDefeito(null, docB, "cartório", v("40.00"))),
+                caso("nome vazio", "100.00", segundoComDefeito("", docB, "cartório", v("40.00"))),
+                caso("nome só com espaços", "100.00", segundoComDefeito("   ", docB, "cartório", v("40.00"))),
+                caso("nome com 121 caracteres", "100.00",
+                        segundoComDefeito("a".repeat(121), docB, "cartório", v("40.00"))),
+                // Documento
+                caso("documento ausente", "100.00", segundoComDefeito("Cartório Norte", AUSENTE, "cartório", v("40.00"))),
+                caso("documento nulo", "100.00", segundoComDefeito("Cartório Norte", null, "cartório", v("40.00"))),
+                caso("documento vazio", "100.00", segundoComDefeito("Cartório Norte", "", "cartório", v("40.00"))),
+                caso("documento só com espaços", "100.00",
+                        segundoComDefeito("Cartório Norte", "           ", "cartório", v("40.00"))),
+                caso("documento com 1 dígito", "100.00", segundoComDefeito("Cartório Norte", "1", "cartório", v("40.00"))),
+                caso("documento com 10 dígitos", "100.00",
+                        segundoComDefeito("Cartório Norte", "1234567890", "cartório", v("40.00"))),
+                caso("documento com 12 dígitos", "100.00",
+                        segundoComDefeito("Cartório Norte", "123456789012", "cartório", v("40.00"))),
+                caso("documento com 13 dígitos", "100.00",
+                        segundoComDefeito("Cartório Norte", "1234567800019", "cartório", v("40.00"))),
+                caso("documento com 15 dígitos", "100.00",
+                        segundoComDefeito("Cartório Norte", "123456780001999", "cartório", v("40.00"))),
+                caso("CPF com pontuação", "100.00",
+                        segundoComDefeito("Cartório Norte", "123.456.789-01", "cartório", v("40.00"))),
+                caso("CNPJ com pontuação", "100.00",
+                        segundoComDefeito("Cartório Norte", "12.345.678/0001-99", "cartório", v("40.00"))),
+                caso("documento de 11 caracteres com uma letra", "100.00",
+                        segundoComDefeito("Cartório Norte", "1234567890a", "cartório", v("40.00"))),
+                caso("documento de 11 letras", "100.00",
+                        segundoComDefeito("Cartório Norte", "abcdefghijk", "cartório", v("40.00"))),
+                caso("documento de 11 caracteres com espaço no meio", "100.00",
+                        segundoComDefeito("Cartório Norte", "1234 678901", "cartório", v("40.00"))),
+                caso("documento de 11 caracteres com sinal", "100.00",
+                        segundoComDefeito("Cartório Norte", "-2345678901", "cartório", v("40.00"))),
+                caso("documento de 14 caracteres com uma letra", "100.00",
+                        segundoComDefeito("Cartório Norte", "1234567800019X", "cartório", v("40.00"))),
+                // Papel
+                caso("papel ausente", "100.00", segundoComDefeito("Cartório Norte", docB, AUSENTE, v("40.00"))),
+                caso("papel nulo", "100.00", segundoComDefeito("Cartório Norte", docB, null, v("40.00"))),
+                caso("papel vazio", "100.00", segundoComDefeito("Cartório Norte", docB, "", v("40.00"))),
+                caso("papel só com espaços", "100.00", segundoComDefeito("Cartório Norte", docB, "  ", v("40.00"))),
+                caso("papel com 51 caracteres", "100.00",
+                        segundoComDefeito("Cartório Norte", docB, "b".repeat(51), v("40.00"))),
+                // Parte (a soma continua certa, para o defeito ser só o formato da parte)
+                caso("parte ausente", "100.00", parDeFavorecidos(v("100.00"), AUSENTE)),
+                caso("parte nula", "100.00", parDeFavorecidos(v("100.00"), null)),
+                caso("parte zero", "100.00", parDeFavorecidos(v("100.00"), v("0"))),
+                caso("parte 0,00", "100.00", parDeFavorecidos(v("100.00"), v("0.00"))),
+                caso("parte negativa de 0,01", "100.00", parDeFavorecidos(v("100.01"), v("-0.01"))),
+                caso("parte negativa de 40,00", "100.00", parDeFavorecidos(v("140.00"), v("-40.00"))),
+                caso("parte com três casas: 40,005", "100.00", parDeFavorecidos(v("59.995"), v("40.005"))),
+                caso("parte com três casas: 0,001", "100.00", parDeFavorecidos(v("99.999"), v("0.001"))),
+                caso("parte do primeiro favorecido com três casas: 60,005", "100.00",
+                        parDeFavorecidos(v("60.005"), v("39.995"))),
+                // Posição do defeito
+                caso("defeito no primeiro de dois favorecidos (sem nome)", "100.00", List.of(
+                        favorecido(AUSENTE, cpf(1), "vendedor", v("60.00")), fav(NOME_CARTORIO, docB, "cartório", "40.00"))),
+                caso("defeito no décimo de dez favorecidos (documento com 10 dígitos)", "100.00",
+                        variosComUm(10, "10.00", 9, fav("Favorecido 9", "1234567890", "papel 9", "10.00"))));
+    }
+
+    /** Aberturas recusadas por REGRA: soma das partes diferente do valor, ou mesmo documento repetido. */
+    static Stream<CasoFavorecidos> favorecidosRecusadosPorRegra() {
+        Map<String, Object> primeiro = varios(10, "10.00").getFirst();
+        return Stream.of(
+                // Soma
+                caso("exemplo do caso de uso: 9500,00 + 400,00 = 9900,00 de 10000,00", "10000.00",
+                        parDeFavorecidos(v("9500.00"), v("400.00"))),
+                caso("soma um centavo abaixo: 9500,00 + 499,99", "10000.00", parDeFavorecidos(v("9500.00"), v("499.99"))),
+                caso("soma um centavo acima: 9500,00 + 500,01", "10000.00", parDeFavorecidos(v("9500.00"), v("500.01"))),
+                caso("soma bem acima: 9500,00 + 600,00", "10000.00", parDeFavorecidos(v("9500.00"), v("600.00"))),
+                caso("um favorecido um centavo abaixo do valor", "10000.00",
+                        List.of(fav("Ana Lima", cpf(1), "vendedor", "9999.99"))),
+                caso("um favorecido um centavo acima do valor", "10000.00",
+                        List.of(fav("Ana Lima", cpf(1), "vendedor", "10000.01"))),
+                caso("um favorecido com 1,00 em um processo de 10000,00", "10000.00",
+                        List.of(fav("Ana Lima", cpf(1), "vendedor", "1.00"))),
+                caso("rateio com centavos: 33,33 x 3 = 99,99 de 100,00", "100.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "33.33"), fav("Bruno Reis", cpf(2), "vendedor", "33.33"),
+                        fav("Carla Dias", cpf(3), "vendedor", "33.33"))),
+                caso("rateio com centavos: 33,34 x 3 = 100,02 de 100,00", "100.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "33.34"), fav("Bruno Reis", cpf(2), "vendedor", "33.34"),
+                        fav("Carla Dias", cpf(3), "vendedor", "33.34"))),
+                caso("duas partes de 0,01 e 9999,98 somam 9999,99 de 10000,00", "10000.00",
+                        parDeFavorecidos(v("0.01"), v("9999.98"))),
+                caso("dez favorecidos, soma um centavo abaixo (nove de 10,00 e um de 9,99)", "100.00",
+                        variosComUm(10, "10.00", 9, fav("Favorecido 9", cpf(109), "papel 9", "9.99"))),
+                caso("dez favorecidos, soma um centavo acima (nove de 10,00 e um de 10,01)", "100.00",
+                        variosComUm(10, "10.00", 9, fav("Favorecido 9", cpf(109), "papel 9", "10.01"))),
+                // Documento repetido (a soma está certa)
+                caso("mesmo CPF duas vezes, com o mesmo nome e papel", "10000.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "6000.00"), fav("Ana Lima", cpf(1), "vendedor", "4000.00"))),
+                caso("mesmo CPF duas vezes, com nome e papel diferentes", "10000.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "6000.00"), fav("Ana L. Souza", cpf(1), "cartório", "4000.00"))),
+                caso("mesmo CPF duas vezes, com partes iguais", "10000.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "5000.00"), fav("Ana Lima", cpf(1), "vendedor", "5000.00"))),
+                caso("mesmo CNPJ duas vezes", "10000.00", List.of(
+                        fav("Cartório Norte", cnpj(2), "cartório", "500.00"),
+                        fav("Cartório Norte", cnpj(2), "cartório", "9500.00"))),
+                caso("mesmo CPF no primeiro e no terceiro de três favorecidos", "10000.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "5000.00"), fav("Bruno Reis", cpf(2), "vendedor", "3000.00"),
+                        fav("Ana Lima", cpf(1), "vendedor", "2000.00"))),
+                caso("mesmo CPF três vezes", "10000.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "5000.00"), fav("Ana Lima", cpf(1), "vendedor", "3000.00"),
+                        fav("Ana Lima", cpf(1), "vendedor", "2000.00"))),
+                caso("mesmo documento no primeiro e no décimo de dez favorecidos", "100.00",
+                        variosComUm(10, "10.00", 9, favorecido("Outro Nome", primeiro.get("documento"), "outro papel", v("10.00")))));
+    }
+
+    /**
+     * Tabela de decisão de R15 e R29 na abertura: o caso-base (Ana 60,00 e o cartório 40,00 em um processo de 100,00)
+     * é aceito, e cada condição, sozinha, recusa. O oráculo diz o resultado de cada linha.
+     */
+    static Stream<CasoFavorecidos> tabelaDeDecisao() {
+        return Stream.of(
+                caso("base: todas as condições cumpridas", "100.00", parDeFavorecidos(v("60.00"), v("40.00"))),
+                caso("só a condição 'ao menos um favorecido' falha: lista vazia", "100.00", List.of()),
+                caso("só a condição 'dados completos' falha: segundo sem papel", "100.00",
+                        segundoComDefeito(NOME_CARTORIO, cnpj(2), AUSENTE, v("40.00"))),
+                caso("só a condição 'parte maior que zero' falha: partes 100,00 e 0,00", "100.00",
+                        parDeFavorecidos(v("100.00"), v("0.00"))),
+                caso("só a condição 'soma exata' falha: 60,00 e 39,99", "100.00",
+                        parDeFavorecidos(v("60.00"), v("39.99"))),
+                caso("só a condição 'sem repetição' falha: mesmo CPF nos dois", "100.00", List.of(
+                        fav("Ana Lima", cpf(1), "vendedor", "60.00"), fav("Ana Lima", cpf(1), "vendedor", "40.00"))));
+    }
+
+    /** Recusas de formato usadas na precedência (400 antes de 404 e 409): lista, dado do favorecido e parte. */
+    static Stream<CasoFavorecidos> favorecidosRecusadosPorFormatoRepresentativos() {
+        List<String> nomes = List.of("lista ausente", "lista vazia", "documento com 10 dígitos", "parte 0,00");
+        return favorecidosRecusadosPorFormato().filter(caso -> nomes.contains(caso.nome()));
     }
 
     private static Stream<Base> transicoes(Set<String> acoes) {

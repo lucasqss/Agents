@@ -2,8 +2,10 @@ package br.com.claudio.consorcio.entrypoint.rest.processo;
 
 import br.com.claudio.consorcio.application.Pagina;
 import br.com.claudio.consorcio.application.processo.ListarAcoesDisponiveisUseCase;
+import br.com.claudio.consorcio.application.processo.ListarFavorecidosProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.ListarHistoricoProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.ListarProcessosUseCase;
+import br.com.claudio.consorcio.persistence.processo.ProcessoFavorecidoResumo;
 import br.com.claudio.consorcio.persistence.processo.ProcessoResumo;
 import br.com.claudio.consorcio.persistence.processo.ProcessoTransicaoResumo;
 import jakarta.ws.rs.DefaultValue;
@@ -24,12 +26,15 @@ public class ProcessoQueryResource {
     private final ListarProcessosUseCase listar;
     private final ListarAcoesDisponiveisUseCase listarAcoes;
     private final ListarHistoricoProcessoUseCase listarHistorico;
+    private final ListarFavorecidosProcessoUseCase listarFavorecidos;
 
     public ProcessoQueryResource(ListarProcessosUseCase listar, ListarAcoesDisponiveisUseCase listarAcoes,
-            ListarHistoricoProcessoUseCase listarHistorico) {
+            ListarHistoricoProcessoUseCase listarHistorico,
+            ListarFavorecidosProcessoUseCase listarFavorecidos) {
         this.listar = listar;
         this.listarAcoes = listarAcoes;
         this.listarHistorico = listarHistorico;
+        this.listarFavorecidos = listarFavorecidos;
     }
 
     @GET
@@ -44,6 +49,13 @@ public class ProcessoQueryResource {
     @Path("/{id}/historico")
     public List<ProcessoTransicaoResumo> historico(Long id) {
         return listarHistorico.executar(id)
+                .orElseThrow(() -> new NotFoundException("Processo " + id + " não encontrado"));
+    }
+
+    @GET
+    @Path("/{id}/favorecidos")
+    public List<ProcessoFavorecidoResumo> favorecidos(Long id) {
+        return listarFavorecidos.executar(id)
                 .orElseThrow(() -> new NotFoundException("Processo " + id + " não encontrado"));
     }
 

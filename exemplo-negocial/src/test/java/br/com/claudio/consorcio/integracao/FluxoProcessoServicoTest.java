@@ -22,7 +22,7 @@ class FluxoProcessoServicoTest {
         long processo = Api.criarProcesso(cota, "SERVICO");
 
         // Só um processo ativo por cota.
-        Api.post("/processos", Map.of("cotaId", cota, "tipo", "SERVICO", "valor", Api.VALOR_PADRAO)).statusCode(409);
+        Api.post("/processos", Api.corpoDeProcesso(cota, "SERVICO")).statusCode(409);
 
         acao(processo, "iniciar-analise").statusCode(200).body("estado", equalTo("EM_ANALISE"));
         acao(processo, "concluir-vistoria").statusCode(409);
