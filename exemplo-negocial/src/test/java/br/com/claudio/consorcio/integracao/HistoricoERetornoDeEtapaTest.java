@@ -95,4 +95,17 @@ class HistoricoERetornoDeEtapaTest {
         return given().contentType(ContentType.JSON).body(Map.of("observacao", observacao))
                 .when().post("/processos/" + processo + "/" + acao).then();
     }
+
+    @Test
+    void corpoQueNaoEJsonEhRecusadoComFormatoPadraoESemMudarOEstado() {
+        long processo = Api.criarProcesso(Api.criarCota(Api.criarCliente("Marta")), "SERVICO");
+
+        given().contentType(ContentType.TEXT).body("qualquer coisa")
+                .when().post("/processos/" + processo + "/iniciar-analise").then()
+                .statusCode(415)
+                .body("mensagem", equalTo("Tipo de conteúdo não suportado"));
+
+        acoes(processo).body("acoes", contains("iniciar-analise", "cancelar"));
+        historico(processo).body("$", empty());
+    }
 }

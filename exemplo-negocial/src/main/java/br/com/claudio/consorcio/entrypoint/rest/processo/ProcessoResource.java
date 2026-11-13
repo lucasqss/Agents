@@ -19,6 +19,7 @@ import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 
 /**
@@ -68,28 +69,28 @@ public class ProcessoResource {
     @POST
     @Path("/{id}/iniciar-analise")
     @Consumes(MediaType.WILDCARD)
-    public EstadoAtual iniciarAnalise(Long id, @Valid Observacao corpo) {
+    public EstadoAtual iniciarAnalise(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
         return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.INICIAR_ANALISE, Observacao.texto(corpo)));
     }
 
     @POST
     @Path("/{id}/concluir-analise")
     @Consumes(MediaType.WILDCARD)
-    public EstadoAtual concluirAnalise(Long id, @Valid Observacao corpo) {
+    public EstadoAtual concluirAnalise(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
         return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CONCLUIR_ANALISE, Observacao.texto(corpo)));
     }
 
     @POST
     @Path("/{id}/concluir-vistoria")
     @Consumes(MediaType.WILDCARD)
-    public EstadoAtual concluirVistoria(Long id, @Valid Observacao corpo) {
+    public EstadoAtual concluirVistoria(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
         return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CONCLUIR_VISTORIA, Observacao.texto(corpo)));
     }
 
     @POST
     @Path("/{id}/devolver-para-analise")
     @Consumes(MediaType.WILDCARD)
-    public EstadoAtual devolverParaAnalise(Long id, @Valid Observacao corpo) {
+    public EstadoAtual devolverParaAnalise(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
         return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.DEVOLVER_PARA_ANALISE, Observacao.texto(corpo)));
     }
 
@@ -102,7 +103,7 @@ public class ProcessoResource {
     @POST
     @Path("/{id}/cancelar")
     @Consumes(MediaType.WILDCARD)
-    public EstadoAtual cancelar(Long id, @Valid Observacao corpo) {
+    public EstadoAtual cancelar(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
         return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CANCELAR, Observacao.texto(corpo)));
     }
 }
