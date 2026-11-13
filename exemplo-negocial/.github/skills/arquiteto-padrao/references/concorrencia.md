@@ -9,6 +9,7 @@ Duas requisições podem chegar juntas, e a mesma requisição pode chegar duas 
 | Lê o agregado, altera e grava | **Versão** (Optimistic Offline Lock [PoEAA]). É o padrão de todo agregado que é alterado |
 | Confere uma condição e age em seguida ("já existe um ativo?", "ainda há saldo?") | **Bloqueio** (Pessimistic Offline Lock [PoEAA]) na linha que serializa a decisão |
 | A regra é "só pode existir um por dono" | Bloqueio na **raiz dona da regra** (Coarse-Grained Lock [PoEAA]): a linha do dono, não as dos filhos, que podem ainda nem existir |
+| A regra depende de uma **soma ou contagem** de outras linhas ("valor até o limite menos o já pago") | Bloqueio na **raiz dona da regra**, não nas linhas somadas, e a soma é lida depois do bloqueio, na mesma transação. Sem isso, duas operações simultâneas leem o mesmo total e passam juntas pela conferência |
 | Chama sistema externo com efeito (cria, paga, envia) | Bloqueio do agregado, mais **chave de idempotência** na chamada ([transação e sistema externo](transacao-e-sistema-externo.md)) |
 | Unicidade simples (número, código) | Restrição `unique` no banco, além da verificação no caso de uso. A verificação dá a mensagem boa; a restrição dá a garantia |
 

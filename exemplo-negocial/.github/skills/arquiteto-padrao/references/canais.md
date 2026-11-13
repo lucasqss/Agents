@@ -10,7 +10,7 @@ Os fronts são gerados por low-code e não formatam nada: o backend entrega pron
 
 Recebe HTTP, chama o caso de uso e devolve o resultado. Sem regra de negócio, sem acesso a repositório, sem formatação.
 
-**Entrada:** um `XRequest` (record) por operação, com Bean Validation para o **formato** (`@NotBlank`, `@NotNull`, `@Size(max = <tamanho da coluna>)`, `@Positive`), recebido como `@Valid @NotNull XRequest` e convertido para o comando do caso de uso (`paraDados()`). Não anote os records de `application/` nem o domínio: a regra de negócio continua no domínio.
+**Entrada:** um `XRequest` (record) por operação, com Bean Validation para o **formato** (`@NotBlank`, `@NotNull`, `@Size(max = <tamanho da coluna>)`, `@Positive`), recebido como `@Valid @NotNull XRequest` e convertido para o comando do caso de uso (`paraDados()`). Valor monetário leva `@Positive` (se a regra pede) e `@Digits(integer = <colunas>, fraction = 2)`. Formato inválido responde 400 antes de qualquer busca. Não anote os records de `application/` nem o domínio: a regra de negócio continua no domínio.
 
 **Ação com dado obrigatório:** o dado vem em um record de request próprio (`@NotBlank`, `@Size(max = <tamanho da coluna>)`), com o corpo declarado obrigatório (`@RequestBody(required = true) @Valid @NotNull`), para o OpenAPI mostrar o corpo como obrigatório. Corpo ausente, vazio ou grande demais responde 400 com o nome do campo, antes de buscar o agregado (400 vence 404 e 409). Ações sem dado seguem aceitando requisição sem corpo (`required = false`); os dois estilos convivem no mesmo resource. Quem decide se a ação exige o dado é o domínio ([domínio](dominio.md)); o entrypoint só confere o formato.
 
@@ -20,6 +20,7 @@ Recebe HTTP, chama o caso de uso e devolve o resultado. Sem regra de negócio, s
 |---|---|
 | `DominioException` | 400 |
 | `TransicaoInvalidaException`, `ConflitoException` | 409 |
+| Subclasse de `DominioException` para conflito com o estado atual (`CreditoInsuficienteException`) | 409, mapeada à parte; o mapper de `DominioException` não a captura |
 | `NaoEncontradoException` | 404 |
 | `SistemaExternoIndisponivelException` | 503 |
 | `ConstraintViolationException` (Bean Validation) | 400, com a lista `campos` |

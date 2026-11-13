@@ -34,10 +34,12 @@ Todo valor monetário do domínio é `Dinheiro` ([exemplo](exemplos-codigo.md)),
 
 ## Nas outras camadas
 
+`BigDecimal` só aparece na borda: request, `*Entity` e record de leitura. Entre o caso de uso e o domínio, o campo monetário do agregado é `Dinheiro` (`Dinheiro.de(valor)` na entrada do caso de uso).
+
 | Camada | Como o valor aparece |
 |---|---|
-| `entrypoint/` | tipo simples no `XRequest` (`BigDecimal`, `String`), com Bean Validation de formato |
+| `entrypoint/` | tipo simples no `XRequest` (`BigDecimal`, `String`), com Bean Validation de formato (`@Positive`, `@Digits(fraction = 2)`) |
 | `application/` | `DadosX` leva o tipo simples; o caso de uso constrói o Value Object ao chamar o domínio |
-| `persistence/` (escrita) | a `*Entity` guarda o tipo simples da coluna; o mapper converte nos dois sentidos (Embedded Value [PoEAA]). Valor de dois componentes ocupa duas colunas |
+| `persistence/` (escrita) | a `*Entity` guarda o tipo simples da coluna (`BigDecimal`; `numeric(15,2)` na migration); o mapper converte nos dois sentidos (Embedded Value [PoEAA]). Valor de dois componentes ocupa duas colunas |
 | `persistence/` (leitura) | o record projetado leva o tipo simples; leitura não usa o domínio |
 | Canal | o Assembler formata (símbolo, separadores). O Value Object não formata para tela |
