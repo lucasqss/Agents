@@ -4,6 +4,7 @@ import br.com.claudio.consorcio.application.ConflitoException;
 import br.com.claudio.consorcio.application.NaoEncontradoException;
 import br.com.claudio.consorcio.domain.AlteracaoConcorrenteException;
 import br.com.claudio.consorcio.domain.DominioException;
+import br.com.claudio.consorcio.domain.cota.CreditoInsuficienteException;
 import br.com.claudio.consorcio.domain.processo.fluxo.TransicaoInvalidaException;
 import br.com.claudio.consorcio.gateway.SistemaExternoIndisponivelException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
@@ -24,6 +25,11 @@ public class ExceptionMappers {
 
     @ServerExceptionMapper
     public Response transicaoInvalida(TransicaoInvalidaException e) {
+        return erro(Response.Status.CONFLICT, e);
+    }
+
+    @ServerExceptionMapper
+    public Response creditoInsuficiente(CreditoInsuficienteException e) {
         return erro(Response.Status.CONFLICT, e);
     }
 

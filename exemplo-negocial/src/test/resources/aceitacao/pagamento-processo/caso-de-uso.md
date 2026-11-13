@@ -312,7 +312,7 @@ Nenhuma vira regra, teste ou código enquanto estiver sem resposta. Dúvida resp
 
 ## Contrato usado
 
-Seção mantida pela skill de testes. Estado: **fatia 1 de 7** (a implementação ainda não existe; o contrato abaixo foi definido pelo time de implementação e é o que os testes usam). O que não está aqui não é conhecido pelos testes.
+Seção mantida pela skill de testes. Estado: **fatia 2 de 7** (a implementação ainda não existe; o contrato abaixo foi definido pelo time de implementação e é o que os testes usam). O que não está aqui não é conhecido pelos testes.
 
 ### Ações sobre o processo (fatia 1)
 
@@ -342,13 +342,28 @@ Formato único de erro: `{"mensagem": "...", "campos": [{"campo": "...", "mensag
 | `GET /processos/{id}/historico` | lista em ordem cronológica; cada item tem `de`, `para`, `acao`, `quando`, `observacao`. O motivo informado aparece em `observacao` (um campo só, para motivo e observação). `acao` segue o padrão observado no sistema de hoje: nome do caminho em maiúsculas com `_` (`INICIAR_ANALISE`, `CONCLUIR_VISTORIA`, `PAGAR`, `CANCELAR`); as novas seguem o mesmo padrão (`SOLICITAR_DOCUMENTO`, `RECEBER_DOCUMENTO`, `REPROVAR`, `DEVOLVER_PARA_ANALISE`) |
 | `GET /processos?tipo=&estado=&pagina=&tamanho=` | `{"itens": [{"id", "cotaId", "tipo", "estado", "protocoloPagamento", ...}], "pagina", "tamanho", "total"}`; `estado` aceita também `PENDENTE_DOCUMENTO` e `REPROVADO` |
 
+### Valor e crédito (fatia 2)
+
+Decidido pelo time de implementação; os testes usam só isto.
+
+| Operação | Contrato |
+|---|---|
+| `POST /processos` | `{"cotaId": n, "tipo": "IMOBILIARIO"\|"SERVICO", "valor": 12500.50}`; `valor` é número JSON. `201` com `{"id"}` |
+| 400 | `campos` apontando `cotaId`, `tipo` ou `valor` (ausente, nulo, zero, negativo, mais de duas casas decimais, ex.: 100.005); corpo vazio ou malformado. O 400 vem antes de qualquer outra conferência (cota inexistente, cota com processo em andamento) e nada é criado |
+| 404 | cota inexistente (com valor válido) |
+| 409 | cota com processo em andamento (R6) **e** valor acima do crédito disponível (R13). Nada é criado e a cota continua livre. Escolha registrada como dúvida (D2-1) |
+| `GET /processos` | cada item ganha `valor` (número, comparado numericamente como `BigDecimal`) |
+| `GET /cotas/{id}` | `200` com `creditoDisponivel` (número) = `valorCredito` menos a soma dos valores dos processos PAGOS da cota. Em andamento, reprovado e cancelado não alteram; pago reduz |
+
+Canais (`/web`, `/mobile`, `/taa`) ficam fora dos testes de aceitação desta fatia.
+
 ### Que continua como hoje (testes mantidos)
 
 | Operação | Entrada e resposta |
 |---|---|
-| `POST /processos` | `{"cotaId", "tipo"}` (`SERVICO` ou `IMOBILIARIO`); `201` com `{"id"}`; `400` com `campos` (`cotaId` ou `tipo` ausente, tipo fora da lista, corpo vazio ou malformado); `404` cota inexistente; `409` cota com processo em andamento. Valor e favorecidos entram nas fatias 2 e 3 |
+| `POST /processos` | ver "Valor e crédito (fatia 2)" abaixo. Favorecidos entram na fatia 3 |
 | `pagar` | de APROVADO para PAGO, com `protocoloPagamento` do processo preenchido pelo protocolo da tesouraria; tesouraria indisponível: 503, e o processo continua APROVADO |
-| Pré-condições de cadastro | `POST /clientes` e `POST /cotas`, só para criar dados próprios de cada caso |
+| Pré-condições de cadastro | `POST /clientes` e `POST /cotas` (com `valorCredito`), só para criar dados próprios de cada caso. Os auxiliares abrem processo com o valor padrão R$ 30.000,00, dentro do crédito padrão de R$ 250.000,00 |
 
 ## Modelo
 
@@ -374,9 +389,17 @@ Critérios aplicados:
 - Cobertura de terminais: as nove ações do caminho, os campos `motivo` e `observacao`, os campos do histórico, os filtros `estado` novos, e os status 200, 400, 404, 409, 415 e 503.
 - Suposição de erro: JSON malformado e tipo de conteúdo que não é JSON em toda ação que recebe corpo.
 
+### Modelo de valor e crédito (fatia 2)
+
+Em `ModeloPagamentoProcesso`: cada cenário é uma cota com um crédito e uma sequência de processos, cada um levado a uma situação pelos caminhos da máquina de estados (só o último pode estar em andamento, R6). O oráculo calcula `creditoDisponivelEsperado = crédito − soma dos valores dos processos PAGOS` (R13, R14).
+
+- Cenários com a cota livre (12): sem processo; pago 100.000 (serviço e imobiliário); dois pagos (100.000 e 50.000); cancelado 100.000 (os dois tipos); reprovado 100.000 (os dois tipos); pago + cancelado + reprovado; pago de 0,01; crédito 1.000,50 com pago 500,25; crédito esgotado.
+- Cenários com processo em andamento (10): um para cada situação em andamento nos dois tipos (9) e pago 100.000 mais outro de 60.000 em análise.
+- Critérios: particionamento do valor (válidos: 0,01, 100, 100,5, 12.500,50, exatamente o crédito; inválidos: ausente, nulo, 0, 0,00, -0,01, -100, 3 casas em 100,005, 0,001 e 100,123); valor-limite do crédito (exatamente o disponível aceito, um centavo acima recusado, em cada cenário com a cota livre); tabela de decisão do crédito (pago consome; andamento, reprovado, cancelado e processo de outra cota não); 400 antes de 404 e de 409.
+
 ## Rastreabilidade
 
-Casos da fatia 1: 290 no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoAceitacaoIT` herda os mesmos). "Pendente: fatia N" marca regra cuja fatia ainda não chegou, sem teste.
+Casos da fatia 1: 290; casos novos da fatia 2: 75 (total 365) no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoAceitacaoIT` herda os mesmos). "Pendente: fatia N" marca regra cuja fatia ainda não chegou, sem teste.
 
 | Regra | Modelo e critério | Teste | Casos |
 |---|---|---|---|
@@ -394,7 +417,13 @@ Casos da fatia 1: 290 no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoA
 | R10 | Máquina de estados: solicitar documento (com motivo) e receber documento; particionamento do motivo e da observação | `fluxoChegaASituacaoFinal`, `motivoAusenteERecusado`, `motivoValidoFicaNoHistorico`, `observacaoOpcionalAceitaObjetoVazio`, `observacaoFicaNoHistorico`, `acoesAceitasNaSituacao` | contado em cada teste |
 | R11 (parte: reprovar em análise) | Máquina de estados: transição, final e ação inválida (inclusive reprovar em aprovado); particionamento do motivo | os mesmos de R10 e `acaoForaDaOrdemERecusada` | contado em cada teste |
 | R11 (reprovar em aguardando alçada) | | pendente: fatia 6 | |
-| R12, R13, R14 | | pendente: fatia 2 (a parte de liberar a cota, R6, já tem teste) | |
+| R1 (valor obrigatório) | Particionamento do valor: ausente | `valorInvalidoERecusado` (ausente), `valorAusenteNosDoisTipos` | 1, 2 |
+| R12 (abertura) | Particionamento e valor-limite: 0,01, 2 casas aceitos; 0, negativo, 3 casas, ausente, nulo recusados com 400 e `campos` = `valor`; 400 antes de 404 e de 409 | `valorValidoAbreProcesso`, `valorInvalidoERecusado`, `valorInvalidoVemAntesDeCotaInexistente`, `valorAusenteVemAntesDeCotaInexistente`, `valorInvalidoVemAntesDeCotaIndisponivel` | 5, 9, 1, 1, 1 |
+| R12 (alteração) | | pendente: fatia 4 | |
+| R13 (abertura) | Modelo de crédito: igual ao disponível aceito, um centavo acima recusado (409, nada criado, cota livre); crédito esgotado; só o pago consome | `creditoDisponivelConsideraSoOsPagos`, `valorIgualAoCreditoDisponivelEAceito`, `valorUmCentavoAcimaDoCreditoERecusado`, `exemploDoCasoDeUsoCreditoRestante`, `cotaNovaTemOCreditoInteiroDisponivel`, `creditoEsgotadoRecusaQualquerValor`, `processoDeOutraCotaNaoReduzCredito`, `pagamentoNaoConcluidoNaoConsomeCredito`, `creditoSoDiminuiNoPagamento` | 22, 11, 12, 1, 1, 1, 1, 1, 1 |
+| R13 (alteração) | | pendente: fatia 4 | |
+| R14 | Tabela de decisão: cancelado e reprovado não consomem e liberam a cota (e o R6 já testado) | cenários de `creditoDisponivelConsideraSoOsPagos`, `valorIgualAoCreditoDisponivelEAceito`, `cancelarLiberaCotaECredito`, `reprovarLiberaCotaECredito` | contado em cada teste, 1, 1 |
+| Contrato: `valor` na listagem e `creditoDisponivel` na cota | Cobertura de terminais | `listagemMostraOValor`, `listagemMostraOValorDeCadaProcesso`, `escolhaBaseAbreProcesso`, `creditoDisponivelConsideraSoOsPagos` | 2, 1, 1, 22 |
 | R15, R29 | | pendente: fatia 3 | |
 | R16 | | pendente: fatia 6 | |
 | R17, R18 | | pendente: fatia 7 | |
@@ -421,3 +450,15 @@ Casos da fatia 1: 290 no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoA
 | `GET /processos/{id}/acoes` e `/historico` para processo inexistente: 404? | Não testado |
 | `observacao` no histórico quando nenhuma foi informada: `null` ou ausente? | Não testado |
 | Motivo ou observação com tipo errado (número, `null`) | Não testado; fica para a sessão exploratória |
+
+### Dúvidas abertas da fatia 2 (nenhuma virou asserção)
+
+| Dúvida | Efeito no teste |
+|---|---|
+| D2-1: valor acima do crédito disponível: o documento só conhece 409 (que também é "ação fora da ordem" e "cota em andamento"), sem 422. Usado 409 por ser o status de R6 na abertura; é o status certo? | Os testes esperam 409 e `mensagem` |
+| D2-2: a mensagem de recusa por crédito informa quanto há disponível (seção Recusas); em que campo e formato? | Só se confere que `mensagem` existe |
+| D2-3: valor com três casas mas zeros à direita (100.000), notação científica (1E+2) ou valor como texto ("100.00"): aceito ou 400? | Não testado |
+| D2-4: valor acima do crédito e, ao mesmo tempo, cota com processo em andamento: qual recusa vale? | Não testado |
+| D2-5: `GET /cotas/{id}` de cota inexistente: 404? `valorCredito` aparece na resposta? | Não testado; o crédito esperado é calculado pelo modelo a partir do crédito informado ao criar a cota |
+| D2-6: valor acima de um crédito disponível, mas com número JSON enorme (overflow) | Não testado |
+| D2-7: "Crédito disponível" com processo pago cujo valor foi implantado (R30) | Fora da aceitação (sem teste de R30) |

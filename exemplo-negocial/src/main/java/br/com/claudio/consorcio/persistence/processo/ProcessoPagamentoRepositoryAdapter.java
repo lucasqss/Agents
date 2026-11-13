@@ -1,12 +1,14 @@
 package br.com.claudio.consorcio.persistence.processo;
 
 import br.com.claudio.consorcio.domain.AlteracaoConcorrenteException;
+import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
 import jakarta.data.exceptions.OptimisticLockingFailureException;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -66,5 +68,11 @@ public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepo
     @Override
     public boolean existeAtivoPorCota(Long cotaId) {
         return dados.contarAtivosPorCota(cotaId, ESTADOS_FINAIS) > 0;
+    }
+
+    @Override
+    public Dinheiro somarValorPagoPorCota(Long cotaId) {
+        BigDecimal soma = dados.somarValorPorCotaEEstado(cotaId, EstadoProcesso.PAGO.name());
+        return soma == null ? Dinheiro.ZERO : Dinheiro.de(soma);
     }
 }

@@ -5,6 +5,7 @@ import jakarta.data.repository.Insert;
 import jakarta.data.repository.Query;
 import jakarta.data.repository.Repository;
 import jakarta.data.repository.Update;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.hibernate.LockMode;
@@ -34,6 +35,10 @@ interface ProcessoPagamentoDataRepository {
 
     @Query("select count(p) from ProcessoPagamentoEntity p where p.cotaId = :cotaId")
     long contarPorCota(Long cotaId);
+
+    /** Nulo quando a cota não tem processo no estado. */
+    @Query("select sum(p.valor) from ProcessoPagamentoEntity p where p.cotaId = :cotaId and p.estado = :estado")
+    BigDecimal somarValorPorCotaEEstado(Long cotaId, String estado);
 
     @Query("select count(p) from ProcessoPagamentoEntity p where p.cotaId = :cotaId and p.estado not in :estadosFinais")
     long contarAtivosPorCota(Long cotaId, List<String> estadosFinais);

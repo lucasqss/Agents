@@ -1,6 +1,11 @@
 package br.com.claudio.consorcio.aceitacao.pagamentoprocesso;
 
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.CREDITO_PADRAO;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.VALOR_PADRAO;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.abrirProcesso;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.consultarCreditoDisponivel;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.tentarAbrirProcesso;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.valorDoProcesso;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.consultarProcesso;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.enviar;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.consultarAcoes;
@@ -28,9 +33,12 @@ import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamen
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.INICIAR_ANALISE;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.PAGAR;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.PAGO;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CANCELADO;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CANCELAR;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.SERVICO;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.comparesEqualTo;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -45,11 +53,14 @@ import br.com.claudio.consorcio.aceitacao.TesourariaStubResource;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.AcaoInvalida;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Base;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Caminho;
+import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CenarioCredito;
+import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.ProcessoPlanejado;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Passo;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -152,7 +163,7 @@ class PagamentoProcessoAceitacaoTest {
     void escolhaBaseAbreProcesso() {
         long cota = novaCota();
 
-        long processo = enviar("/processos", Map.of("cotaId", cota, "tipo", SERVICO)).statusCode(201)
+        long processo = tentarAbrirProcesso(cota, SERVICO).statusCode(201)
                 .extract().jsonPath().getLong("id");
 
         Map<String, Object> registrado = consultarProcesso(processo);
@@ -160,12 +171,13 @@ class PagamentoProcessoAceitacaoTest {
         assertThat(registrado.get("tipo"), equalTo(SERVICO));
         assertThat(registrado.get("estado"), equalTo(ABERTO));
         assertThat(registrado.get("protocoloPagamento"), nullValue());
+        assertThat(valorDoProcesso(registrado), comparesEqualTo(VALOR_PADRAO));
     }
 
     @Test
     @DisplayName("Partição do tipo: imobiliário abre o processo")
     void tipoImobiliarioAbreProcesso() {
-        long processo = enviar("/processos", Map.of("cotaId", novaCota(), "tipo", IMOBILIARIO)).statusCode(201)
+        long processo = tentarAbrirProcesso(novaCota(), IMOBILIARIO).statusCode(201)
                 .extract().jsonPath().getLong("id");
 
         assertThat(consultarProcesso(processo).get("tipo"), equalTo(IMOBILIARIO));
@@ -174,14 +186,14 @@ class PagamentoProcessoAceitacaoTest {
     @Test
     @DisplayName("Partição da cota: cota inexistente é recusada com 404")
     void cotaInexistente() {
-        enviar("/processos", Map.of("cotaId", INEXISTENTE, "tipo", SERVICO)).statusCode(404)
+        tentarAbrirProcesso(INEXISTENTE, SERVICO).statusCode(404)
                 .body("mensagem", notNullValue());
     }
 
     @Test
     @DisplayName("Partição da cota: sem cota é recusado com 400 indicando o campo")
     void cotaAusente() {
-        enviar("/processos", Map.of("tipo", SERVICO)).statusCode(400)
+        enviar("/processos", Map.of("tipo", SERVICO, "valor", VALOR_PADRAO)).statusCode(400)
                 .body("mensagem", notNullValue())
                 .body("campos.campo", hasItem("cotaId"));
     }
@@ -189,14 +201,14 @@ class PagamentoProcessoAceitacaoTest {
     @Test
     @DisplayName("Partição do tipo: tipo fora da lista é recusado com 400")
     void tipoInvalido() {
-        enviar("/processos", Map.of("cotaId", novaCota(), "tipo", "CONSTRUCAO")).statusCode(400)
+        enviar("/processos", Map.of("cotaId", novaCota(), "tipo", "CONSTRUCAO", "valor", VALOR_PADRAO)).statusCode(400)
                 .body("mensagem", notNullValue());
     }
 
     @Test
     @DisplayName("Partição do tipo: sem tipo é recusado com 400 indicando o campo")
     void tipoAusente() {
-        enviar("/processos", Map.of("cotaId", novaCota())).statusCode(400)
+        enviar("/processos", Map.of("cotaId", novaCota(), "valor", VALOR_PADRAO)).statusCode(400)
                 .body("mensagem", notNullValue())
                 .body("campos.campo", hasItem("tipo"));
     }
@@ -219,7 +231,7 @@ class PagamentoProcessoAceitacaoTest {
         long processo = abrirProcesso(cota, caminho.tipo());
         caminho.passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
 
-        enviar("/processos", Map.of("cotaId", cota, "tipo", SERVICO)).statusCode(409)
+        tentarAbrirProcesso(cota, SERVICO).statusCode(409)
                 .body("mensagem", notNullValue());
     }
 
@@ -254,7 +266,7 @@ class PagamentoProcessoAceitacaoTest {
         CyclicBarrier largada = new CyclicBarrier(quantidade);
         Callable<Integer> pedido = () -> {
             largada.await(30, TimeUnit.SECONDS);
-            return enviar("/processos", Map.of("cotaId", cota, "tipo", SERVICO)).extract().statusCode();
+            return tentarAbrirProcesso(cota, SERVICO).extract().statusCode();
         };
 
         List<Integer> respostas = new ArrayList<>();
@@ -551,6 +563,312 @@ class PagamentoProcessoAceitacaoTest {
 
         assertThat(itens.stream().map(i -> ((Number) i.get("id")).longValue()).toList(), hasItem(processo));
         assertThat(itens.stream().map(i -> i.get("estado")).distinct().toList(), equalTo(List.of(situacao)));
+    }
+
+    // ---- Fatia 2: valor e crédito (R12, R13, R14) ----
+
+    private static String abertura(long cota, String tipo, String valorJson) {
+        return "{\"cotaId\": %d, \"tipo\": \"%s\"%s}".formatted(cota, tipo,
+                valorJson == null ? "" : ", \"valor\": " + valorJson);
+    }
+
+    // Particionamento do valor (R12): classes válidas e inválidas e valores-limite.
+
+    static Stream<Arguments> valoresValidos() {
+        return Stream.of(
+                Arguments.of("limite inferior: 0,01", "0.01", new BigDecimal("0.01")),
+                Arguments.of("duas casas decimais", "12500.50", new BigDecimal("12500.50")),
+                Arguments.of("inteiro, sem casas", "100", new BigDecimal("100")),
+                Arguments.of("uma casa decimal", "100.5", new BigDecimal("100.5")),
+                Arguments.of("exatamente o crédito da cota", "250000.00", new BigDecimal("250000.00")));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("valoresValidos")
+    @DisplayName("Valor maior que zero com até duas casas abre o processo e aparece na listagem")
+    void valorValidoAbreProcesso(String descricao, String valorJson, BigDecimal esperado) {
+        long cota = novaCota();
+
+        long processo = enviar("/processos", abertura(cota, SERVICO, valorJson)).statusCode(201)
+                .extract().jsonPath().getLong("id");
+
+        Map<String, Object> registrado = consultarProcesso(processo);
+        assertThat(registrado.get("estado"), equalTo(ABERTO));
+        assertThat(valorDoProcesso(registrado), comparesEqualTo(esperado));
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
+    }
+
+    static Stream<Arguments> valoresInvalidos() {
+        return Stream.of(
+                Arguments.of("ausente", null),
+                Arguments.of("nulo", "null"),
+                Arguments.of("zero", "0"),
+                Arguments.of("zero com duas casas", "0.00"),
+                Arguments.of("negativo: -0,01", "-0.01"),
+                Arguments.of("negativo: -100", "-100"),
+                Arguments.of("três casas: 100,005", "100.005"),
+                Arguments.of("três casas: 0,001", "0.001"),
+                Arguments.of("três casas: 100,123", "100.123"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("valoresInvalidos")
+    @DisplayName("Valor ausente, nulo, zero, negativo ou com mais de duas casas é recusado com 400 e nada é criado")
+    void valorInvalidoERecusado(String descricao, String valorJson) {
+        long cota = novaCota();
+
+        enviar("/processos", abertura(cota, SERVICO, valorJson)).statusCode(400)
+                .body("mensagem", notNullValue())
+                .body("campos.campo", hasItem("valor"));
+
+        assertThat(quantidadeDeProcessosDaCota(cota), equalTo(0L));
+        // A cota continua livre: outro pedido, com valor válido, abre.
+        long processo = abrirProcesso(cota, SERVICO, new BigDecimal("0.01"));
+        assertThat(consultarProcesso(processo).get("estado"), equalTo(ABERTO));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {SERVICO, IMOBILIARIO})
+    @DisplayName("Valor ausente é recusado nos dois tipos")
+    void valorAusenteNosDoisTipos(String tipo) {
+        enviar("/processos", abertura(novaCota(), tipo, null)).statusCode(400)
+                .body("campos.campo", hasItem("valor"));
+    }
+
+    @Test
+    @DisplayName("Valor inválido em cota inexistente: o 400 vem antes do 404")
+    void valorInvalidoVemAntesDeCotaInexistente() {
+        enviar("/processos", abertura(INEXISTENTE, SERVICO, "0")).statusCode(400)
+                .body("campos.campo", hasItem("valor"));
+    }
+
+    @Test
+    @DisplayName("Valor ausente em cota inexistente: o 400 vem antes do 404")
+    void valorAusenteVemAntesDeCotaInexistente() {
+        enviar("/processos", abertura(INEXISTENTE, SERVICO, null)).statusCode(400)
+                .body("campos.campo", hasItem("valor"));
+    }
+
+    @Test
+    @DisplayName("Valor inválido em cota com processo em andamento: o 400 vem antes do 409")
+    void valorInvalidoVemAntesDeCotaIndisponivel() {
+        long cota = novaCota();
+        abrirProcesso(cota, SERVICO);
+
+        enviar("/processos", abertura(cota, SERVICO, "100.005")).statusCode(400)
+                .body("campos.campo", hasItem("valor"));
+
+        assertThat(quantidadeDeProcessosDaCota(cota), equalTo(1L));
+    }
+
+    // Modelo de crédito (R13, R14): oráculo calculado em ModeloPagamentoProcesso.
+
+    static Stream<CenarioCredito> cenariosDeCredito() {
+        return ModeloPagamentoProcesso.cenariosDeCredito();
+    }
+
+    static Stream<CenarioCredito> cenariosComCotaLivre() {
+        return ModeloPagamentoProcesso.cenariosComCotaLivre();
+    }
+
+    static Stream<CenarioCredito> cenariosComCotaLivreECreditoRestante() {
+        return ModeloPagamentoProcesso.cenariosComCotaLivre()
+                .filter(c -> c.creditoDisponivelEsperado().signum() > 0);
+    }
+
+    /** Cota nova com o crédito do cenário e seus processos levados às situações do cenário. */
+    private static long cotaDoCenario(CenarioCredito cenario) {
+        long cota = novaCota(cenario.credito());
+        for (ProcessoPlanejado planejado : cenario.processos()) {
+            long processo = abrirProcesso(cota, planejado.tipo(), planejado.valor());
+            planejado.caminho().passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
+        }
+        return cota;
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cenariosDeCredito")
+    @DisplayName("Crédito disponível é o crédito da cota menos o valor dos pagos")
+    void creditoDisponivelConsideraSoOsPagos(CenarioCredito cenario) {
+        long cota = cotaDoCenario(cenario);
+
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(cenario.creditoDisponivelEsperado()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cenariosComCotaLivreECreditoRestante")
+    @DisplayName("Valor exatamente igual ao crédito disponível é aceito e não consome crédito enquanto não é pago")
+    void valorIgualAoCreditoDisponivelEAceito(CenarioCredito cenario) {
+        long cota = cotaDoCenario(cenario);
+        BigDecimal disponivel = cenario.creditoDisponivelEsperado();
+
+        long processo = abrirProcesso(cota, SERVICO, disponivel);
+
+        Map<String, Object> registrado = consultarProcesso(processo);
+        assertThat(registrado.get("estado"), equalTo(ABERTO));
+        assertThat(valorDoProcesso(registrado), comparesEqualTo(disponivel));
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(disponivel));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cenariosComCotaLivre")
+    @DisplayName("Valor um centavo acima do crédito disponível é recusado com 409 e nada é criado")
+    void valorUmCentavoAcimaDoCreditoERecusado(CenarioCredito cenario) {
+        long cota = cotaDoCenario(cenario);
+        BigDecimal disponivel = cenario.creditoDisponivelEsperado();
+
+        tentarAbrirProcesso(cota, SERVICO, disponivel.add(new BigDecimal("0.01"))).statusCode(409)
+                .body("mensagem", notNullValue());
+
+        assertThat(quantidadeDeProcessosDaCota(cota), equalTo((long) cenario.processos().size()));
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(disponivel));
+        if (disponivel.signum() > 0) {
+            // A recusa não deixou a cota indisponível: outro pedido, dentro do crédito, abre.
+            long processo = abrirProcesso(cota, SERVICO, new BigDecimal("0.01"));
+            assertThat(consultarProcesso(processo).get("estado"), equalTo(ABERTO));
+        }
+    }
+
+    @Test
+    @DisplayName("Cota de 250.000 com 100.000 pagos: 150.000,00 é aceito e 150.000,01 é recusado")
+    void exemploDoCasoDeUsoCreditoRestante() {
+        long cota = novaCota(new BigDecimal("250000.00"));
+        long pago = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
+        aplicar(pago, INICIAR_ANALISE).statusCode(200);
+        aplicar(pago, CONCLUIR_ANALISE).statusCode(200);
+        aplicar(pago, PAGAR).statusCode(200).body("estado", equalTo(PAGO));
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(new BigDecimal("150000.00")));
+
+        tentarAbrirProcesso(cota, SERVICO, new BigDecimal("150000.01")).statusCode(409);
+        assertThat(quantidadeDeProcessosDaCota(cota), equalTo(1L));
+
+        long novo = abrirProcesso(cota, SERVICO, new BigDecimal("150000.00"));
+        assertThat(valorDoProcesso(consultarProcesso(novo)), comparesEqualTo(new BigDecimal("150000.00")));
+    }
+
+    @Test
+    @DisplayName("Cota nova informa o crédito inteiro como disponível")
+    void cotaNovaTemOCreditoInteiroDisponivel() {
+        assertThat(consultarCreditoDisponivel(novaCota(new BigDecimal("1000.50"))),
+                comparesEqualTo(new BigDecimal("1000.50")));
+    }
+
+    @Test
+    @DisplayName("Crédito esgotado: qualquer valor válido é recusado")
+    void creditoEsgotadoRecusaQualquerValor() {
+        long cota = novaCota(new BigDecimal("1000.00"));
+        long pago = abrirProcesso(cota, SERVICO, new BigDecimal("1000.00"));
+        aplicar(pago, INICIAR_ANALISE).statusCode(200);
+        aplicar(pago, CONCLUIR_ANALISE).statusCode(200);
+        aplicar(pago, PAGAR).statusCode(200);
+
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(BigDecimal.ZERO));
+        tentarAbrirProcesso(cota, SERVICO, new BigDecimal("0.01")).statusCode(409);
+        assertThat(quantidadeDeProcessosDaCota(cota), equalTo(1L));
+    }
+
+    @Test
+    @DisplayName("Pagamento de outra cota não reduz o crédito disponível desta")
+    void processoDeOutraCotaNaoReduzCredito() {
+        long cota = novaCota();
+        long outra = novaCota();
+        long pago = abrirProcesso(outra, SERVICO, new BigDecimal("100000.00"));
+        aplicar(pago, INICIAR_ANALISE).statusCode(200);
+        aplicar(pago, CONCLUIR_ANALISE).statusCode(200);
+        aplicar(pago, PAGAR).statusCode(200);
+
+        assertThat(consultarCreditoDisponivel(outra), comparesEqualTo(new BigDecimal("150000.00")));
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
+        long processo = abrirProcesso(cota, SERVICO, CREDITO_PADRAO);
+        assertThat(valorDoProcesso(consultarProcesso(processo)), comparesEqualTo(CREDITO_PADRAO));
+    }
+
+    @Test
+    @DisplayName("Pagamento recusado pela tesouraria (503) não consome crédito")
+    void pagamentoNaoConcluidoNaoConsomeCredito() {
+        long cota = novaCota();
+        long processo = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
+        aplicar(processo, INICIAR_ANALISE).statusCode(200);
+        aplicar(processo, CONCLUIR_ANALISE).statusCode(200);
+
+        TesourariaStub.ficarIndisponivel();
+        aplicar(processo, PAGAR).statusCode(503);
+
+        assertThat(consultarProcesso(processo).get("estado"), equalTo(APROVADO));
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
+
+        TesourariaStub.ficarDisponivel();
+        aplicar(processo, PAGAR).statusCode(200);
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(new BigDecimal("150000.00")));
+    }
+
+    @Test
+    @DisplayName("Crédito só diminui quando o processo é pago: aprovado ainda não consome")
+    void creditoSoDiminuiNoPagamento() {
+        long cota = novaCota();
+        long processo = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
+        aplicar(processo, INICIAR_ANALISE).statusCode(200);
+        aplicar(processo, CONCLUIR_ANALISE).statusCode(200);
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
+
+        aplicar(processo, PAGAR).statusCode(200);
+
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(new BigDecimal("150000.00")));
+    }
+
+    @Test
+    @DisplayName("R14: cancelar um processo que consumiria todo o crédito libera a cota e o crédito")
+    void cancelarLiberaCotaECredito() {
+        long cota = novaCota();
+        long cancelado = abrirProcesso(cota, SERVICO, CREDITO_PADRAO);
+        aplicar(cancelado, CANCELAR).statusCode(200).body("estado", equalTo(CANCELADO));
+
+        long novo = abrirProcesso(cota, SERVICO, CREDITO_PADRAO);
+
+        assertThat(consultarProcesso(novo).get("estado"), equalTo(ABERTO));
+        assertThat(consultarProcesso(cancelado).get("estado"), equalTo(CANCELADO));
+        assertThat(valorDoProcesso(consultarProcesso(cancelado)), comparesEqualTo(CREDITO_PADRAO));
+    }
+
+    @Test
+    @DisplayName("R14: reprovar um processo que consumiria todo o crédito libera a cota e o crédito")
+    void reprovarLiberaCotaECredito() {
+        long cota = novaCota();
+        long reprovado = abrirProcesso(cota, SERVICO, CREDITO_PADRAO);
+        aplicar(reprovado, INICIAR_ANALISE).statusCode(200);
+        aplicar(reprovado, REPROVAR).statusCode(200).body("estado", equalTo(REPROVADO));
+
+        long novo = abrirProcesso(cota, SERVICO, CREDITO_PADRAO);
+
+        assertThat(consultarProcesso(novo).get("estado"), equalTo(ABERTO));
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
+    }
+
+    // Consulta: a listagem mostra o valor vigente de cada processo.
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {SERVICO, IMOBILIARIO})
+    @DisplayName("Listagem mostra o valor de cada processo, inclusive depois de pago")
+    void listagemMostraOValor(String tipo) {
+        long cota = novaCota();
+        BigDecimal valor = new BigDecimal("12500.50");
+        long processo = abrirProcesso(cota, tipo, valor);
+        assertThat(valorDoProcesso(consultarProcesso(processo)), comparesEqualTo(valor));
+
+        caminhoAte(tipo, APROVADO).passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
+        aplicar(processo, PAGAR).statusCode(200);
+
+        assertThat(valorDoProcesso(consultarProcesso(processo)), comparesEqualTo(valor));
+    }
+
+    @Test
+    @DisplayName("Listagem mostra valores diferentes em processos diferentes, sem confundir um com o outro")
+    void listagemMostraOValorDeCadaProcesso() {
+        long primeiro = abrirProcesso(novaCota(), SERVICO, new BigDecimal("0.01"));
+        long segundo = abrirProcesso(novaCota(), IMOBILIARIO, new BigDecimal("99999.99"));
+
+        assertThat(valorDoProcesso(consultarProcesso(primeiro)), comparesEqualTo(new BigDecimal("0.01")));
+        assertThat(valorDoProcesso(consultarProcesso(segundo)), comparesEqualTo(new BigDecimal("99999.99")));
     }
 
     /** Ação com o corpo que o contrato exige: motivo nas ações que o pedem, nenhum corpo nas demais. */

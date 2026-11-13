@@ -4,6 +4,7 @@ import static io.restassured.RestAssured.given;
 
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -11,6 +12,9 @@ import java.util.concurrent.atomic.AtomicLong;
 final class Api {
 
     private static final AtomicLong SEQUENCIA = new AtomicLong(System.nanoTime() % 1_000_000_000L);
+
+    /** Valor padrão do processo: válido (R12) e dentro do crédito de 250.000 das cotas dos testes (R13). */
+    static final BigDecimal VALOR_PADRAO = new BigDecimal("30000.00");
 
     private Api() {
     }
@@ -30,7 +34,7 @@ final class Api {
     }
 
     static long criarProcesso(long cotaId, String tipo) {
-        return post("/processos", Map.of("cotaId", cotaId, "tipo", tipo)).statusCode(201)
+        return post("/processos", Map.of("cotaId", cotaId, "tipo", tipo, "valor", VALOR_PADRAO)).statusCode(201)
                 .extract().jsonPath().getLong("id");
     }
 

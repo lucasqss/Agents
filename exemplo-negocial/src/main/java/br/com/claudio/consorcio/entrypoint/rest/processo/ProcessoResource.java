@@ -9,14 +9,17 @@ import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
 import br.com.claudio.consorcio.entrypoint.IdCriado;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.math.BigDecimal;
 import java.net.URI;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
@@ -30,7 +33,8 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 @Path("/processos")
 public class ProcessoResource {
 
-    public record NovoProcesso(@NotNull Long cotaId, @NotNull TipoProcesso tipo) {
+    public record NovoProcesso(@NotNull Long cotaId, @NotNull TipoProcesso tipo,
+            @NotNull @Positive @Digits(integer = 13, fraction = 2) BigDecimal valor) {
     }
 
     /** Corpo opcional das ações: um texto livre que fica no histórico. */
@@ -67,7 +71,7 @@ public class ProcessoResource {
     @APIResponse(responseCode = "201", description = "Processo criado",
             content = @Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = IdCriado.class)))
     public Response criar(@Valid @NotNull NovoProcesso dados) {
-        Long id = criar.executar(dados.cotaId(), dados.tipo());
+        Long id = criar.executar(dados.cotaId(), dados.tipo(), dados.valor());
         return Response.created(URI.create("/processos/" + id)).entity(new IdCriado(id)).build();
     }
 

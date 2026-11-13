@@ -5,9 +5,12 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 
+import io.restassured.path.json.config.JsonPathConfig;
+import io.restassured.path.json.config.JsonPathConfig.NumberReturnType;
 import io.restassured.http.ContentType;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.ValidatableResponse;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,16 +33,57 @@ public final class ApiAceitacao {
         return allOf(greaterThanOrEqualTo(200), lessThan(300));
     }
 
+    /** Crédito da cota criada por {@link #novaCota()}. */
+    public static final BigDecimal CREDITO_PADRAO = new BigDecimal("250000.00");
+
+    /** Valor válido (R12) e dentro do crédito de {@link #CREDITO_PADRAO} (R13), para os casos em que o valor não é o assunto. */
+    public static final BigDecimal VALOR_PADRAO = new BigDecimal("30000.00");
+
     public static long novaCota() {
+        return novaCota(CREDITO_PADRAO);
+    }
+
+    public static long novaCota(BigDecimal credito) {
         long cliente = enviar("/clientes", Map.of("nome", "Cliente de Aceitação", "cpf", "%011d".formatted(unico())))
                 .statusCode(sucesso()).extract().jsonPath().getLong("id");
-        return enviar("/cotas", Map.of("numero", "COTA-" + unico(), "valorCredito", 250000, "clienteId", cliente))
+        return enviar("/cotas", Map.of("numero", "COTA-" + unico(), "valorCredito", credito, "clienteId", cliente))
                 .statusCode(sucesso()).extract().jsonPath().getLong("id");
     }
 
     public static long abrirProcesso(long cota, String tipo) {
-        return enviar("/processos", Map.of("cotaId", cota, "tipo", tipo))
-                .statusCode(201).extract().jsonPath().getLong("id");
+        return abrirProcesso(cota, tipo, VALOR_PADRAO);
+    }
+
+    public static long abrirProcesso(long cota, String tipo, BigDecimal valor) {
+        return tentarAbrirProcesso(cota, tipo, valor).statusCode(201).extract().jsonPath().getLong("id");
+    }
+
+    /** Pedido de abertura sem conferir o resultado, com o valor padrão. */
+    public static ValidatableResponse tentarAbrirProcesso(long cota, String tipo) {
+        return tentarAbrirProcesso(cota, tipo, VALOR_PADRAO);
+    }
+
+    public static ValidatableResponse tentarAbrirProcesso(long cota, String tipo, BigDecimal valor) {
+        return enviar("/processos", Map.of("cotaId", cota, "tipo", tipo, "valor", valor));
+    }
+
+    /** Crédito disponível informado pela consulta da cota (R13), lido sem perder casas decimais. */
+    public static BigDecimal consultarCreditoDisponivel(long cota) {
+        String corpo = given().when().get("/cotas/%d".formatted(cota)).then().statusCode(200).extract().asString();
+        Object valor = comoBigDecimal(corpo).get("creditoDisponivel");
+        if (valor == null) {
+            throw new AssertionError("A consulta da cota %d não informa creditoDisponivel: %s".formatted(cota, corpo));
+        }
+        return new BigDecimal(valor.toString());
+    }
+
+    /** Valor de um item da listagem de processos. */
+    public static BigDecimal valorDoProcesso(Map<String, Object> item) {
+        Object valor = item.get("valor");
+        if (valor == null) {
+            throw new AssertionError("O item da listagem não informa valor: " + item);
+        }
+        return new BigDecimal(valor.toString());
     }
 
     public static ValidatableResponse enviar(String caminho, Object corpo) {
@@ -111,14 +155,20 @@ public final class ApiAceitacao {
     private static List<Map<String, Object>> listarProcessos() {
         List<Map<String, Object>> todos = new ArrayList<>();
         for (int pagina = 1;; pagina++) {
-            JsonPath resposta = given().queryParam("pagina", pagina).queryParam("tamanho", 100)
-                    .when().get("/processos").then().statusCode(200).extract().jsonPath();
+            String corpo = given().queryParam("pagina", pagina).queryParam("tamanho", 100)
+                    .when().get("/processos").then().statusCode(200).extract().asString();
+            JsonPath resposta = comoBigDecimal(corpo);
             List<Map<String, Object>> itens = resposta.getList("itens");
             if (itens.isEmpty()) {
                 return todos;
             }
             todos.addAll(itens);
         }
+    }
+
+    /** Números JSON lidos como BigDecimal: dinheiro não passa por ponto flutuante. */
+    private static JsonPath comoBigDecimal(String corpo) {
+        return new JsonPath(corpo).using(JsonPathConfig.jsonPathConfig().numberReturnType(NumberReturnType.BIG_DECIMAL));
     }
 
     private static long numero(Map<String, Object> item, String campo) {

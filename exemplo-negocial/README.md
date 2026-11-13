@@ -191,6 +191,8 @@ Pago, reprovado e cancelado são finais: não aceitam nenhuma ação e liberam a
 
 **Motivo obrigatório.** Solicitar documento, reprovar, devolver para análise e cancelar só valem com o motivo informado. Quem sabe disso é o domínio: `AcaoProcesso.exigeMotivo()` marca essas ações e `ProcessoPagamento.executar` lança `DominioException` quando o motivo falta. O entrypoint confere o formato (`ProcessoResource.Motivo`: obrigatório, não vazio, até 500 caracteres) e responde 400 com o campo `motivo`, antes de o processo ser buscado. O motivo vai ao histórico, no campo `observacao`.
 
+**Valor e crédito disponível.** Todo processo tem `valor` (`Dinheiro`, maior que zero, até duas casas), protegido em `ProcessoPagamento`; o entrypoint confere o formato (`@NotNull @Positive @Digits`) e responde 400 com o campo `valor`. O crédito disponível da cota é o crédito menos o valor dos processos **pagos** (`Cota.creditoDisponivel`); reprovado e cancelado não consomem crédito. `Cota.exigirCreditoPara` recusa o valor acima do disponível com `CreditoInsuficienteException` (HTTP 409, a mensagem diz quanto há disponível). A abertura lê a soma dos pagos dentro do mesmo bloqueio da cota que garante um só processo em andamento, então pedidos simultâneos não estouram o crédito. `GET /cotas/{id}` devolve o `creditoDisponivel`. A migration `V5` cria a coluna `valor` e, na implantação, dá aos processos existentes o crédito da cota.
+
 Transições inválidas lançam `TransicaoInvalidaException` (HTTP 409). Cada cota tem no máximo um processo em andamento. No banco, `processo_pagamento` guarda `tipo` e `estado` em texto, e `processo_transicao` guarda o histórico: uma linha por mudança de estado, com a ação, a data e a observação. O mapper reconstrói o tipo e o estado pelo código gravado (`TipoProcesso.valueOf`, `EstadoProcesso.valueOf`), sem herança JPA. A coluna `versao` impede que duas operações simultâneas gravem por cima uma da outra.
 
 Um único caso de uso, `ExecutarAcaoProcessoUseCase`, atende as ações que só mudam o estado. `PagarProcessoUseCase` é separado porque chama a tesouraria.
@@ -234,16 +236,16 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 |---|---|---|
 | Escrita | `POST /clientes`, `PUT/DELETE /clientes/{id}` | CRUD de cliente (CPF único) |
 | Escrita | `POST /cotas`, `PUT/DELETE /cotas/{id}` | CRUD de cota |
-| Escrita | `POST /processos` `{cotaId, tipo}` | Cria processo (`IMOBILIARIO` ou `SERVICO`) |
+| Escrita | `POST /processos` `{cotaId, tipo, valor}` | Cria processo (`IMOBILIARIO` ou `SERVICO`) com o valor (número maior que zero, até 2 casas, até o crédito disponível da cota) |
 | Escrita | `POST /processos/{id}/iniciar-analise` · `concluir-analise` · `concluir-vistoria` · `receber-documento` | Transições; corpo opcional `{"observacao": "..."}` (até 500 caracteres) |
 | Escrita | `POST /processos/{id}/solicitar-documento` · `reprovar` · `devolver-para-analise` · `cancelar` | Transições; corpo obrigatório `{"motivo": "..."}` (não vazio, até 500 caracteres), gravado no histórico |
 | Escrita | `POST /processos/{id}/pagar` | Transição que registra a ordem na Tesouraria; sem corpo |
 | Leitura | `GET /clientes` | Clientes com a quantidade de cotas |
-| Leitura | `GET /cotas/{id}` | Cota com o nome do cliente e o processo atual |
+| Leitura | `GET /cotas/{id}` | Cota com o nome do cliente, o processo atual e o `creditoDisponivel` |
 | Canal web | `GET /web/v1/cotas/{id}` | Cota no padrão web, com o processo atual |
 | Canal mobile | `GET /mobile/v1/cotas/{id}` · `GET /mobile/v1/clientes` | Card da cota; clientes com o total de cotas somado |
 | Canal TAA | `GET /taa/v1/cotas/{id}` | Cota no padrão do terminal |
-| Leitura | `GET /processos?tipo=&estado=&pagina=1&tamanho=20` | Processos filtrados (`estado` inclui `PENDENTE_DOCUMENTO` e `REPROVADO`) e paginados, com o protocolo de pagamento |
+| Leitura | `GET /processos?tipo=&estado=&pagina=1&tamanho=20` | Processos filtrados (`estado` inclui `PENDENTE_DOCUMENTO` e `REPROVADO`) e paginados, com o valor e o protocolo de pagamento |
 | Leitura | `GET /processos/{id}/acoes` · `GET /processos/{id}/historico` | Ações que o processo aceita no estado atual; histórico das transições |
 
 Validação em duas camadas: o **formato** da entrada (obrigatório, tamanho, faixa) é checado com Bean Validation nos requests do entrypoint (`ClienteRequest`, `CotaRequest`), antes do use case, e as restrições aparecem no OpenAPI; a **regra de negócio** continua no domínio, que vale para qualquer chamador. Todo erro sai no mesmo formato, e `campos` só vem preenchido em erro de formato:

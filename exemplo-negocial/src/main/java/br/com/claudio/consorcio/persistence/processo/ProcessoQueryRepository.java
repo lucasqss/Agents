@@ -11,7 +11,7 @@ public interface ProcessoQueryRepository {
 
     @Query("""
             select new br.com.claudio.consorcio.persistence.processo.ProcessoResumo(
-                p.id, c.id, c.numero, p.tipo, p.estado, p.protocoloPagamento)
+                p.id, c.id, c.numero, p.tipo, p.valor, p.estado, p.protocoloPagamento)
             from ProcessoPagamentoEntity p
             join CotaEntity c on c.id = p.cotaId
             where (:tipo is null or p.tipo = :tipo)

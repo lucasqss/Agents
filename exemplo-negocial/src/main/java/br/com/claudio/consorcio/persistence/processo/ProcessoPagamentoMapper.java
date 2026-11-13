@@ -1,5 +1,6 @@
 package br.com.claudio.consorcio.persistence.processo;
 
+import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
@@ -18,7 +19,7 @@ final class ProcessoPagamentoMapper {
     static ProcessoPagamento paraDominio(ProcessoPagamentoEntity entity) {
         try {
             return ProcessoPagamento.reconstituir(entity.getId(), entity.getCotaId(),
-                    TipoProcesso.valueOf(entity.getTipo()), EstadoProcesso.valueOf(entity.getEstado()),
+                    TipoProcesso.valueOf(entity.getTipo()), Dinheiro.de(entity.getValor()), EstadoProcesso.valueOf(entity.getEstado()),
                     entity.getProtocoloPagamento(), entity.getVersao());
         } catch (IllegalArgumentException e) {
             throw new IllegalStateException("Valor desconhecido no banco: " + e.getMessage(), e);
@@ -41,6 +42,7 @@ final class ProcessoPagamentoMapper {
         entity.setId(processo.id());
         entity.setCotaId(processo.cotaId());
         entity.setTipo(processo.tipo().name());
+        entity.setValor(processo.valor().valor());
         entity.setEstado(processo.estado().name());
         entity.setProtocoloPagamento(processo.protocoloPagamento());
         entity.setVersao(processo.versao());

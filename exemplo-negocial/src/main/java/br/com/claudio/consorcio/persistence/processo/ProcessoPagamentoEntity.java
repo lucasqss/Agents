@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.math.BigDecimal;
 
 /**
  * Mapeamento da tabela processo_pagamento. Uma única entidade para todos os tipos:
@@ -24,6 +25,8 @@ public class ProcessoPagamentoEntity {
     private Long cotaId;
 
     private String tipo;
+
+    private BigDecimal valor;
 
     private String estado;
 
@@ -55,6 +58,14 @@ public class ProcessoPagamentoEntity {
 
     public void setTipo(String tipo) {
         this.tipo = tipo;
+    }
+
+    public BigDecimal getValor() {
+        return valor;
+    }
+
+    public void setValor(BigDecimal valor) {
+        this.valor = valor;
     }
 
     public String getEstado() {

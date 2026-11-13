@@ -1,5 +1,6 @@
 package br.com.claudio.consorcio.domain.processo;
 
+import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.DominioException;
 import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
@@ -20,13 +21,14 @@ public final class ProcessoPagamento {
     private final Long id;
     private final Long cotaId;
     private final TipoProcesso tipo;
+    private final Dinheiro valor;
     private EstadoProcesso estado;
     private String protocoloPagamento;
     private final long versao;
     private final List<Transicao> novasTransicoes = new ArrayList<>();
 
-    private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, EstadoProcesso estado, String protocoloPagamento,
-            long versao) {
+    private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor, EstadoProcesso estado,
+            String protocoloPagamento, long versao) {
         if (cotaId == null) {
             throw new DominioException("Processo precisa de uma cota");
         }
@@ -36,9 +38,13 @@ public final class ProcessoPagamento {
         if (estado == null) {
             throw new DominioException("Estado do processo é obrigatório");
         }
+        if (valor == null || !valor.positivo()) {
+            throw new DominioException("Valor do processo precisa ser maior que zero");
+        }
         this.id = id;
         this.cotaId = cotaId;
         this.tipo = tipo;
+        this.valor = valor;
         if ((estado == EstadoProcesso.PAGO) != (protocoloPagamento != null)) {
             throw new DominioException("Processo pago tem protocolo de pagamento, e só ele");
         }
@@ -47,15 +53,15 @@ public final class ProcessoPagamento {
         this.versao = versao;
     }
 
-    /** Cria um processo novo, no estado Aberto, do tipo informado. */
-    public static ProcessoPagamento novo(TipoProcesso tipo, Long cotaId) {
-        return new ProcessoPagamento(null, cotaId, tipo, EstadoProcesso.ABERTO, null, 0);
+    /** Cria um processo novo, no estado Aberto, do tipo e do valor informados (R12: maior que zero, até duas casas). */
+    public static ProcessoPagamento novo(TipoProcesso tipo, Long cotaId, Dinheiro valor) {
+        return new ProcessoPagamento(null, cotaId, tipo, valor, EstadoProcesso.ABERTO, null, 0);
     }
 
     /** Recria um processo já gravado, no estado em que ele estava. */
-    public static ProcessoPagamento reconstituir(Long id, Long cotaId, TipoProcesso tipo, EstadoProcesso estado,
-            String protocoloPagamento, long versao) {
-        return new ProcessoPagamento(id, cotaId, tipo, estado, protocoloPagamento, versao);
+    public static ProcessoPagamento reconstituir(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
+            EstadoProcesso estado, String protocoloPagamento, long versao) {
+        return new ProcessoPagamento(id, cotaId, tipo, valor, estado, protocoloPagamento, versao);
     }
 
     /**
@@ -117,6 +123,10 @@ public final class ProcessoPagamento {
 
     public TipoProcesso tipo() {
         return tipo;
+    }
+
+    public Dinheiro valor() {
+        return valor;
     }
 
     public EstadoProcesso estado() {

@@ -38,6 +38,20 @@ public class Cota {
         this.clienteId = clienteId;
     }
 
+    /** Crédito disponível (R13): o crédito da cota menos o valor dos processos pagos; só pago consome crédito (R14). */
+    public Dinheiro creditoDisponivel(Dinheiro totalPago) {
+        return valorCredito.subtrair(totalPago);
+    }
+
+    /** Recusa o valor que passa do crédito disponível; exatamente o disponível é aceito. */
+    public void exigirCreditoPara(Dinheiro valor, Dinheiro totalPago) {
+        Dinheiro disponivel = creditoDisponivel(totalPago);
+        if (valor.maiorQue(disponivel)) {
+            throw new CreditoInsuficienteException("Valor " + valor.valor().toPlainString()
+                    + " acima do crédito disponível da cota: " + disponivel.valor().toPlainString());
+        }
+    }
+
     public Long id() {
         return id;
     }

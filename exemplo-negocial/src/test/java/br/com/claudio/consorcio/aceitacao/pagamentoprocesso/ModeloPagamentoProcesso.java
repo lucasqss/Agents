@@ -1,5 +1,6 @@
 package br.com.claudio.consorcio.aceitacao.pagamentoprocesso;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -10,7 +11,8 @@ import java.util.stream.Stream;
 
 /**
  * Padrão: Máquina de estados como modelo de teste [Ammann e Offutt].
- * Escrita a partir das regras 2 a 6, 10, 11 e 23 do caso de uso (fatia 1); nada aqui vem do código da aplicação.
+ * Escrita a partir das regras 2 a 6, 10, 11 e 23 do caso de uso (fatia 1) e 12 a 14 (fatia 2, valor e crédito);
+ * nada aqui vem do código da aplicação.
  */
 final class ModeloPagamentoProcesso {
 
@@ -155,6 +157,93 @@ final class ModeloPagamentoProcesso {
     static Stream<Base> umaTransicaoPorAcaoComMotivo() {
         Set<String> vistas = new HashSet<>();
         return transicoesComMotivo().filter(base -> vistas.add(base.acao()));
+    }
+
+    // ---- Valor e crédito (fatia 2: R12, R13, R14) ----
+
+    /** Processo de um cenário de crédito: tipo, valor e a situação em que o cenário o deixa. */
+    record ProcessoPlanejado(String tipo, BigDecimal valor, String situacao) {
+
+        Caminho caminho() {
+            return caminhoAte(tipo, situacao);
+        }
+
+        boolean consomeCredito() {
+            return PAGO.equals(situacao);
+        }
+    }
+
+    /**
+     * Cota com um crédito e os processos que passaram por ela, em ordem. Só o último pode estar em andamento (R6).
+     * O oráculo do crédito disponível é R13 com R14: crédito menos o valor dos processos PAGOS; processo em
+     * andamento, reprovado ou cancelado não consome nada.
+     */
+    record CenarioCredito(String nome, BigDecimal credito, List<ProcessoPlanejado> processos) {
+
+        BigDecimal creditoDisponivelEsperado() {
+            return processos.stream().filter(ProcessoPlanejado::consomeCredito)
+                    .map(ProcessoPlanejado::valor).reduce(credito, BigDecimal::subtract);
+        }
+
+        boolean terminaEmAndamento() {
+            return !processos.isEmpty() && !proximas(processos.getLast().tipo(), processos.getLast().situacao()).isEmpty();
+        }
+
+        @Override
+        public String toString() {
+            return nome;
+        }
+    }
+
+    private static BigDecimal v(String valor) {
+        return new BigDecimal(valor);
+    }
+
+    private static ProcessoPlanejado processo(String tipo, String valor, String situacao) {
+        return new ProcessoPlanejado(tipo, v(valor), situacao);
+    }
+
+    private static CenarioCredito cenario(String nome, String credito, ProcessoPlanejado... processos) {
+        return new CenarioCredito(nome, v(credito), List.of(processos));
+    }
+
+    /** Cenários em que o último processo é final: a cota está livre para abrir outro (R6, R14). */
+    static Stream<CenarioCredito> cenariosComCotaLivre() {
+        return Stream.of(
+                cenario("cota sem processo", "250000.00"),
+                cenario("pago 100000 (serviço)", "250000.00", processo(SERVICO, "100000.00", PAGO)),
+                cenario("pago 100000 (imobiliário)", "250000.00", processo(IMOBILIARIO, "100000.00", PAGO)),
+                cenario("dois pagos somam: 100000 e 50000", "250000.00",
+                        processo(SERVICO, "100000.00", PAGO), processo(IMOBILIARIO, "50000.00", PAGO)),
+                cenario("cancelado 100000 não consome (serviço)", "250000.00",
+                        processo(SERVICO, "100000.00", CANCELADO)),
+                cenario("cancelado 100000 não consome (imobiliário)", "250000.00",
+                        processo(IMOBILIARIO, "100000.00", CANCELADO)),
+                cenario("reprovado 100000 não consome (serviço)", "250000.00",
+                        processo(SERVICO, "100000.00", REPROVADO)),
+                cenario("reprovado 100000 não consome (imobiliário)", "250000.00",
+                        processo(IMOBILIARIO, "100000.00", REPROVADO)),
+                cenario("pago 100000, cancelado 30000 e reprovado 20000: só o pago consome", "250000.00",
+                        processo(SERVICO, "100000.00", PAGO), processo(SERVICO, "30000.00", CANCELADO),
+                        processo(IMOBILIARIO, "20000.00", REPROVADO)),
+                cenario("pago de um centavo", "250000.00", processo(SERVICO, "0.01", PAGO)),
+                cenario("crédito com centavos: pago 500,25 de 1000,50", "1000.50", processo(SERVICO, "500.25", PAGO)),
+                cenario("crédito esgotado: pago todo o crédito", "250000.00", processo(SERVICO, "250000.00", PAGO)));
+    }
+
+    /** Cenários com processo em andamento na cota: ele não consome crédito (R13). */
+    static Stream<CenarioCredito> cenariosComProcessoEmAndamento() {
+        return Stream.concat(
+                caminhosEmAndamento().map(caminho -> cenario(
+                        "em andamento de 100000 em " + caminho.situacaoFinal() + " (" + caminho.tipo() + ")",
+                        "250000.00", processo(caminho.tipo(), "100000.00", caminho.situacaoFinal()))),
+                Stream.of(cenario("pago 100000 e outro de 60000 em análise", "250000.00",
+                        processo(SERVICO, "100000.00", PAGO), processo(SERVICO, "60000.00", EM_ANALISE))));
+    }
+
+    /** Todos os cenários, para conferir o crédito disponível. */
+    static Stream<CenarioCredito> cenariosDeCredito() {
+        return Stream.concat(cenariosComCotaLivre(), cenariosComProcessoEmAndamento());
     }
 
     private static Stream<Base> transicoes(Set<String> acoes) {

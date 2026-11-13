@@ -1,5 +1,6 @@
 package br.com.claudio.consorcio.domain.processo;
 
+import br.com.claudio.consorcio.domain.Dinheiro;
 import java.util.Optional;
 
 /**
@@ -20,4 +21,7 @@ public interface ProcessoPagamentoRepository {
 
     /** Indica se a cota tem algum processo fora de Pago e Cancelado. */
     boolean existeAtivoPorCota(Long cotaId);
+
+    /** Soma o valor dos processos pagos da cota; zero se não houver nenhum. Só o pago consome crédito (R13, R14). */
+    Dinheiro somarValorPagoPorCota(Long cotaId);
 }
