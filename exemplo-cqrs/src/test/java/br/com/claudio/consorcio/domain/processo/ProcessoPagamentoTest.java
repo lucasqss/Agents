@@ -169,7 +169,7 @@ class ProcessoPagamentoTest {
         ProcessoPagamento imobiliario = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA);
         imobiliario.executar(INICIAR_ANALISE, AGORA, null);
         imobiliario.executar(CONCLUIR_ANALISE, AGORA, null);
-        assertEquals(Set.of(CONCLUIR_VISTORIA, CANCELAR), imobiliario.acoesDisponiveis());
+        assertEquals(Set.of(CONCLUIR_VISTORIA, DEVOLVER_PARA_ANALISE, CANCELAR), imobiliario.acoesDisponiveis());
     }
 
     @Test
