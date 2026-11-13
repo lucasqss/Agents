@@ -1,11 +1,13 @@
 package br.com.claudio.consorcio.entrypoint.rest.processo;
 
 import br.com.claudio.consorcio.application.Pagina;
+import br.com.claudio.consorcio.application.processo.ConsultarAlteracaoPropostaUseCase;
 import br.com.claudio.consorcio.application.processo.ListarAcoesDisponiveisUseCase;
 import br.com.claudio.consorcio.application.processo.ListarFavorecidosProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.ListarHistoricoProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.ListarProcessosUseCase;
 import br.com.claudio.consorcio.persistence.processo.ProcessoFavorecidoResumo;
+import br.com.claudio.consorcio.persistence.processo.ProcessoPropostaResumo;
 import br.com.claudio.consorcio.persistence.processo.ProcessoResumo;
 import br.com.claudio.consorcio.persistence.processo.ProcessoTransicaoResumo;
 import jakarta.ws.rs.DefaultValue;
@@ -27,10 +29,13 @@ public class ProcessoQueryResource {
     private final ListarAcoesDisponiveisUseCase listarAcoes;
     private final ListarHistoricoProcessoUseCase listarHistorico;
     private final ListarFavorecidosProcessoUseCase listarFavorecidos;
+    private final ConsultarAlteracaoPropostaUseCase consultarProposta;
 
     public ProcessoQueryResource(ListarProcessosUseCase listar, ListarAcoesDisponiveisUseCase listarAcoes,
             ListarHistoricoProcessoUseCase listarHistorico,
-            ListarFavorecidosProcessoUseCase listarFavorecidos) {
+            ListarFavorecidosProcessoUseCase listarFavorecidos,
+            ConsultarAlteracaoPropostaUseCase consultarProposta) {
+        this.consultarProposta = consultarProposta;
         this.listar = listar;
         this.listarAcoes = listarAcoes;
         this.listarHistorico = listarHistorico;
@@ -57,6 +62,14 @@ public class ProcessoQueryResource {
     public List<ProcessoFavorecidoResumo> favorecidos(Long id) {
         return listarFavorecidos.executar(id)
                 .orElseThrow(() -> new NotFoundException("Processo " + id + " não encontrado"));
+    }
+
+    /** A alteração que aguarda o cliente; 404 sem proposta pendente. */
+    @GET
+    @Path("/{id}/alteracao-proposta")
+    public ProcessoPropostaResumo alteracaoProposta(Long id) {
+        return consultarProposta.executar(id)
+                .orElseThrow(() -> new NotFoundException("Processo " + id + " não tem alteração proposta"));
     }
 
     @GET

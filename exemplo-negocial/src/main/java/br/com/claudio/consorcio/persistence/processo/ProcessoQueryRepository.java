@@ -5,6 +5,7 @@ import jakarta.data.page.PageRequest;
 import jakarta.data.repository.Query;
 import jakarta.data.repository.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProcessoQueryRepository {
@@ -25,7 +26,7 @@ public interface ProcessoQueryRepository {
 
     @Query("""
             select new br.com.claudio.consorcio.persistence.processo.ProcessoTransicaoResumo(
-                t.estadoOrigem, t.estadoDestino, t.acao, t.ocorridoEm, t.observacao)
+                t.estadoOrigem, t.estadoDestino, t.acao, t.ocorridoEm, t.observacao, t.valorAnterior, t.valorNovo)
             from ProcessoTransicaoEntity t
             where t.processoId = :processoId
             order by t.id
@@ -40,4 +41,26 @@ public interface ProcessoQueryRepository {
             order by f.ordem
             """)
     List<ProcessoFavorecidoResumo> favorecidos(Long processoId);
+
+    @Query("""
+            select new br.com.claudio.consorcio.persistence.processo.ProcessoPropostaCabecalho(a.valor, a.motivo)
+            from ProcessoPropostaEntity a
+            where a.processoId = :processoId
+            """)
+    Optional<ProcessoPropostaCabecalho> cabecalhoDaProposta(Long processoId);
+
+    @Query("""
+            select new br.com.claudio.consorcio.persistence.processo.ProcessoFavorecidoResumo(
+                f.nome, f.documento, f.papel, f.valor)
+            from ProcessoPropostaFavorecidoEntity f
+            where f.processoId = :processoId
+            order by f.ordem
+            """)
+    List<ProcessoFavorecidoResumo> favorecidosDaProposta(Long processoId);
+
+    /** A alteração que aguarda o cliente; vazio quando o processo não tem proposta pendente (ou não existe). */
+    default Optional<ProcessoPropostaResumo> propostaPendente(Long processoId) {
+        return cabecalhoDaProposta(processoId)
+                .map(c -> new ProcessoPropostaResumo(c.valor(), favorecidosDaProposta(processoId), c.motivo()));
+    }
 }

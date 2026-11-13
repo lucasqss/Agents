@@ -20,7 +20,7 @@ class HistoricoERetornoDeEtapaTest {
     @Test
     void imobiliarioDevolveDaVistoriaEDeAprovadoERegistraTudoNoHistorico() {
         long processo = Api.criarProcesso(Api.criarCota(Api.criarCliente("Hugo")), "IMOBILIARIO");
-        acoes(processo).body("acoes", contains("iniciar-analise", "cancelar"));
+        acoes(processo).body("acoes", contains("iniciar-analise", "cancelar", "alterar"));
         historico(processo).body("$", empty());
 
         acao(processo, "iniciar-analise").statusCode(200);
@@ -140,7 +140,7 @@ class HistoricoERetornoDeEtapaTest {
                 .statusCode(415)
                 .body("mensagem", equalTo("Tipo de conteúdo não suportado"));
 
-        acoes(processo).body("acoes", contains("iniciar-analise", "cancelar"));
+        acoes(processo).body("acoes", contains("iniciar-analise", "cancelar", "alterar"));
         historico(processo).body("$", empty());
     }
 }

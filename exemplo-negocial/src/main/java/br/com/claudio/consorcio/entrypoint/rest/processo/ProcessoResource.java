@@ -1,9 +1,11 @@
 package br.com.claudio.consorcio.entrypoint.rest.processo;
 
+import br.com.claudio.consorcio.application.processo.AlterarProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.CriarProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.DadosFavorecido;
 import br.com.claudio.consorcio.application.processo.ExecutarAcaoProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.PagarProcessoUseCase;
+import br.com.claudio.consorcio.application.processo.ProporAlteracaoProcessoUseCase;
 import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
@@ -42,10 +44,19 @@ public class ProcessoResource {
             @NotEmpty List<@NotNull @Valid NovoFavorecido> favorecidos) {
 
         List<DadosFavorecido> dadosFavorecidos() {
-            return favorecidos.stream()
-                    .map(f -> new DadosFavorecido(f.nome(), f.documento(), f.papel(), f.valor()))
-                    .toList();
+            return NovoFavorecido.dados(favorecidos);
         }
+    }
+
+    /** Novo valor e novos favorecidos que o cliente informa para o processo em aberto (R24). */
+    public record Alteracao(@NotNull @Positive @Digits(integer = 13, fraction = 2) BigDecimal valor,
+            @NotEmpty List<@NotNull @Valid NovoFavorecido> favorecidos) {
+    }
+
+    /** Alteração que o backoffice propõe, com o motivo que o cliente verá ao decidir (R25). */
+    public record PropostaAlteracao(@NotNull @Positive @Digits(integer = 13, fraction = 2) BigDecimal valor,
+            @NotEmpty List<@NotNull @Valid NovoFavorecido> favorecidos,
+            @NotBlank @Size(max = Transicao.TAMANHO_MAXIMO_DA_OBSERVACAO) String motivo) {
     }
 
     /** Um favorecido do pedido; só o formato é conferido aqui, a soma e a repetição são regras do domínio. */
@@ -53,6 +64,12 @@ public class ProcessoResource {
             @NotBlank @Pattern(regexp = "\\d{11}|\\d{14}", message = "deve ter 11 (CPF) ou 14 (CNPJ) dígitos") String documento,
             @NotBlank @Size(max = 50) String papel,
             @NotNull @Positive @Digits(integer = 13, fraction = 2) BigDecimal valor) {
+
+        static List<DadosFavorecido> dados(List<NovoFavorecido> favorecidos) {
+            return favorecidos.stream()
+                    .map(f -> new DadosFavorecido(f.nome(), f.documento(), f.papel(), f.valor()))
+                    .toList();
+        }
     }
 
     /** Corpo opcional das ações: um texto livre que fica no histórico. */
@@ -77,12 +94,16 @@ public class ProcessoResource {
     private final CriarProcessoUseCase criar;
     private final ExecutarAcaoProcessoUseCase executarAcao;
     private final PagarProcessoUseCase pagar;
+    private final AlterarProcessoUseCase alterar;
+    private final ProporAlteracaoProcessoUseCase proporAlteracao;
 
     public ProcessoResource(CriarProcessoUseCase criar, ExecutarAcaoProcessoUseCase executarAcao,
-            PagarProcessoUseCase pagar) {
+            PagarProcessoUseCase pagar, AlterarProcessoUseCase alterar, ProporAlteracaoProcessoUseCase proporAlteracao) {
         this.criar = criar;
         this.executarAcao = executarAcao;
         this.pagar = pagar;
+        this.alterar = alterar;
+        this.proporAlteracao = proporAlteracao;
     }
 
     @POST
@@ -153,5 +174,34 @@ public class ProcessoResource {
     @Consumes(MediaType.WILDCARD)
     public EstadoAtual reprovar(Long id, @RequestBody(required = true) @Valid @NotNull Motivo corpo) {
         return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.REPROVAR, corpo.motivo()));
+    }
+
+    @POST
+    @Path("/{id}/alterar")
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual alterar(Long id, @Valid @NotNull Alteracao dados) {
+        return EstadoAtual.de(alterar.executar(id, dados.valor(), NovoFavorecido.dados(dados.favorecidos())));
+    }
+
+    @POST
+    @Path("/{id}/propor-alteracao")
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual proporAlteracao(Long id, @Valid @NotNull PropostaAlteracao dados) {
+        return EstadoAtual.de(proporAlteracao.executar(id, dados.valor(), NovoFavorecido.dados(dados.favorecidos()),
+                dados.motivo()));
+    }
+
+    @POST
+    @Path("/{id}/concordar")
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual concordar(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.CONCORDAR, Observacao.texto(corpo)));
+    }
+
+    @POST
+    @Path("/{id}/discordar")
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual discordar(Long id, @RequestBody(required = true) @Valid @NotNull Motivo corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.DISCORDAR, corpo.motivo()));
     }
 }

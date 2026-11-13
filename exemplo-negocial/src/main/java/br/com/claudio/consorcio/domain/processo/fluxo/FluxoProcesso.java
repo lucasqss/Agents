@@ -27,7 +27,11 @@ public final class FluxoProcesso {
                 .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.REPROVAR, EstadoProcesso.REPROVADO)
                 .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.CONCLUIR_ANALISE, EstadoProcesso.APROVADO)
                 .transicao(EstadoProcesso.APROVADO, AcaoProcesso.DEVOLVER_PARA_ANALISE, EstadoProcesso.EM_ANALISE)
-                .transicao(EstadoProcesso.APROVADO, AcaoProcesso.PAGAR, EstadoProcesso.PAGO);
+                .transicao(EstadoProcesso.APROVADO, AcaoProcesso.PAGAR, EstadoProcesso.PAGO)
+                .transicao(EstadoProcesso.ABERTO, AcaoProcesso.ALTERAR, EstadoProcesso.ABERTO)
+                .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.PROPOR_ALTERACAO, EstadoProcesso.AGUARDANDO_CONCORDANCIA)
+                .transicao(EstadoProcesso.AGUARDANDO_CONCORDANCIA, AcaoProcesso.CONCORDAR, EstadoProcesso.EM_ANALISE)
+                .transicao(EstadoProcesso.AGUARDANDO_CONCORDANCIA, AcaoProcesso.DISCORDAR, EstadoProcesso.EM_ANALISE);
     }
 
     /** Próximo estado, ou {@link TransicaoInvalidaException} se a ação não vale no estado atual. */

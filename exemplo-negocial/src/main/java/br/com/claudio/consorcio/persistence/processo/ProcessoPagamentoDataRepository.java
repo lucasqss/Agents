@@ -39,6 +39,27 @@ interface ProcessoPagamentoDataRepository {
     @Query("select f from ProcessoFavorecidoEntity f where f.processoId = :processoId order by f.ordem")
     List<ProcessoFavorecidoEntity> buscarFavorecidos(Long processoId);
 
+    @Query("delete from ProcessoFavorecidoEntity f where f.processoId = :processoId")
+    void removerFavorecidos(Long processoId);
+
+    @Insert
+    void inserirProposta(ProcessoPropostaEntity proposta);
+
+    @Insert
+    void inserirFavorecidoProposto(ProcessoPropostaFavorecidoEntity favorecido);
+
+    @Find
+    Optional<ProcessoPropostaEntity> buscarProposta(Long processoId);
+
+    @Query("select f from ProcessoPropostaFavorecidoEntity f where f.processoId = :processoId order by f.ordem")
+    List<ProcessoPropostaFavorecidoEntity> buscarFavorecidosPropostos(Long processoId);
+
+    @Query("delete from ProcessoPropostaFavorecidoEntity f where f.processoId = :processoId")
+    void removerFavorecidosPropostos(Long processoId);
+
+    @Query("delete from ProcessoPropostaEntity a where a.processoId = :processoId")
+    void removerProposta(Long processoId);
+
     @Query("select count(p) from ProcessoPagamentoEntity p where p.cotaId = :cotaId")
     long contarPorCota(Long cotaId);
 

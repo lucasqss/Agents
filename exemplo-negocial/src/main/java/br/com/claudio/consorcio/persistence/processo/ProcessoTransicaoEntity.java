@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 
 /** Mapeamento da tabela processo_transicao: o histórico de mudanças de estado, só com inclusões. */
@@ -32,6 +33,12 @@ public class ProcessoTransicaoEntity {
     private Instant ocorridoEm;
 
     private String observacao;
+
+    @Column(name = "valor_anterior")
+    private BigDecimal valorAnterior;
+
+    @Column(name = "valor_novo")
+    private BigDecimal valorNovo;
 
     public Long getId() {
         return id;
@@ -87,5 +94,21 @@ public class ProcessoTransicaoEntity {
 
     public void setObservacao(String observacao) {
         this.observacao = observacao;
+    }
+
+    public BigDecimal getValorAnterior() {
+        return valorAnterior;
+    }
+
+    public void setValorAnterior(BigDecimal valorAnterior) {
+        this.valorAnterior = valorAnterior;
+    }
+
+    public BigDecimal getValorNovo() {
+        return valorNovo;
+    }
+
+    public void setValorNovo(BigDecimal valorNovo) {
+        this.valorNovo = valorNovo;
     }
 }

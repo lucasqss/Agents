@@ -5,8 +5,6 @@ import br.com.claudio.consorcio.application.NaoEncontradoException;
 import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.cota.Cota;
 import br.com.claudio.consorcio.domain.cota.CotaRepository;
-import br.com.claudio.consorcio.domain.processo.Documento;
-import br.com.claudio.consorcio.domain.processo.Favorecido;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
@@ -31,7 +29,7 @@ public class CriarProcessoUseCase {
     public Long executar(Long cotaId, TipoProcesso tipo, BigDecimal valor, List<DadosFavorecido> favorecidos) {
         // As regras dos favorecidos (R15, R29) são conferidas ao montar o agregado, antes de buscar a cota.
         ProcessoPagamento processo = ProcessoPagamento.novo(tipo, cotaId, Dinheiro.de(valor), favorecidos.stream()
-                .map(f -> new Favorecido(f.nome(), Documento.de(f.documento()), f.papel(), Dinheiro.de(f.valor())))
+                .map(DadosFavorecido::paraFavorecido)
                 .toList());
         // O bloqueio coloca em fila as aberturas da mesma cota; sem ele, duas passariam juntas pelas verificações abaixo,
         // inclusive a do crédito, cuja soma dos pagos é lida dentro desta mesma transação.

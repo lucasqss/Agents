@@ -1,10 +1,12 @@
 package br.com.claudio.consorcio.aceitacao.pagamentoprocesso;
 
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.AUSENTE;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.VALOR_PADRAO;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.favorecido;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,14 +16,16 @@ import java.util.stream.Stream;
 
 /**
  * Padrão: Máquina de estados como modelo de teste [Ammann e Offutt].
- * Escrita a partir das regras 2 a 6, 10, 11 e 23 do caso de uso (fatia 1), 12 a 14 (fatia 2, valor e crédito)
- * e 15 e 29 (fatia 3, favorecidos); nada aqui vem do código da aplicação.
+ * Escrita a partir das regras 2 a 6, 10, 11 e 23 do caso de uso (fatia 1), 12 a 14 (fatia 2, valor e crédito),
+ * 15 e 29 (fatia 3, favorecidos) e 24 a 28 (fatia 4, alteração com concordância do cliente);
+ * nada aqui vem do código da aplicação.
  */
 final class ModeloPagamentoProcesso {
 
     static final String ABERTO = "ABERTO";
     static final String EM_ANALISE = "EM_ANALISE";
     static final String AGUARDANDO_VISTORIA = "AGUARDANDO_VISTORIA";
+    static final String AGUARDANDO_CONCORDANCIA = "AGUARDANDO_CONCORDANCIA";
     static final String PENDENTE_DOCUMENTO = "PENDENTE_DOCUMENTO";
     static final String REPROVADO = "REPROVADO";
     static final String APROVADO = "APROVADO";
@@ -37,39 +41,53 @@ final class ModeloPagamentoProcesso {
     static final String CONCLUIR_VISTORIA = "concluir-vistoria";
     static final String PAGAR = "pagar";
     static final String CANCELAR = "cancelar";
+    static final String ALTERAR = "alterar";
+    static final String PROPOR_ALTERACAO = "propor-alteracao";
+    static final String CONCORDAR = "concordar";
+    static final String DISCORDAR = "discordar";
 
     static final String SERVICO = "SERVICO";
     static final String IMOBILIARIO = "IMOBILIARIO";
 
     private static final List<String> ACOES = List.of(INICIAR_ANALISE, SOLICITAR_DOCUMENTO, RECEBER_DOCUMENTO,
-            REPROVAR, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, DEVOLVER_PARA_ANALISE, PAGAR, CANCELAR);
+            REPROVAR, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, DEVOLVER_PARA_ANALISE, PAGAR, CANCELAR,
+            ALTERAR, PROPOR_ALTERACAO, CONCORDAR, DISCORDAR);
 
     private static final List<String> SITUACOES = List.of(ABERTO, EM_ANALISE, PENDENTE_DOCUMENTO,
-            AGUARDANDO_VISTORIA, APROVADO, PAGO, REPROVADO, CANCELADO);
+            AGUARDANDO_VISTORIA, AGUARDANDO_CONCORDANCIA, APROVADO, PAGO, REPROVADO, CANCELADO);
 
-    /** Ações cujo corpo é obrigatório e traz o motivo (R4, R10, R11, R23). */
+    /** Ações cujo corpo é obrigatório e traz o motivo (R4, R10, R11, R23, R25, R27). */
     private static final Set<String> ACOES_COM_MOTIVO =
-            Set.of(SOLICITAR_DOCUMENTO, REPROVAR, DEVOLVER_PARA_ANALISE, CANCELAR);
+            Set.of(SOLICITAR_DOCUMENTO, REPROVAR, DEVOLVER_PARA_ANALISE, CANCELAR, PROPOR_ALTERACAO, DISCORDAR);
+
+    /** Ações cujo corpo traz o novo valor e os novos favorecidos (R24, R25). */
+    private static final Set<String> ACOES_COM_VALOR_E_FAVORECIDOS = Set.of(ALTERAR, PROPOR_ALTERACAO);
 
     /** Ações cujo corpo é opcional e pode trazer uma observação. */
     private static final Set<String> ACOES_COM_OBSERVACAO =
-            Set.of(INICIAR_ANALISE, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, RECEBER_DOCUMENTO);
+            Set.of(INICIAR_ANALISE, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, RECEBER_DOCUMENTO, CONCORDAR);
 
     private static final Map<String, Map<String, Map<String, String>>> TRANSICOES = Map.of(
             SERVICO, Map.of(
-                    ABERTO, Map.of(INICIAR_ANALISE, EM_ANALISE, CANCELAR, CANCELADO),
+                    ABERTO, Map.of(INICIAR_ANALISE, EM_ANALISE, CANCELAR, CANCELADO, ALTERAR, ABERTO),
                     EM_ANALISE, Map.of(SOLICITAR_DOCUMENTO, PENDENTE_DOCUMENTO, REPROVAR, REPROVADO,
-                            CONCLUIR_ANALISE, APROVADO, CANCELAR, CANCELADO),
+                            CONCLUIR_ANALISE, APROVADO, CANCELAR, CANCELADO,
+                            PROPOR_ALTERACAO, AGUARDANDO_CONCORDANCIA),
                     PENDENTE_DOCUMENTO, Map.of(RECEBER_DOCUMENTO, EM_ANALISE, CANCELAR, CANCELADO),
+                    AGUARDANDO_CONCORDANCIA, Map.of(CONCORDAR, EM_ANALISE, DISCORDAR, EM_ANALISE,
+                            CANCELAR, CANCELADO),
                     APROVADO, Map.of(PAGAR, PAGO, DEVOLVER_PARA_ANALISE, EM_ANALISE, CANCELAR, CANCELADO),
                     PAGO, Map.of(),
                     REPROVADO, Map.of(),
                     CANCELADO, Map.of()),
             IMOBILIARIO, Map.of(
-                    ABERTO, Map.of(INICIAR_ANALISE, EM_ANALISE, CANCELAR, CANCELADO),
+                    ABERTO, Map.of(INICIAR_ANALISE, EM_ANALISE, CANCELAR, CANCELADO, ALTERAR, ABERTO),
                     EM_ANALISE, Map.of(SOLICITAR_DOCUMENTO, PENDENTE_DOCUMENTO, REPROVAR, REPROVADO,
-                            CONCLUIR_ANALISE, AGUARDANDO_VISTORIA, CANCELAR, CANCELADO),
+                            CONCLUIR_ANALISE, AGUARDANDO_VISTORIA, CANCELAR, CANCELADO,
+                            PROPOR_ALTERACAO, AGUARDANDO_CONCORDANCIA),
                     PENDENTE_DOCUMENTO, Map.of(RECEBER_DOCUMENTO, EM_ANALISE, CANCELAR, CANCELADO),
+                    AGUARDANDO_CONCORDANCIA, Map.of(CONCORDAR, EM_ANALISE, DISCORDAR, EM_ANALISE,
+                            CANCELAR, CANCELADO),
                     AGUARDANDO_VISTORIA, Map.of(CONCLUIR_VISTORIA, APROVADO, DEVOLVER_PARA_ANALISE, EM_ANALISE,
                             CANCELAR, CANCELADO),
                     APROVADO, Map.of(PAGAR, PAGO, DEVOLVER_PARA_ANALISE, EM_ANALISE, CANCELAR, CANCELADO),
@@ -153,6 +171,7 @@ final class ModeloPagamentoProcesso {
         Set<String> vistas = new HashSet<>();
         Set<String> comCorpo = new HashSet<>(ACOES_COM_MOTIVO);
         comCorpo.addAll(ACOES_COM_OBSERVACAO);
+        comCorpo.addAll(ACOES_COM_VALOR_E_FAVORECIDOS);
         return transicoes(comCorpo).filter(base -> vistas.add(base.acao()));
     }
 
@@ -160,6 +179,159 @@ final class ModeloPagamentoProcesso {
     static Stream<Base> umaTransicaoPorAcaoComMotivo() {
         Set<String> vistas = new HashSet<>();
         return transicoesComMotivo().filter(base -> vistas.add(base.acao()));
+    }
+
+
+    /** Ações do caminho que a situação recusa (R5, R28), pelo modelo. */
+    static Set<String> acoesRecusadas(String tipo, String situacao) {
+        Set<String> recusadas = new java.util.LinkedHashSet<>(ACOES);
+        recusadas.removeAll(acoesAceitas(tipo, situacao));
+        return recusadas;
+    }
+
+    // ---- Alteração de valor e favorecidos (fatia 4: R24 a R28) ----
+
+    /** Novo valor e novos favorecidos pedidos em uma alteração ou proposta. */
+    record Alteracao(BigDecimal valor, List<Map<String, Object>> favorecidos) {
+
+        /** A n-ésima alteração do teste: valor e favorecidos sempre diferentes dos anteriores (R12, R13, R15, R29). */
+        static Alteracao numero(int n) {
+            BigDecimal valor = v("30000.00").subtract(v("1000.00").multiply(BigDecimal.valueOf(n)));
+            BigDecimal cartorio = v("500.00");
+            return new Alteracao(valor, List.of(
+                    favorecido("Vendedor da alteração %d".formatted(n), cpf(1000 + n), "vendedor", valor.subtract(cartorio)),
+                    favorecido("Cartório da alteração %d".formatted(n), cnpj(2000 + n), "cartório", cartorio)));
+        }
+    }
+
+    /** O que o histórico deve registrar para uma ação aceita: o nome e, nas alterações, o valor anterior e o novo (R19). */
+    record Registro(String acao, BigDecimal valorAnterior, BigDecimal valorNovo) {
+    }
+
+    /**
+     * Oráculo dos dados VIGENTES de um processo (R24 a R28): valor e favorecidos que valem, proposta pendente e
+     * histórico esperado. O teste pede a ação com {@link #preparar} e, só depois do 200, chama {@link #confirmar}.
+     * Recusa não chama {@code confirmar}: nada muda.
+     */
+    static final class ProcessoEsperado {
+
+        private BigDecimal valor;
+        private List<Map<String, Object>> favorecidos;
+        private Alteracao proposta;
+        private String motivoDaProposta;
+        private Alteracao pedido;
+        private int pedidos;
+        private final List<Registro> historico = new ArrayList<>();
+
+        private ProcessoEsperado(BigDecimal valor, List<Map<String, Object>> favorecidos) {
+            this.valor = valor;
+            this.favorecidos = favorecidos;
+        }
+
+        /** Processo aberto com o valor padrão e dois favorecidos conhecidos. */
+        static ProcessoEsperado inicial() {
+            return new ProcessoEsperado(VALOR_PADRAO, List.of(
+                    favorecido("Vendedor inicial", cpf(901), "vendedor", v("25000.00")),
+                    favorecido("Cartório inicial", cnpj(902), "cartório", v("5000.00"))));
+        }
+
+        /** Processo aberto com o valor dado e um favorecido que o recebe inteiro. */
+        static ProcessoEsperado comUmFavorecido(BigDecimal valor) {
+            return new ProcessoEsperado(valor, List.of(favorecido("Favorecido inicial", cpf(901), "vendedor", valor)));
+        }
+
+        BigDecimal valor() {
+            return valor;
+        }
+
+        List<Map<String, Object>> favorecidos() {
+            return favorecidos;
+        }
+
+        Alteracao proposta() {
+            return proposta;
+        }
+
+        String motivoDaProposta() {
+            return motivoDaProposta;
+        }
+
+        List<Registro> historico() {
+            return historico;
+        }
+
+        /** Corpo da ação, ou null quando a ação não leva corpo. Guarda o pedido de alteração para {@link #confirmar}. */
+        Map<String, Object> preparar(String acao) {
+            if (ACOES_COM_VALOR_E_FAVORECIDOS.contains(acao)) {
+                pedido = Alteracao.numero(++pedidos);
+                return corpoDe(pedido, ACOES_COM_MOTIVO.contains(acao) ? motivoPadrao(acao) : null);
+            }
+            return exigeMotivo(acao) ? Map.of("motivo", motivoPadrao(acao)) : null;
+        }
+
+        /** A ação foi aceita (200): atualiza vigentes, proposta e histórico esperados. */
+        void confirmar(String acao) {
+            switch (acao) {
+                case ALTERAR -> alterar(pedido);
+                case PROPOR_ALTERACAO -> propor(pedido, motivoPadrao(acao));
+                case CONCORDAR -> concordar();
+                case DISCORDAR, CANCELAR -> {
+                    historico.add(new Registro(acao, null, null));
+                    proposta = null;
+                    motivoDaProposta = null;
+                }
+                default -> historico.add(new Registro(acao, null, null));
+            }
+        }
+
+        /** R24: a alteração vale na hora. */
+        void alterar(Alteracao nova) {
+            historico.add(new Registro(ALTERAR, valor, nova.valor()));
+            valor = nova.valor();
+            favorecidos = nova.favorecidos();
+        }
+
+        /** R25: a proposta fica à parte; os vigentes continuam os anteriores. */
+        void propor(Alteracao nova, String motivo) {
+            historico.add(new Registro(PROPOR_ALTERACAO, valor, nova.valor()));
+            proposta = nova;
+            motivoDaProposta = motivo;
+        }
+
+        /** R26: a proposta passa a valer. */
+        void concordar() {
+            historico.add(new Registro(CONCORDAR, null, null));
+            valor = proposta.valor();
+            favorecidos = proposta.favorecidos();
+            proposta = null;
+            motivoDaProposta = null;
+        }
+    }
+
+    /** Corpo de alterar (sem motivo) ou de propor-alteracao (com motivo). */
+    static Map<String, Object> corpoDe(Alteracao alteracao, Object motivo) {
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("valor", alteracao.valor());
+        corpo.put("favorecidos", alteracao.favorecidos());
+        if (motivo != null) {
+            corpo.put("motivo", motivo);
+        }
+        return corpo;
+    }
+
+    /**
+     * Corpo de uma ação de motivo obrigatório com o motivo dado (ou {@code AUSENTE}); as demais partes do corpo
+     * (em propor-alteracao, valor e favorecidos) são válidas, para o motivo ser o único defeito.
+     */
+    static Map<String, Object> corpoComMotivo(String acao, Object motivo) {
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        if (ACOES_COM_VALOR_E_FAVORECIDOS.contains(acao)) {
+            Alteracao alteracao = Alteracao.numero(1);
+            corpo.put("valor", alteracao.valor());
+            corpo.put("favorecidos", alteracao.favorecidos());
+        }
+        corpo.put("motivo", motivo);
+        return corpo;
     }
 
     // ---- Valor e crédito (fatia 2: R12, R13, R14) ----
@@ -600,8 +772,63 @@ final class ModeloPagamentoProcesso {
      * cada transição é usada no máximo uma vez por caminho: cobre todas as transições e todos os finais.
      */
     static Stream<Caminho> caminhosCompletos() {
+        return todosOsCaminhosCompletos().filter(caminho -> !usaAcaoDeAlteracao(caminho));
+    }
+
+    private static Stream<Caminho> todosOsCaminhosCompletos() {
         return tipos().flatMap(tipo -> percorrer(tipo, ABERTO, List.of(), Set.of()).stream()
                 .filter(caminho -> proximas(tipo, caminho.situacaoFinal()).isEmpty()));
+    }
+
+    private static final Set<String> ACOES_DE_ALTERACAO = Set.of(ALTERAR, PROPOR_ALTERACAO, CONCORDAR, DISCORDAR);
+
+    private static boolean usaAcaoDeAlteracao(Caminho caminho) {
+        return caminho.passos().stream().anyMatch(p -> ACOES_DE_ALTERACAO.contains(p.acao()));
+    }
+
+    /**
+     * Caminhos completos que passam por alterar, propor, concordar ou discordar (fatia 4). Todos somam centenas
+     * (o grafo tem ciclos), então escolhe-se, para cada tipo, um conjunto mínimo (guloso) que usa cada transição
+     * de alteração (inclusive cancelar em aguardando concordância) e chega a cada situação final depois de uma
+     * alteração. Os caminhos que não usam ação de alteração ficam em {@link #caminhosCompletos()}.
+     */
+    static Stream<Caminho> caminhosCompletosComAlteracao() {
+        return tipos().flatMap(tipo -> {
+            List<Caminho> candidatos = todosOsCaminhosCompletos()
+                    .filter(c -> c.tipo().equals(tipo) && usaAcaoDeAlteracao(c)).toList();
+            Set<String> faltam = new HashSet<>();
+            candidatos.forEach(c -> faltam.addAll(coberturaDeAlteracao(c)));
+            List<Caminho> escolhidos = new ArrayList<>();
+            while (!faltam.isEmpty()) {
+                Caminho melhor = null;
+                int melhorGanho = 0;
+                for (Caminho candidato : candidatos) {
+                    Set<String> ganho = new HashSet<>(coberturaDeAlteracao(candidato));
+                    ganho.retainAll(faltam);
+                    if (ganho.size() > melhorGanho) {
+                        melhor = candidato;
+                        melhorGanho = ganho.size();
+                    }
+                }
+                escolhidos.add(melhor);
+                faltam.removeAll(coberturaDeAlteracao(melhor));
+            }
+            return escolhidos.stream();
+        });
+    }
+
+    /** Transições de alteração (e cancelar em aguardando concordância) usadas pelo caminho, e o final alcançado. */
+    private static Set<String> coberturaDeAlteracao(Caminho caminho) {
+        Set<String> itens = new HashSet<>();
+        String antes = ABERTO;
+        for (Passo passo : caminho.passos()) {
+            if (ACOES_DE_ALTERACAO.contains(passo.acao()) || AGUARDANDO_CONCORDANCIA.equals(antes)) {
+                itens.add(antes + "/" + passo.acao());
+            }
+            antes = passo.situacao();
+        }
+        itens.add("final " + caminho.situacaoFinal());
+        return itens;
     }
 
     /** Cada par situação × ação que não é uma transição permitida. */

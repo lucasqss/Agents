@@ -239,9 +239,62 @@ public final class ApiAceitacao {
                 .extract().jsonPath().getList("acoes");
     }
 
+    /** Histórico em ordem; os números (valorAnterior, valorNovo) ficam como BigDecimal, sem ponto flutuante. */
     public static List<Map<String, Object>> consultarHistorico(long processo) {
-        return given().when().get("/processos/%d/historico".formatted(processo)).then().statusCode(200)
-                .extract().jsonPath().getList("$");
+        String corpo = given().when().get("/processos/%d/historico".formatted(processo)).then().statusCode(200)
+                .extract().asString();
+        return comoBigDecimal(corpo).getList("$");
+    }
+
+    // ---- Fatia 4: alteração de valor e favorecidos (R24 a R28) ----
+
+    /** Corpo de {@code alterar}: {@code valor} e {@code favorecidos} podem ser valor, {@link #AUSENTE} ou null. */
+    public static String corpoAlteracao(Object valor, Object favorecidos) {
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("valor", valor);
+        corpo.put("favorecidos", favorecidos);
+        return json(corpo);
+    }
+
+    /** Corpo de {@code propor-alteracao}: como o de alterar, mais o motivo (valor, {@link #AUSENTE} ou null). */
+    public static String corpoProposta(Object valor, Object favorecidos, Object motivo) {
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("valor", valor);
+        corpo.put("favorecidos", favorecidos);
+        corpo.put("motivo", motivo);
+        return json(corpo);
+    }
+
+    /** POST /processos/{id}/alterar (cliente, processo aberto) sem conferir o resultado. */
+    public static ValidatableResponse tentarAlterar(long processo, Object valor, Object favorecidos) {
+        return executarComCorpo(processo, "alterar", corpoAlteracao(valor, favorecidos));
+    }
+
+    /** POST /processos/{id}/propor-alteracao (backoffice, processo em análise) sem conferir o resultado. */
+    public static ValidatableResponse tentarProporAlteracao(long processo, Object valor, Object favorecidos,
+            Object motivo) {
+        return executarComCorpo(processo, "propor-alteracao", corpoProposta(valor, favorecidos, motivo));
+    }
+
+    /** Alteração proposta, como a consulta a devolve. */
+    public record Proposta(BigDecimal valor, List<Map<String, Object>> favorecidos, String motivo) {
+    }
+
+    /** GET /processos/{id}/alteracao-proposta sem conferir o resultado. */
+    public static ValidatableResponse tentarConsultarProposta(long processo) {
+        return given().when().get("/processos/%d/alteracao-proposta".formatted(processo)).then();
+    }
+
+    /** Proposta pendente (200); números lidos sem perder casas decimais. */
+    public static Proposta consultarProposta(long processo) {
+        String corpo = tentarConsultarProposta(processo).statusCode(200).extract().asString();
+        JsonPath resposta = comoBigDecimal(corpo);
+        Object valor = resposta.get("valor");
+        if (valor == null) {
+            throw new AssertionError("A proposta do processo %d não informa valor: %s".formatted(processo, corpo));
+        }
+        List<Map<String, Object>> favorecidos = resposta.getList("favorecidos");
+        return new Proposta(new BigDecimal(valor.toString()), favorecidos, resposta.getString("motivo"));
     }
 
     /** Todos os processos da listagem filtrada por situação, percorrendo as páginas. */

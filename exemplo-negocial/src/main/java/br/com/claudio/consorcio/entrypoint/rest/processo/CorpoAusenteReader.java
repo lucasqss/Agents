@@ -15,7 +15,8 @@ import java.lang.reflect.Type;
  * Deixa o corpo das ações ser de fato opcional. Sem {@code Content-Type} o Quarkus REST procura um leitor para
  * {@code *}{@code /*}, o Jackson só lê {@code application/json} e a resposta seria 415. Este leitor cobre o que
  * o Jackson não cobre: corpo vazio vira "sem observação" na {@code Observacao} opcional e
- * um {@code Motivo} sem texto no obrigatório (a validação recusa com 400, apontando o campo {@code motivo}). Corpo com conteúdo e tipo que não é JSON continua 415.
+ * um {@code Motivo} sem texto no obrigatório (a validação recusa com 400, apontando o campo {@code motivo}); nos corpos
+ * de alterar e propor alteração, que são obrigatórios, o corpo vazio vira ausente e a validação recusa com 400. Corpo com conteúdo e tipo que não é JSON continua 415.
  * Quando o tipo declarado é JSON este leitor não participa: segue o Jackson, com a validação e os erros de sempre.
  */
 @Provider
@@ -24,7 +25,8 @@ public class CorpoAusenteReader implements MessageBodyReader<Object> {
 
     @Override
     public boolean isReadable(Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
-        boolean corpoDeAcao = type == ProcessoResource.Observacao.class || type == ProcessoResource.Motivo.class;
+        boolean corpoDeAcao = type == ProcessoResource.Observacao.class || type == ProcessoResource.Motivo.class
+                || type == ProcessoResource.Alteracao.class || type == ProcessoResource.PropostaAlteracao.class;
         return corpoDeAcao && !ehJson(mediaType);
     }
 

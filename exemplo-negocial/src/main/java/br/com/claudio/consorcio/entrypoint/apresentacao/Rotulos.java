@@ -13,6 +13,7 @@ public final class Rotulos {
             "EM_ANALISE", "Em análise",
             "PENDENTE_DOCUMENTO", "Pendente de documento",
             "AGUARDANDO_VISTORIA", "Aguardando vistoria",
+            "AGUARDANDO_CONCORDANCIA", "Aguardando concordância",
             "APROVADO", "Aprovado",
             "PAGO", "Pago",
             "REPROVADO", "Reprovado",

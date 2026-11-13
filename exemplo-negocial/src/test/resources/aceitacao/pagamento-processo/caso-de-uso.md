@@ -312,7 +312,7 @@ Nenhuma vira regra, teste ou código enquanto estiver sem resposta. Dúvida resp
 
 ## Contrato usado
 
-Seção mantida pela skill de testes. Estado: **fatia 3 de 7** (a implementação ainda não existe; o contrato abaixo foi definido pelo time de implementação e é o que os testes usam). O que não está aqui não é conhecido pelos testes.
+Seção mantida pela skill de testes. Estado: **fatia 4 de 7** (a implementação da fatia 4 ainda não existe; o contrato abaixo foi definido pelo time de implementação e é o que os testes usam). O que não está aqui não é conhecido pelos testes.
 
 ### Ações sobre o processo (fatia 1)
 
@@ -357,7 +357,7 @@ Decidido pelo time de implementação; os testes usam só isto.
 
 ### Favorecidos (fatia 3)
 
-Decidido por quem coordena a implementação; os testes usam só isto. Vale para a ABERTURA. Alterar valor e favorecidos fica para a fatia 4.
+Decidido por quem coordena a implementação; os testes usam só isto. Vale para a ABERTURA. A alteração está em "Alteração de valor e favorecidos (fatia 4)".
 
 | Operação | Contrato |
 |---|---|
@@ -371,6 +371,36 @@ Decidido por quem coordena a implementação; os testes usam só isto. Vale para
 | `GET /processos` e `GET /cotas/{id}` | não mudam |
 
 Canais (`/web`, `/mobile`, `/taa`) ficam fora dos testes de aceitação desta fatia.
+
+### Alteração de valor e favorecidos, com concordância do cliente (fatia 4)
+
+Decidido por quem coordena a implementação; os testes usam só isto. Nesta fatia qualquer chamador pode chamar qualquer endpoint (papéis: fatia 7). Situação nova: `AGUARDANDO_CONCORDANCIA`.
+
+| Operação | Corpo | Sucesso |
+|---|---|---|
+| `POST /processos/{id}/alterar` | `{"valor": n, "favorecidos": [...]}`, mesmo formato de favorecidos da abertura | só em ABERTO: `200 {"estado": "ABERTO"}` |
+| `POST /processos/{id}/propor-alteracao` | `{"valor": n, "favorecidos": [...], "motivo": "..."}`; motivo não vazio, até 500 | só em EM_ANALISE: `200 {"estado": "AGUARDANDO_CONCORDANCIA"}` |
+| `POST /processos/{id}/concordar` | opcional `{"observacao"}`, como as ações sem dado | só em AGUARDANDO_CONCORDANCIA: `200 {"estado": "EM_ANALISE"}` |
+| `POST /processos/{id}/discordar` | obrigatório `{"motivo"}` | só em AGUARDANDO_CONCORDANCIA: `200 {"estado": "EM_ANALISE"}` |
+| `cancelar` (já existe, com motivo) | | passa a valer em AGUARDANDO_CONCORDANCIA: CANCELADO |
+
+| Status | Quando |
+|---|---|
+| 400 de FORMATO | `campos` preenchido: valor, favorecidos ou motivo ausentes ou inválidos, com as mesmas regras de formato da abertura. Vem antes de 404 e de 409 |
+| 400 de REGRA | `mensagem`: soma das partes diferente do valor, documento repetido |
+| 404 | processo inexistente |
+| 409 | ação fora da situação (R5, R28); valor acima do crédito disponível (R13) |
+| 415 | corpo com conteúdo e tipo que não é JSON |
+
+Em toda recusa nada muda: situação, valor vigente, favorecidos vigentes, histórico e proposta pendente. A precedência entre 400 de REGRA e 404 ou 409 não é fixada (dúvida F4-1).
+
+| Consulta | Contrato |
+|---|---|
+| Dados vigentes | `GET /processos` (campo `valor` do item), `GET /processos/{id}/favorecidos` e `GET /cotas/{id}` (`creditoDisponivel`): os anteriores enquanto AGUARDANDO_CONCORDANCIA; os novos depois de concordar; os anteriores depois de discordar ou cancelar |
+| `GET /processos/{id}/alteracao-proposta` | `200 {"valor": n, "favorecidos": [{nome, documento, papel, valor}], "motivo": "..."}` enquanto AGUARDANDO_CONCORDANCIA; `404` sem proposta pendente (qualquer outra situação, inclusive depois de concordar, discordar ou cancelar) e para processo inexistente |
+| `GET /processos/{id}/historico` | ações novas `ALTERAR`, `PROPOR_ALTERACAO`, `CONCORDAR`, `DISCORDAR`; cada item ganha `valorAnterior` e `valorNovo` (números, comparados como `BigDecimal`): preenchidos em `ALTERAR` e `PROPOR_ALTERACAO` (anterior = valor vigente antes; novo = valor pedido), nulos nas demais. Motivo de `PROPOR_ALTERACAO` e `DISCORDAR` em `observacao`. Recusada não entra |
+| `GET /processos/{id}/acoes` | inclui `alterar` em ABERTO, `propor-alteracao` em EM_ANALISE e, em AGUARDANDO_CONCORDANCIA, exatamente `concordar`, `discordar`, `cancelar` |
+| `GET /processos?estado=AGUARDANDO_CONCORDANCIA` | filtra a situação nova |
 
 ### Que continua como hoje (testes mantidos)
 
@@ -425,9 +455,32 @@ Em `ModeloPagamentoProcesso`: cada caso é um pedido de abertura (valor do proce
 - Efeito observável nos outros endpoints: a consulta de favorecidos, a listagem (valor) e a cota (crédito disponível inalterado); depois de recusa, a contagem de processos da cota e uma abertura válida em seguida.
 - Consulta: ordem informada (quatro favorecidos fora de ordem de nome, documento e parte); processos diferentes não se confundem; os favorecidos continuam os mesmos em cada uma das 15 situações dos dois tipos.
 
+### Modelo de alteração (fatia 4)
+
+Em `ModeloPagamentoProcesso`. A máquina de estados ganha a situação AGUARDANDO_CONCORDANCIA e quatro ações (o oráculo de ações aceitas por situação foi estendido; as ações antigas ficam como estavam):
+
+| Situação | Transições novas (serviço e imobiliário) |
+|---|---|
+| ABERTO | alterar → ABERTO |
+| EM_ANALISE | propor alteração* → AGUARDANDO_CONCORDANCIA |
+| AGUARDANDO_CONCORDANCIA | concordar → EM_ANALISE; discordar* → EM_ANALISE; cancelar* → CANCELADO; toda outra ação é recusada (R28) |
+
+\* motivo obrigatório. `alterar` e `propor-alteracao` levam também valor e favorecidos.
+
+`ProcessoEsperado` é o oráculo dos dados VIGENTES: valor e favorecidos que valem, proposta pendente (valor, favorecidos, motivo) e histórico esperado (ação, valor anterior, valor novo). O teste pede a ação e só atualiza o oráculo depois do 200: alterar muda o vigente na hora; propor só guarda a proposta; concordar promove a proposta; discordar e cancelar a descartam. A cada passo dos fluxos confere-se, contra o oráculo, a situação e o valor (listagem), os favorecidos, o crédito disponível da cota (o do crédito menos o valor vigente, só quando PAGO), a proposta (200 ou 404) e, no fim, o histórico.
+
+- Máquina de estados: os caminhos completos que não usam ação de alteração continuam os 43 de antes (`fluxoChegaASituacaoFinal`). Os que usam são centenas (o grafo ganhou ciclos); `fluxoComAlteracaoChegaASituacaoFinal` roda um conjunto mínimo (guloso) por tipo, que usa cada transição nova e chega a cada final depois de uma alteração (6 caminhos). Caminhos escolhidos à mão: propor, discordar, propor de novo, concordar; cinco rodadas sem limite; propor e cancelar; alterar quatro vezes em aberto; alterar, propor e responder (concordar ou discordar) e seguir até PAGO conferindo o crédito consumido; resposta repetida ou cruzada.
+- Tabela situação × ação: as quatro ações novas e o cancelar entram nas 13 ações do modelo e em todas as situações dos dois tipos (`acaoForaDaOrdemERecusada`, com 76 pares novos; transições aceitas nos fluxos). Em AGUARDANDO_CONCORDANCIA, cada ação recusada é conferida também quanto à proposta, que continua a mesma.
+- Valor-limite: exatamente o crédito disponível aceito e um centavo acima recusado (409), em `alterar` e em `propor-alteracao`, em quatro cenários de crédito (cota sem processo, pago, dois pagos, crédito com centavos); soma um centavo a menos e a mais.
+- Particionamento: valor (válidos 0,01, duas casas e igual ao crédito; inválidos ausente, nulo, zero e três casas) e favorecidos (amostra de cada classe de R15 e R29: lista ausente e vazia, nome vazio, documento com 10 dígitos, papel com 51, parte nula, zero e com três casas, soma a menos e a mais, rateio, documento repetido) nas duas vias (cliente em aberto, backoffice em análise); tabela de decisão de R15 e R29 (6 linhas) nas duas vias; motivo (ausente, vazio, só espaços, 1, 500 e 501 caracteres, e 500 acentuados) em propor e discordar. Depois de cada recusa, um pedido válido é aceito (a recusa não travou o processo).
+- Precedência: 400 de formato (favorecidos, valor, motivo) antes de 404, de 409 de situação e de 409 de crédito.
+- Cobertura de terminais: `alterar`, `propor-alteracao`, `concordar`, `discordar`, `alteracao-proposta` (200 e 404), `valorAnterior`, `valorNovo`, a situação nova na listagem e nas ações.
+- Suposição de erro: JSON malformado (400) e tipo que não é JSON (415) nas quatro ações novas; concordar e discordar ao mesmo tempo (um vale).
+- Oráculo antigo ajustado: `acoesAceitasNaSituacao` agora espera `alterar` em ABERTO e `propor-alteracao` em EM_ANALISE (compara sem depender da ordem, como antes); os testes de motivo (`motivoAusenteERecusado`, `motivoInvalidoERecusado`, `motivoValidoFicaNoHistorico`) montam o corpo pela ação (em propor, com valor e favorecidos válidos, para o motivo ser o único defeito); `consultarHistorico` lê números como BigDecimal. As verificações não mudaram.
+
 ## Rastreabilidade
 
-Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118 (total 483) no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoAceitacaoIT` herda os mesmos). "Pendente: fatia N" marca regra cuja fatia ainda não chegou, sem teste.
+Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118; casos novos da fatia 4: 299 (total 782) no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoAceitacaoIT` herda os mesmos). "Pendente: fatia N" marca regra cuja fatia ainda não chegou, sem teste.
 
 | Regra | Modelo e critério | Teste | Casos |
 |---|---|---|---|
@@ -435,9 +488,11 @@ Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118 (
 | R1 (favorecidos obrigatórios) | Particionamento: lista ausente, nula e vazia; tabela de decisão: ao menos um favorecido | `favorecidosComFormatoInvalidoSaoRecusados` (3 casos de lista), `tabelaDeDecisaoDosFavorecidos`, `favorecidosInvalidosVemAntesDeCotaInexistente` | 3, 1, 1 |
 | R1 ("só o cliente abre") | | pendente: fatia 7 | |
 | R2 e R3 (parte: abertura, análise, documento, vistoria, aprovação, pagamento direto) | Máquina de estados: todas as transições e cada final | `fluxoChegaASituacaoFinal` | 43 |
-| R2 e R3 (aguardando alçada, aguardando concordância, pagamento solicitado) | | pendente: fatias 4, 5 e 6 | |
+| R2 e R3 (aguardando concordância) | Máquina de estados: todas as transições novas, cada final depois de alteração e cada ação inválida na situação nova | `fluxoComAlteracaoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada`, `proporDiscordarProporConcordar`, `acoesAceitasNaSituacao` | 6, 76 novos, 2, 2 |
+| R2 e R3 (aguardando alçada, pagamento solicitado) | | pendente: fatias 5 e 6 | |
 | R4 (parte: reprovado final; cancelar com motivo) | Máquina de estados: finais e ação inválida; particionamento do motivo | `fluxoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada`, `motivoAusenteERecusado`, `corpoAusenteEmAcaoComMotivo`, `motivoInvalidoERecusado`, `motivoValidoFicaNoHistorico` | contado em cada teste |
-| R4 (cancelar em pagamento solicitado; só backoffice e aprovador; descartar alteração) | | pendente: fatias 5, 7 e 4 | |
+| R4 (cancelar em aguardando concordância descarta a alteração) | Máquina de estados; motivo | `proporECancelar`, `propostaSomeDepoisDaResposta`, `motivoAusenteERecusado`, `motivoValidoFicaNoHistorico` | 2, 2, 2, 2 |
+| R4 (cancelar em pagamento solicitado; só backoffice e aprovador) | | pendente: fatias 5 e 7 | |
 | R5 | Máquina de estados: cada ação inválida em cada situação; 404 em processo inexistente | `acaoForaDaOrdemERecusada`, `acaoEmProcessoInexistente` | 110, 9 |
 | R6 | Tabela de decisão: cada situação em andamento recusa, cada final libera, outra cota não impede, simultâneos | `cotaComProcessoEmAndamentoNaoAbreOutro`, `cotaComProcessoFinalizadoAbreOutro`, `reprovadoLiberaACota`, `processoDeOutraCotaNaoImpede`, `pedidosSimultaneosAbremUmUnicoProcesso` | 9, 6, 1, 1, 1 |
 | R7, R8 | | `pagamentoGuardaProtocolo`, `tesourariaIndisponivel` descrevem o comportamento de HOJE (pagar direto) e serão substituídos na fatia 5; regra nova: pendente: fatia 5 | 2 |
@@ -447,26 +502,33 @@ Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118 (
 | R11 (reprovar em aguardando alçada) | | pendente: fatia 6 | |
 | R1 (valor obrigatório, fatia 2) | Particionamento do valor: ausente | `valorInvalidoERecusado` (ausente), `valorAusenteNosDoisTipos` | 1, 2 |
 | R12 (abertura) | Particionamento e valor-limite: 0,01, 2 casas aceitos; 0, negativo, 3 casas, ausente, nulo recusados com 400 e `campos` = `valor`; 400 antes de 404 e de 409 | `valorValidoAbreProcesso`, `valorInvalidoERecusado`, `valorInvalidoVemAntesDeCotaInexistente`, `valorAusenteVemAntesDeCotaInexistente`, `valorInvalidoVemAntesDeCotaIndisponivel` | 5, 9, 1, 1, 1 |
-| R12 (alteração) | | pendente: fatia 4 | |
+| R12 (alteração) | Particionamento do valor nas duas vias; 400 antes de 404 e de 409 | `alteracaoComValorValidoEAceita`, `alteracaoComValorInvalidoERecusada`, `valorInvalidoNaAlteracaoVemAntesDe404E409` | 6, 8, 2 |
 | R13 (abertura) | Modelo de crédito: igual ao disponível aceito, um centavo acima recusado (409, nada criado, cota livre); crédito esgotado; só o pago consome | `creditoDisponivelConsideraSoOsPagos`, `valorIgualAoCreditoDisponivelEAceito`, `valorUmCentavoAcimaDoCreditoERecusado`, `exemploDoCasoDeUsoCreditoRestante`, `cotaNovaTemOCreditoInteiroDisponivel`, `creditoEsgotadoRecusaQualquerValor`, `processoDeOutraCotaNaoReduzCredito`, `pagamentoNaoConcluidoNaoConsomeCredito`, `creditoSoDiminuiNoPagamento` | 22, 11, 12, 1, 1, 1, 1, 1, 1 |
-| R13 (alteração) | | pendente: fatia 4 | |
+| R13 (alteração) | Valor-limite: igual ao disponível aceito, um centavo acima recusado (409), em alterar e propor; a proposta pendente não consome crédito | `valorIgualAoCreditoDisponivelNaAlteracaoEAceito`, `valorUmCentavoAcimaDoCreditoNaAlteracaoERecusado`, `exemploDoCasoDeUsoDeCreditoNaAlteracao`, `propostaPendenteNaoConsomeCredito`, `alteracoesAteOPagamentoConsomemOCreditoDoValorFinal` | 8, 8, 1, 1, 4 |
 | R14 | Tabela de decisão: cancelado e reprovado não consomem e liberam a cota (e o R6 já testado) | cenários de `creditoDisponivelConsideraSoOsPagos`, `valorIgualAoCreditoDisponivelEAceito`, `cancelarLiberaCotaECredito`, `reprovarLiberaCotaECredito` | contado em cada teste, 1, 1 |
 | Contrato: `valor` na listagem e `creditoDisponivel` na cota | Cobertura de terminais | `listagemMostraOValor`, `listagemMostraOValorDeCadaProcesso`, `escolhaBaseAbreProcesso`, `creditoDisponivelConsideraSoOsPagos` | 2, 1, 1, 22 |
 | R15 (abertura) | Particionamento e valor-limite da soma (um centavo abaixo e acima; 1, 2, 3, 10 e 100 favorecidos; parte de 0,01); rateio com centavos; documento repetido; tabela de decisão | `favorecidosValidosAbremProcesso`, `exemploDoCasoDeUsoNosDoisTipos`, `favorecidosQueFeremARegraSaoRecusados`, `tabelaDeDecisaoDosFavorecidos`, `recusaDeFavorecidosNosDoisTipos` | 19, 2, 19, 6, 2 |
-| R15 (em toda alteração) | | pendente: fatia 4 | |
+| R15 (em toda alteração) | Amostra de cada classe, soma um centavo a menos e a mais, rateio, documento repetido, tabela de decisão; recusa deixa os dados anteriores | `alteracaoComFavorecidosValidosEAceita`, `alteracaoQueFereARegraDeFavorecidosERecusada`, `tabelaDeDecisaoDosFavorecidosNaAlteracao`, `alteracaoRecusadaNosDoisTipos`, `exemploDoCasoDeUsoNaAlteracao` | 12, 10, 12, 2, 2 |
 | R29 (abertura) | Particionamento: nome, documento (CPF, CNPJ, tamanhos, caracteres) e papel obrigatórios e nos limites; cobertura de terminais | `favorecidosComFormatoInvalidoSaoRecusados`, `favorecidosValidosAbremProcesso`, `tabelaDeDecisaoDosFavorecidos` | 40, 19, 1 |
-| R29 (em toda alteração) | | pendente: fatia 4 | |
+| R29 (em toda alteração) | Particionamento de nome, documento e papel (amostra); precedência do 400 de formato | `alteracaoComFormatoInvalidoDeFavorecidosERecusada`, `formatoDeFavorecidosNaAlteracaoVemAntesDoProcessoInexistente`, `formatoDeFavorecidosNaAlteracaoVemAntesDaSituacao`, `formatoDeFavorecidosNaAlteracaoVemAntesDoCredito` | 16, 4, 4, 4 |
 | R15 e R29: recusa não cria nada e a cota continua livre | Tabela de decisão da cota (R6) combinada com a recusa | os mesmos testes de recusa acima (contagem de processos, crédito e abertura válida em seguida) | contado em cada teste |
 | Precedência: 400 de formato de favorecidos antes de 404 e 409 | Suposição de erro | `favorecidosInvalidosVemAntesDeCotaInexistente`, `favorecidosInvalidosVemAntesDeCotaIndisponivel`, `favorecidosInvalidosVemAntesDeCreditoInsuficiente` | 4, 4, 4 |
 | R15 e R29: consulta dos favorecidos (contrato) | Cobertura de terminais; efeito por outro endpoint | `favorecidosVoltamNaOrdemInformada`, `favorecidosDeProcessosDiferentesNaoSeConfundem`, `consultaDeFavorecidosEmProcessoInexistente`, `favorecidosPermanecemEmCadaSituacao` | 1, 1, 1, 15 |
 | R16 | | pendente: fatia 6 | |
 | R17, R18 | | pendente: fatia 7 | |
 | R19 (parte: motivo ou observação de cada ação aceita no histórico; recusada não entra) | Efeito observável pelo histórico: `de`, `para`, `acao`, `quando` em ordem, `observacao` | `fluxoChegaASituacaoFinal`, `motivoValidoFicaNoHistorico`, `observacaoFicaNoHistorico`, `acaoForaDaOrdemERecusada` (histórico não muda), `motivoAusenteERecusado`, `corpoAusenteEmAcaoComMotivo`, `motivoInvalidoERecusado` | contado em cada teste |
-| R19 (autor da ação; tentativas e resultados da rotina; valores anterior e novo) | | pendente: fatia 7 (autor); fatias 4 e 5 (alterações e rotina) | |
+| R19 (valores anterior e novo nas alterações e propostas; nulos nas demais; recusada não entra) | Efeito observável pelo histórico | `fluxoChegaASituacaoFinal`, `fluxoComAlteracaoChegaASituacaoFinal`, `proporDiscordarProporConcordar`, `proporSemLimiteDeVezes`, `alterarVariasVezesEmAberto`, `recusaEmAguardandoConcordanciaPreservaAProposta`, `valorUmCentavoAcimaDoCreditoNaAlteracaoERecusado` | contado em cada teste |
+| R19 (autor da ação; tentativas e resultados da rotina) | | pendente: fatia 7 (autor); fatia 5 (rotina) | |
 | R20, R21, R22, R31 | | pendente: fatia 5 | |
 | R23 (com D18) | Máquina de estados: devolver de aprovado e de aguardando vistoria; particionamento do motivo | `fluxoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada`, `motivoAusenteERecusado`, `motivoValidoFicaNoHistorico` | contado em cada teste |
 | R23 (devolver de aguardando alçada) | | pendente: fatia 6 | |
-| R24 a R28 | | pendente: fatia 4 | |
+| R24 (cliente altera em aberto; continua aberto; vale na hora; recusada deixa os anteriores) | Máquina de estados; particionamento; valor-limite | `alterarVariasVezesEmAberto`, `exemploDoCasoDeUsoDeAlteracaoEmAberto`, `alteracaoComFavorecidosValidosEAceita`, `fluxoComAlteracaoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada` (alterar fora de aberto: 409) | 2, 1, 6, 6, contado |
+| R25 (backoffice propõe em análise, com motivo; vai a aguardando concordância; vigentes não mudam; fora de análise, 409) | Máquina de estados; particionamento do motivo; vigência | `exemploDoCasoDeUsoDePropostaEmAnalise`, `propostaMostraOsNovosDadosEOsVigentesSeguemOsAnteriores`, `propostaPendenteNaoConsomeCredito`, `listagemAcompanhaARespostaDoCliente`, `listagemFiltraPorSituacoesNovas`, `favorecidosPermanecemEmCadaSituacao`, `creditoDisponivelConsideraSoOsPagos`, `motivoAusenteNaPropostaVemAntesDe404E409`, `motivoAusenteERecusado`, `motivoInvalidoERecusado`, `motivoValidoFicaNoHistorico` | 1, 2, 1, 1, 2, 2, 2, 1, 2, 6, 6 |
+| R26 (concordar: a alteração vale, volta a em análise) | Máquina de estados; vigência | `proporDiscordarProporConcordar`, `proporSemLimiteDeVezes`, `alteracoesAteOPagamentoConsomemOCreditoDoValorFinal`, `observacaoOpcionalAceitaObjetoVazio`, `observacaoFicaNoHistorico`, `respostaRepetidaERecusada` | 2, 2, 4, 2, 4, 4 |
+| R27 (discordar com motivo: desfaz, volta a em análise com os anteriores; propor de novo sem limite) | Máquina de estados; particionamento do motivo | `proporDiscordarProporConcordar`, `proporSemLimiteDeVezes`, `motivoAusenteNaDiscordanciaVemAntesDe404E409`, `motivoAusenteERecusado`, `motivoInvalidoERecusado`, `motivoValidoFicaNoHistorico` | 2, 2, 1, 2, 6, 6 |
+| R28 (aguardando concordância: só concordar, discordar e cancelar; a proposta fica; cota indisponível) | Máquina de estados: cada ação inválida; tabela de decisão da cota | `recusaEmAguardandoConcordanciaPreservaAProposta`, `aguardandoConcordanciaAceitaSoTresAcoes`, `acoesAceitasNaSituacao`, `cotaComProcessoEmAndamentoNaoAbreOutro`, `concordarEDiscordarAoMesmoTempo` | 20, 2, 2, 2, 1 |
+| Contrato: `alteracao-proposta` | Cobertura de terminais | `propostaDeProcessoInexistente`, `naoHaPropostaForaDeAguardandoConcordancia`, `propostaSomeDepoisDaResposta`, `propostaMostraOsNovosDadosEOsVigentesSeguemOsAnteriores` | 1, 15, 6, 2 |
+| Contrato: ações novas e consulta de ações | Cobertura de terminais; suposição de erro | `acoesDeAlteracaoPorSituacao`, `jsonMalformadoNaAcao`, `corpoQueNaoEJsonNaAcao`, `corpoAusenteEmAcaoComMotivo`, `acaoEmProcessoInexistente` | 2, 4, 4, 2, 4 |
 | R30 | implantação | sem teste de aceitação | |
 | Contrato: consulta de ações | Cobertura de terminais; máquina de estados | `acoesAceitasNaSituacao` | 15 |
 | Contrato: listagem com `estado` novo | Cobertura de terminais | `listagemFiltraPorSituacoesNovas`, `listagemFiltraPorTipoESituacao`, `listagemPaginada` | 2, 1, 1 |
@@ -514,3 +576,19 @@ Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118 (
 | F3-11: nome e papel com mais de uma unidade de caracteres por símbolo (emoji): como se conta o tamanho? | Só caracteres do plano básico são testados (inclusive acentuados) |
 | F3-12: a seção Recusas lista "sem favorecido" em duas linhas (favorecidos, e abrir para cota inexistente, tipo inválido, sem valor ou sem favorecido), com status não definido; o contrato da fatia usa 400 | Não testado além do 400 do contrato |
 | F3-13: R30 dá a cada processo existente um favorecido com o nome do cliente da cota; o que `GET /processos/{id}/favorecidos` devolve para processo anterior à implantação, e qual `documento` ele leva (a cota só informa o CPF do cliente)? | Fora da aceitação (R30 sem teste) |
+
+### Dúvidas abertas da fatia 4 (nenhuma virou asserção)
+
+| Dúvida | Efeito no teste |
+|---|---|
+| F4-1: entre uma recusa de REGRA (soma diferente do valor, documento repetido) em `alterar` ou `propor-alteracao` e 404 ou 409 (situação, crédito), qual vem primeiro? | Só a precedência do 400 de FORMATO é testada. Regra × 404 e regra × 409 não são testadas |
+| F4-2: com a ação fora da situação (ex.: `concordar` em análise) e motivo ausente em `discordar`, vale 400 ou 409? O contrato desta fatia manda 400 antes de 404 e 409 para os campos das ações novas; para as ações antigas continua a dúvida da fatia 1 | Testado só para `propor-alteracao` e `discordar` (`motivoAusenteNa...VemAntesDe404E409`) |
+| F4-3: `GET /processos/{id}/alteracao-proposta` traz `mensagem` no 404 (sem proposta pendente, processo inexistente)? R9 fala de recusas; consulta é outra coisa | Só o status 404 é conferido |
+| F4-4: alterar ou propor com exatamente os mesmos valor e favorecidos que já valem: aceito (e entra no histórico) ou recusado? | Não testado |
+| F4-5: `ALTERAR` no histórico: `de` e `para` são ABERTO e ABERTO? E `valorAnterior` e `valorNovo` nulos ou ausentes nas outras ações (ausente também passa)? | Testado `de` = `para` = ABERTO; nulo ou ausente aceitos |
+| F4-6: um favorecido da proposta pode repetir o documento de um favorecido vigente (a regra de repetição é dentro do conjunto novo)? | Não testado |
+| F4-7: pedidos simultâneos de alterar e propor, ou de concordar e cancelar, sobre o mesmo processo | Só concordar e discordar simultâneos são testados |
+| F4-8: R16 (alçada decidida depois de qualquer alteração) e R13 conferido de novo ao concordar (o crédito pode ter mudado entre propor e concordar, D21) | Fora desta fatia (alçada: fatia 6; D21 aberta) |
+| F4-9: o motivo da proposta aparece também em `observacao` do histórico e na consulta da proposta; quem o vê, e em que canal, é da fatia 7 | Conferidos o histórico e a consulta, sem papel |
+| F4-10: papéis (só o cliente da cota altera, concorda e discorda; só o backoffice propõe; cliente não cancela) | Pendente: fatia 7 (R18) |
+| F4-11: `alterar` e `propor-alteracao` com `valor` ou parte em número com zeros à direita, notação científica ou texto (mesma dúvida de D2-3 e F3-10) | Não testado |

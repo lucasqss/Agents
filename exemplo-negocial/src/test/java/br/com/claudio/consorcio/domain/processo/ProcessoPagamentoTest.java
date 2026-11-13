@@ -1,11 +1,14 @@
 package br.com.claudio.consorcio.domain.processo;
 
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.ALTERAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CANCELAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCLUIR_ANALISE;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCLUIR_VISTORIA;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.DEVOLVER_PARA_ANALISE;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.DISCORDAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.INICIAR_ANALISE;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.PAGAR;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.PROPOR_ALTERACAO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.RECEBER_DOCUMENTO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.REPROVAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.SOLICITAR_DOCUMENTO;
@@ -196,7 +199,7 @@ class ProcessoPagamentoTest {
     @Test
     void acoesDisponiveisDependemDoTipoEDoEstado() {
         ProcessoPagamento servico = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
-        assertEquals(Set.of(INICIAR_ANALISE, CANCELAR), servico.acoesDisponiveis());
+        assertEquals(Set.of(INICIAR_ANALISE, ALTERAR, CANCELAR), servico.acoesDisponiveis());
 
         ProcessoPagamento imobiliario = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA, VALOR, favorecidoUnico(VALOR));
         imobiliario.executar(INICIAR_ANALISE, AGORA, null);
@@ -238,11 +241,11 @@ class ProcessoPagamentoTest {
     @Test
     void reconstituirExigeProtocoloSeESomenteSePago() {
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), APROVADO, "PROT-1", 0));
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), APROVADO, "PROT-1", null, 0));
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, null, 0));
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, null, null, 0));
 
-        ProcessoPagamento pago = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, "PROT-1", 3);
+        ProcessoPagamento pago = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, "PROT-1", null, 3);
         assertEquals("PROT-1", pago.protocoloPagamento());
         assertEquals(3, pago.versao());
     }
@@ -298,7 +301,7 @@ class ProcessoPagamentoTest {
 
     @Test
     void processoReconstituidoNaoTrazTransicoesAntigas() {
-        ProcessoPagamento lido = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), EM_ANALISE, null, 1);
+        ProcessoPagamento lido = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), EM_ANALISE, null, null, 1);
         assertTrue(lido.novasTransicoes().isEmpty());
     }
 
@@ -355,7 +358,7 @@ class ProcessoPagamentoTest {
 
     @Test
     void soEstasAcoesExigemMotivo() {
-        Set<AcaoProcesso> exigem = Set.of(SOLICITAR_DOCUMENTO, REPROVAR, DEVOLVER_PARA_ANALISE, CANCELAR);
+        Set<AcaoProcesso> exigem = Set.of(SOLICITAR_DOCUMENTO, REPROVAR, DEVOLVER_PARA_ANALISE, CANCELAR, PROPOR_ALTERACAO, DISCORDAR);
         for (AcaoProcesso acao : AcaoProcesso.values()) {
             assertEquals(exigem.contains(acao), acao.exigeMotivo(), acao.name());
         }
