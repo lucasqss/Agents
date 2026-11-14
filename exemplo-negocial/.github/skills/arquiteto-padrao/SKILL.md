@@ -220,6 +220,7 @@ Nenhum dos dois tem `domain`, `persistence`, JPA nem transação: o `verify` fal
 | Endpoint REST ou de canal | `entrypoint/rest/<agregado>/` ou `entrypoint/<canal>/<agregado>/` | [canais](references/canais.md) |
 | Formatar para uma tela (moeda, máscara, rótulo) | Assembler em `entrypoint/<canal>/<agregado>/`, usando `Padrao<Canal>` | [canais](references/canais.md) |
 | Número com significado de negócio (total pago, saldo) | uma consulta em `persistence/<agregado>/`, não o Assembler | [canais](references/canais.md) |
+| Quem pode executar (papel, dono, outra pessoa) e quem fez (autor) | token só no `entrypoint/` (`@RolesAllowed` e um montador do `Autor`); permissão por situação na tabela do fluxo em `domain/<agregado>/fluxo/` | [canais](references/canais.md), [domínio](references/dominio.md) |
 | Consumidor de fila ou tópico | `entrypoint/mensageria/<agregado>/` (só chama caso de uso) | |
 | Job agendado ou processamento de arquivo | `entrypoint/batch/<agregado>/` (só chama caso de uso) | |
 | Duas requisições ao mesmo tempo, ou a mesma duas vezes | versão no agregado; bloqueio quando o caso de uso confere e depois age | [concorrência](references/concorrencia.md) |

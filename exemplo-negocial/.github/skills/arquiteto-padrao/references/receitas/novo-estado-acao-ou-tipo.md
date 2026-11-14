@@ -14,12 +14,13 @@ Tudo fica em `domain/<agregado>/fluxo/` e `domain/<agregado>/tipo/`. A entidade 
 | Ação nova que carrega dado próprio (novo valor, nova lista de favorecidos) | o mesmo, mais `comMetodoProprio` no enum de ações e um método na raiz que confere o dado e usa a mesma tabela. Tem caso de uso próprio, porque o executar genérico a recusa ([domínio](../dominio.md)) |
 | Ação nova que só a rotina aplica (confirmar, recusar, tentar de novo) | o mesmo, mais a marca no enum de ações: fora de `acoesDisponiveis` e do executar genérico ([domínio](../dominio.md)). Se o estado novo é exceção a uma regra geral da tabela (não aceita cancelar), declare-a na construção da tabela |
 | Ação nova que chama sistema externo | o mesmo, mais um método na entidade que confere o dado e um caso de uso próprio (receita [novo caso de uso de escrita](novo-caso-de-uso-escrita.md)) |
+| Ação nova com restrição de quem pede (papel, outra pessoa, dono) | a linha declara os papéis (`Papel...`) e, se for o caso, a marca de exigir outra pessoa; o `@RolesAllowed` do endpoint ganha a união dos papéis ([domínio](../dominio.md), [canais](../canais.md)) |
 | Tipo novo | constante no enum do tipo + `Fluxo<Tipo>` partindo de `comum()` com os desvios + rótulo em `Rotulos` |
 
 Passos:
 
 0. **A ação exige dado?** Se sim: a regra vai no enum de ações e a raiz do agregado recusa sem o dado ([domínio](../dominio.md)); o formato (obrigatório, não vazio, tamanho) vai no request do endpoint, com corpo obrigatório ([canais](../canais.md)); o dado entra no histórico. Teste: domínio recusa sem o dado, API responde 400 com o nome do campo. Se não, o endpoint aceita requisição sem corpo.
-1. Escreva antes o teste JUnit puro do fluxo: cada linha nova leva ao destino, e a ação continua recusada (`TransicaoInvalidaException`) nos estados em que não vale.
+1. Escreva antes o teste JUnit puro do fluxo: cada linha nova leva ao destino, e a ação continua recusada (`TransicaoInvalidaException`) nos estados em que não vale. Linha com papéis: teste do papel permitido e de um não permitido (`PermissaoNegadaException`), na ordem 409 antes de 403.
 2. Altere os enums e as tabelas conforme a linha da tabela acima.
 3. **Banco:** estado e tipo são gravados pelo nome da constante. Constante nova não pede migration, a não ser que a coluna tenha `CHECK` com a lista de valores. Nunca renomeie uma constante já gravada.
 4. **Canais:** estado ou tipo novo ganha rótulo em `entrypoint/apresentacao/Rotulos` e aparece nos testes de contrato.

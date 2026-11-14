@@ -26,10 +26,20 @@ Recebe HTTP, chama o caso de uso e devolve o resultado. Sem regra de negócio, s
 | `TransicaoInvalidaException`, `ConflitoException` | 409 |
 | Subclasse de `DominioException` para conflito com o estado atual (`CreditoInsuficienteException`) | 409, mapeada à parte; o mapper de `DominioException` não a captura |
 | `NaoEncontradoException` | 404 |
+| `PermissaoNegadaException` (subclasse de `DominioException`, mapeada à parte) | 403 |
+| Sem token, token inválido ou expirado (framework) | 401, no mesmo `ErroResponse` |
 | `SistemaExternoIndisponivelException` | 503 |
 | `ConstraintViolationException` (Bean Validation) | 400, com a lista `campos` |
 | `MismatchedInputException` (JSON com tipo ou valor incompatível) | 400 |
 | `WebApplicationException` (recusa do próprio HTTP, como rota inexistente) | mantém o status |
+
+## Segurança (quando o componente tem identidade)
+
+A segurança mora só no `entrypoint/` (TEC-012: nenhum tipo ou anotação de segurança fora dele). A decisão de como a pessoa se identifica é de ADR ([nova decisão](receitas/nova-decisao.md)); o exemplo de um projeto resolvido é o `docs/adr/ADR_003_identidade_por_jwt.md` do projeto de exemplo.
+
+- **Primeira barreira:** `@RolesAllowed` (papéis da ação) ou `@Authenticated` (qualquer papel) em cada resource. Os nomes dos papéis, como vêm no token, ficam numa classe de constantes do entrypoint. Vale a **união** dos papéis que a ação aceita em algum estado; o papel certo por situação é do domínio ([domínio](dominio.md)).
+- **Um único lugar lê o token** (`JsonWebToken`): uma classe do entrypoint que monta o `Autor` e o entrega ao caso de uso. O `Autor` é dado puro, do domínio: usuário, papéis como enum de domínio e, quando o papel é de cliente, a identificação dele. Caso de uso e domínio nunca veem token nem `SecurityIdentity`.
+- **Ordem das recusas:** 401 (token) → 403 de papel (`@RolesAllowed`, antes de ler corpo e agregado) → 400 de formato → 404 → 403 de dono e de papel por situação (domínio) → 409. 401 e 403 saem no formato de erro padrão.
 
 ## Contrato do catálogo (quando o componente provê para outro sistema)
 

@@ -33,6 +33,9 @@ Inclua só as dos recursos que o componente usa. Um componente sem sistema exter
 <!-- Quando houver job agendado -->
 <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-scheduler</artifactId></dependency>
 
+<!-- Quando houver identidade (token JWT verificado pela aplicação) -->
+<dependency><groupId>io.quarkus</groupId><artifactId>quarkus-smallrye-jwt</artifactId></dependency>
+
 <!-- Persistência: Jakarta Data sobre PostgreSQL, com schema pelo Flyway -->
 <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-hibernate-orm</artifactId></dependency>
 <dependency><groupId>jakarta.data</groupId><artifactId>jakarta.data-api</artifactId></dependency>
@@ -50,6 +53,8 @@ Inclua só as dos recursos que o componente usa. Um componente sem sistema exter
     <scope>test</scope>
 </dependency>
 ```
+
+Com identidade, a configuração segue o ADR do projeto: emissor (`mp.jwt.verify.issuer`) e chave pública (`mp.jwt.verify.publickey.location`) por propriedade, **sem valor padrão em `%prod`** (a aplicação não sobe sem a chave do provedor). A chave de teste fica em `src/test/resources` e só vale no perfil `%test`.
 
 ## Compilador
 

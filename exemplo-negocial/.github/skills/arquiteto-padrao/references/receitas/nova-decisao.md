@@ -7,6 +7,7 @@ O ADR 001 define o padrão de todos os componentes. O que ele deixa em aberto é
 - A escolha tem alternativa razoável e custo para voltar atrás: forma de tratar transação com sistema externo, moeda, identidade de quem executa, mensageria, cache.
 - Algo passa a valer para mais de um agregado ou muda uma regra ArchUnit.
 - Você parou em "peça ao dono" e ele respondeu.
+- **Identidade e papéis** são sempre decisão de ADR: de onde vem a identidade, quais claims, onde cada recusa acontece. Veja o caso resolvido em `docs/adr/ADR_003_identidade_por_jwt.md` do projeto de exemplo.
 
 Não escreva ADR para o que o padrão já decide, nem para escolha local e fácil de desfazer (nome, tamanho de coluna).
 
