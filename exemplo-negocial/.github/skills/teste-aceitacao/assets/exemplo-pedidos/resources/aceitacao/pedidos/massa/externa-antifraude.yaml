@@ -1,0 +1,6 @@
+# O que o antifraude responde para cada documento.
+- documento: '11111111111'
+  aprovado: true      # bom pagador, sem restrição
+
+- documento: '22222222222'
+  aprovado: false     # antifraude recusa este documento

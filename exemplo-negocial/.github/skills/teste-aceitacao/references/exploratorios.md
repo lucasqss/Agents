@@ -1,6 +1,6 @@
 # Testes exploratórios
 
-Os cenários da tabela cobrem o que o analista definiu. A sessão exploratória procura o que ninguém especificou. Quem explora projeta e executa ao mesmo tempo, guiado pelo que acabou de observar.
+Os cenários em `cenarios.yaml` cobrem o que o analista definiu. A sessão exploratória procura o que ninguém especificou. Quem explora projeta e executa ao mesmo tempo, guiado pelo que acabou de observar.
 
 ## Como fazer
 
@@ -14,7 +14,7 @@ Os cenários da tabela cobrem o que o analista definiu. A sessão exploratória 
 
 | O que aconteceu | Classificação | O que fazer |
 |---|---|---|
-| Confirma uma regra | Confirmado | Se a regra ainda não tem cenário, proponha a linha da tabela ao dev e automatize depois da confirmação |
+| Confirma uma regra | Confirmado | Se a regra ainda não tem cenário, proponha o cenário ao dev e automatize depois da confirmação |
 | Contradiz uma regra ou o contrato | **Defeito** | Relate. Automatize apenas se o resultado for determinístico |
 | A regra não diz nada | **Pergunta** | Registre a pergunta. **Não fixe o comportamento em teste** |
 

@@ -1,4 +1,4 @@
-# Karate: execução das tabelas
+# Karate: execução dos cenários
 
 Verificado com Karate 1.5.2, Java 25 e Quarkus 3.33.4, com o Enforcer (inclusive `dependencyConvergence`) ligado. Os arquivos citados estão em [`assets/`](../assets/), prontos para copiar (troque `PACOTE_RAIZ`).
 
@@ -6,6 +6,8 @@ Verificado com Karate 1.5.2, Java 25 e Quarkus 3.33.4, com o Enforcer (inclusive
 
 ```xml
 <dependency><groupId>io.karatelabs</groupId><artifactId>karate-junit5</artifactId><version>1.5.2</version><scope>test</scope></dependency>
+<!-- Leitura da massa YAML no lado Java (simulador); versão gerida pela BOM do Quarkus -->
+<dependency><groupId>com.fasterxml.jackson.dataformat</groupId><artifactId>jackson-dataformat-yaml</artifactId><scope>test</scope></dependency>
 <!-- Simulador dos sistemas externos (empacotado, não conflita com o Quarkus) -->
 <dependency><groupId>org.wiremock</groupId><artifactId>wiremock-standalone</artifactId><version>3.13.2</version><scope>test</scope></dependency>
 ```
@@ -48,72 +50,90 @@ function fn() {
 ## A feature da capacidade
 
 ```gherkin
-@setup
-Scenario:
-  * def clientes = read('massa/clientes.csv')
-  * def linhas = read('cenarios.csv')
-  * def tabelas = Java.type('PACOTE_RAIZ.aceitacao.Tabelas')
-  * def cenarios = tabelas.agrupar(linhas, { cliente: clientes })
+Feature: Pedidos (aceitação guiada por massa e cenários em YAML)
 
-Scenario Outline: <cenario> - <descricao>
-  * def clientes = read('massa/clientes.csv')
-  * def massa = { cliente: '#(clientes)' }
-  * def contexto = {}
-  * karate.forEach(passos, function(p){ karate.call('passos.feature@' + p.acao, { passo: p, massa: massa, contexto: contexto }) })
+  # Lê a massa e os cenários e confere as chaves: referência a massa inexistente falha aqui, dizendo cenário e passo.
+  # Cada campo dos passos que aponta para uma massa entra no mapa passado a validar. Roda uma vez.
+  @setup
+  Scenario:
+    * def clientes = read('massa/clientes.yaml')
+    * def arquivo = read('cenarios.yaml')
+    * def tabelas = Java.type('PACOTE_RAIZ.aceitacao.Tabelas')
+    * def cenarios = tabelas.validar(arquivo.cenarios, { cliente: clientes })
 
-  Examples:
-    | karate.setup().cenarios |
+  # Um teste por cenário. Os passos rodam em ordem; cada um chama a cena de passos.feature com a tag da sua "acao".
+  Scenario Outline: <cenario> - <descricao>
+    * def clientes = read('massa/clientes.yaml')
+    * def massa = { cliente: '#(clientes)' }
+    * def contexto = {}
+    * karate.forEach(passos, function(p){ karate.call('passos.feature@' + p.acao, { passo: p, massa: massa, contexto: contexto }) })
+
+    Examples:
+      | karate.setup().cenarios |
 ```
 
-- O `@setup` roda uma vez. `Tabelas.agrupar` confere, para cada coluna do mapa (`cliente`), que toda chave existe na massa, e agrupa os passos por `cenario`. Referência quebrada falha aqui: `cenarios.csv, linha 8: cliente 'carla' não existe na massa`.
+- O `@setup` roda uma vez. `Tabelas.validar` confere, para cada campo do mapa (`cliente`), que toda chave usada em qualquer passo existe na massa. Referência quebrada falha aqui: `cenarios.yaml, cenário 2.1, passo 1: cliente 'carla' não existe na massa`.
 - Em literal JSON do Karate, chamada de função não é avaliada: use `'#(variavel)'` (expressão embutida), como em `{ cliente: '#(clientes)' }`.
 - `contexto` é compartilhado entre os passos do mesmo cenário (o id do pedido criado no passo 1 é usado no passo 2).
+- O merge de âncoras do YAML (`<<: *pedido`) funciona na leitura do Karate: o passo chega com os valores-padrão já aplicados.
 
 ## `passos.feature`: uma cena por ação
 
 ```gherkin
 @ignore
-Feature: Passos dos cenários de pedidos
+Feature: Passos dos cenários de pedidos: cada passo vira uma requisição, e o efeito é conferido por outro endpoint
 
   Background:
     * url baseUrl
 
   @criar
   Scenario: criar pedido
-    * def linha = karate.filter(massa.cliente, function(c){ return c.chave == passo.cliente })[0]
+    * def cliente = karate.filter(massa.cliente, function(c){ return c.chave == passo.cliente })[0]
     Given path 'clientes'
-    And request { nome: '#(linha.nome)', documento: '#(linha.documento)', limite: '#(linha.limite * 1)' }
+    And request { nome: '#(cliente.nome)', documento: '#(cliente.documento)', limite: '#(cliente.limite)' }
     When method post
     Then status 201
     Given path 'pedidos'
-    And request { clienteId: '#(response.id)', valor: '#(passo.valor * 1)' }
+    And request { clienteId: '#(response.id)', valor: '#(passo.valor)', itens: '#(passo.itens)' }
     When method post
-    Then match responseStatus == passo.status * 1
+    Then match responseStatus == passo.espera.status
     * contexto.pedido = response.id
     Given path 'pedidos', contexto.pedido
     When method get
-    Then match response.estado == passo.estado
+    Then match response.estado == passo.espera.estado
+    And match response.itens == passo.itens
+
+  @cancelar
+  Scenario: cancelar o pedido do cenário
+    Given path 'pedidos', contexto.pedido, 'cancelar'
+    And request {}
+    When method post
+    Then match responseStatus == passo.espera.status
+    Given path 'pedidos', contexto.pedido
+    When method get
+    Then match response.estado == passo.espera.estado
 ```
 
 - `@ignore` impede que o arquivo rode sozinho.
-- Valores do CSV chegam como texto: `* 1` converte para número.
+- Os valores chegam com o tipo do YAML: número é número, lista é lista (`itens` vai no corpo e é conferido inteiro com `match`).
 - Todo passo confere o efeito por outro endpoint (`GET` depois do `POST`).
-- Ação nova: uma cena nova com a tag. As linhas da tabela passam a poder usá-la.
+- Ação nova: uma cena nova com a tag. Os cenários passam a poder usá-la.
 
 ## Simulador de sistema externo
 
-`AntifraudeSimulado` (em `assets/exemplo-pedidos/java/`) lê `massa/externa-antifraude.csv` com `Massa.ler` e registra uma resposta do WireMock por linha. Cenário que precisa de outra resposta ganha outra linha na massa externa, não código novo.
+`AntifraudeSimulado` (em `assets/exemplo-pedidos/java/`) lê `massa/externa-antifraude.yaml` com `Massa.ler` (Jackson YAML) e registra uma resposta do WireMock por registro. Cenário que precisa de outra resposta ganha outro registro na massa externa, não código novo.
 
 ## Relatório
 
-`target/karate-reports/<capacidade>.html`: cada cenário, cada passo, requisição e resposta. Em falha, a linha do `match` mostra esperado e obtido; o nome do teste traz o `cenario` da tabela.
+`target/karate-reports/<capacidade>.html`: cada cenário, cada passo, requisição e resposta. Em falha, a linha do `match` mostra esperado e obtido; o nome do teste traz o `cenario` e a `descricao`.
 
 ## Erros comuns
 
 | Sintoma | Causa |
 |---|---|
 | `NoClassDefFoundError: io/netty/channel/IoEventLoopGroup` ao subir | Uso do `MockServer` do Karate. Use WireMock |
-| `js failed ... Index: 0` em `karate.filter(...)[0]` | A chave não está na massa, ou a massa chegou vazia (função em literal JSON sem `'#(...)'`) |
+| `js failed ... Index: 0` em `karate.filter(...)[0]` | A massa chegou vazia (função em literal JSON sem `'#(...)'`) |
+| Documento ou código com valor diferente do arquivo | Ficou sem aspas e o YAML leu como número (octal, se começa com zero). Ponha entre aspas |
 | Todos os cenários falham com conexão recusada | A porta não chegou ao `karate-config.js`; confira o `systemProperty` no runner |
 | `Port already bound: 8081` | Outro build de teste na máquina; rode com `-Dquarkus.http.test-port=0` |
 | Número de cenários diferente entre `*Test` e `*IT` | Um cenário foi desligado numa das fases |

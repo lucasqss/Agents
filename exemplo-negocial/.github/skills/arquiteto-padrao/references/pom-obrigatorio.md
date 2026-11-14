@@ -89,7 +89,8 @@ Inclua só as dos recursos que o componente usa. Um componente sem sistema exter
 </dependency>
 <!-- Testes de propriedade (*PropriedadesTest) -->
 <dependency><groupId>net.jqwik</groupId><artifactId>jqwik</artifactId><version>${jqwik.version}</version><scope>test</scope></dependency>
-<!-- Aceitação por tabela (skill teste-aceitacao) e simulador de sistema externo -->
+<!-- Aceitação (skill teste-aceitacao): Karate, leitura da massa YAML no lado Java e simulador de sistema externo -->
+<dependency><groupId>com.fasterxml.jackson.dataformat</groupId><artifactId>jackson-dataformat-yaml</artifactId><scope>test</scope></dependency>
 <dependency><groupId>io.karatelabs</groupId><artifactId>karate-junit5</artifactId><version>1.5.2</version><scope>test</scope></dependency>
 <dependency><groupId>org.wiremock</groupId><artifactId>wiremock-standalone</artifactId><version>3.13.2</version><scope>test</scope></dependency>
 ```

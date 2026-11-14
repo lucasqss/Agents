@@ -17,9 +17,9 @@ Poucas perguntas por vez. O dev traz o que o analista definiu; o que nenhum dos 
 
 ## O que fica em outro nível
 
-- As variações exaustivas da regra (cada limite, cada situação) já estão na unidade? Se não, elas vão para a `teste-unidade`, não para a tabela.
+- As variações exaustivas da regra (cada limite, cada situação) já estão na unidade? Se não, elas vão para a `teste-unidade`, não para `cenarios.yaml`.
 - Erros técnicos (formato, `401`/`403`, sistema fora do ar com timeout) estão no componente?
 
 ## Encerramento
 
-Mostre as tabelas propostas (cenários e massa) e pergunte: "O analista reconhece estes cenários? Falta algum?"
+Mostre os cenários e a massa propostos e pergunte: "O analista reconhece estes cenários? Falta algum?"

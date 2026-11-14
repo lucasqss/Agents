@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Unidade | `teste-unidade` | regra de negócio (toda transição, toda recusa, todo limite), Value Object, tabela de fluxo, caso de uso com repositório em memória, mapper, assembler, propriedades (jqwik), mutação (PITest) | `src/test/java/.../domain/`, `application/`, `entrypoint/apresentacao/` |
 | Componente | `teste-componente` | persistência, formato da entrada (`400`), identidade (`401`/`403` por endpoint), tradução de erro (`404`/`409`/`503`), concorrência, integração simulada, contrato REST, campos de canal | `src/test/java/.../integracao/` |
-| Aceitação | `teste-aceitacao` | cenários de negócio em tabela (massa + cenários em CSV), pelo Karate, no par `*Test`/`*IT` | `src/test/resources/aceitacao/<capacidade>/` |
+| Aceitação | `teste-aceitacao` | cenários de negócio (massa e cenários em YAML), pelo Karate, no par `*Test`/`*IT` | `src/test/resources/aceitacao/<capacidade>/` |
 
 Todas as três entrevistam o dev antes de escrever e só seguem com o plano de cobertura confirmado.
 
@@ -18,7 +18,7 @@ Todas as três entrevistam o dev antes de escrever e só seguem com o plano de c
 | Estado, ação ou tipo novo no fluxo | toda transição e recusa nova | um caso aceito e um recusado pelo endpoint | cenário do caminho novo |
 | Endpoint novo | — | formato, identidade, erros, contrato | cenário que o usa |
 | Tabela ou coluna nova | mapper (ida e volta) | persistência pelo endpoint | — |
-| Integração externa nova | caso de uso com gateway falso | simulador: sucesso, recusa, indisponível, timeout | linha na massa externa |
+| Integração externa nova | caso de uso com gateway falso | simulador: sucesso, recusa, indisponível, timeout | registro na massa externa |
 | Formato novo de canal | linha no teste do padrão de canal | nomes dos campos do `*Response` | — |
 
 Antes de terminar qualquer tarefa, rode `./mvnw verify`. Os `*IT` da aceitação rodam contra o artefato empacotado só na geração de versão (`./mvnw verify -Pversao`); o teste de mutação, a cada pull request (`./mvnw verify -Pauditoria`).
