@@ -145,6 +145,22 @@ class PapeisEAutoriaAceitacaoTest {
         return new Preparado(cota, processo);
     }
 
+    /**
+     * Processos montados uma vez por tipo, situação e faixa de valor, para as matrizes de recusa por papel. Reaproveitar
+     * é seguro porque a recusa não muda o processo (cada caso confere a situação antes e que nada mudou depois) e
+     * porque nenhuma rotina age nessas situações. Em pagamento solicitado a rotina da tesouraria age sozinha: não
+     * é compartilhado. Caso aceito muda o processo e nunca usa este mapa.
+     */
+    private static final Map<String, Preparado> COMPARTILHADOS = new ConcurrentHashMap<>();
+
+    private static Preparado processoCompartilhadoEm(String tipo, String situacao, BigDecimal valor) {
+        if (PAGAMENTO_SOLICITADO.equals(situacao)) {
+            return processoEm(tipo, situacao, valor);
+        }
+        return COMPARTILHADOS.computeIfAbsent(tipo + "|" + situacao + "|" + faixaDoValor(valor),
+                chave -> processoEm(tipo, situacao, valor));
+    }
+
     /** O caminho do modelo é uma busca em profundidade; o resultado é sempre o mesmo, então fica guardado. */
     private static final Map<String, Caminho> CAMINHOS = new ConcurrentHashMap<>();
 
@@ -174,7 +190,10 @@ class PapeisEAutoriaAceitacaoTest {
     @MethodSource("papelPorAcao")
     @DisplayName("R18: a ação só é aceita de quem tem o papel dela; os outros, 403 (ou 401 sem token), e nada muda")
     void acaoSoEAceitaDeQuemTemOPapel(Celula celula, Credencial credencial) {
-        Preparado p = processoEm(celula.tipo(), celula.situacao(), celula.valor());
+        // Ação aceita muda o processo: monta do zero. Recusa não muda: o processo da situação é compartilhado.
+        Preparado p = celula.aceita(credencial) ? processoEm(celula.tipo(), celula.situacao(), celula.valor())
+                : processoCompartilhadoEm(celula.tipo(), celula.situacao(), celula.valor());
+        assertThat("situação do processo antes da ação", situacaoDe(p.processo()), equalTo(celula.situacao()));
         Pessoa quem = credencial.pessoa(p.cota());
         String autorizacao = quem == null ? SEM_TOKEN : quem.autorizacao();
         if (SOLICITAR_PAGAMENTO.equals(celula.acao())) {

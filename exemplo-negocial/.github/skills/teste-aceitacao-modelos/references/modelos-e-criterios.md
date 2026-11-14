@@ -76,6 +76,8 @@ Mínimo:
 - **Cada estado final** é alcançado por ao menos um caminho.
 - **Cada ação inválida em cada estado:** cada "recusar" da tabela é um caso, que também confere que a situação não mudou.
 
+**Montagem do estado nas recusas.** Em matriz de ação recusada, o estado montado pode ser compartilhado entre os casos que partem da mesma situação: o processo da situação é montado uma vez e reaproveitado. Só vale se cada caso conferir a situação **antes** da ação e conferir **depois** que nada mudou, e se nenhuma rotina automática (agendador, fila, prazo) agir naquela situação. Situação em que algo age sozinho monta do zero em cada caso. Caso **aceito** muda o estado e nunca compartilha: monta o seu. Os casos, os nomes e as asserções não mudam; só a montagem.
+
 Se o grafo for pequeno, cubra os **caminhos primos** (*Prime Path Coverage*), que em um fluxo sem ciclos são todos os caminhos do início a cada estado final.
 
 ## Tabela de decisão

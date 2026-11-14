@@ -118,6 +118,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -262,8 +263,8 @@ class PagamentoProcessoAceitacaoTest {
     @MethodSource("acoesInvalidas")
     @DisplayName("Ação fora da ordem é recusada e a situação não muda")
     void acaoForaDaOrdemERecusada(AcaoInvalida invalida) {
-        long processo = abrirProcesso(novaCota(), invalida.ate().tipo(), invalida.ate().valor());
-        levar(processo, invalida.ate());
+        long processo = processoCompartilhadoEm(invalida.ate());
+        conferirSituacaoAntes(processo, invalida.ate().situacaoFinal());
         int itensNoHistorico = consultarHistoricoSemTentativas(processo).size();
 
         // Motivo válido nas ações que o exigem, para que só a ordem seja o problema.
@@ -506,7 +507,8 @@ class PagamentoProcessoAceitacaoTest {
     @MethodSource("transicoesComMotivo")
     @DisplayName("Motivo ausente (objeto sem o campo) é recusado com 400 e nada muda")
     void motivoAusenteERecusado(Base base) {
-        long processo = processoEm(base);
+        long processo = processoCompartilhadoEm(base);
+        conferirSituacaoAntes(processo, base.situacao());
         int itensNoHistorico = consultarHistorico(processo).size();
 
         aplicarComMotivo(processo, base.acao(), AUSENTE).statusCode(400)
@@ -521,7 +523,8 @@ class PagamentoProcessoAceitacaoTest {
     @MethodSource("umaTransicaoPorAcaoComMotivo")
     @DisplayName("Corpo ausente em ação que exige motivo é recusado com 400 e nada muda")
     void corpoAusenteEmAcaoComMotivo(Base base) {
-        long processo = processoEm(base);
+        long processo = processoCompartilhadoEm(base);
+        conferirSituacaoAntes(processo, base.situacao());
         int itensNoHistorico = consultarHistorico(processo).size();
 
         executar(processo, base.acao()).statusCode(400).body("mensagem", notNullValue());
@@ -541,7 +544,8 @@ class PagamentoProcessoAceitacaoTest {
     @MethodSource("motivosInvalidos")
     @DisplayName("Motivo vazio, só espaços ou acima de 500 caracteres é recusado com 400 e nada muda")
     void motivoInvalidoERecusado(Base base, String descricao, String motivo) {
-        long processo = processoEm(base);
+        long processo = processoCompartilhadoEm(base);
+        conferirSituacaoAntes(processo, base.situacao());
         int itensNoHistorico = consultarHistorico(processo).size();
 
         aplicarComMotivo(processo, base.acao(), motivo).statusCode(400)
@@ -1444,11 +1448,16 @@ class PagamentoProcessoAceitacaoTest {
                 .map(acao -> Arguments.of(tipo, acao)));
     }
 
+    private static final Map<String, Acompanhado> AGUARDANDO_CONCORDANCIA_COMPARTILHADO = new ConcurrentHashMap<>();
+
     @ParameterizedTest(name = "{0} | {1}")
     @MethodSource("acoesRecusadasEmAguardandoConcordancia")
     @DisplayName("Em aguardando concordância, as demais ações são recusadas e a proposta pendente continua a mesma")
     void recusaEmAguardandoConcordanciaPreservaAProposta(String tipo, String acao) {
-        Acompanhado a = aguardandoConcordancia(tipo);
+        // Compartilhado por tipo: a recusa não muda nada (conferido abaixo) e nenhuma rotina age nesta situação.
+        Acompanhado a = AGUARDANDO_CONCORDANCIA_COMPARTILHADO.computeIfAbsent(tipo,
+                t -> aguardandoConcordancia(t));
+        conferirSituacaoAntes(a.processo(), AGUARDANDO_CONCORDANCIA);
 
         aplicar(a.processo(), acao).statusCode(409).body("mensagem", notNullValue());
 
@@ -2950,6 +2959,31 @@ class PagamentoProcessoAceitacaoTest {
 
     private static long processoEm(Base base) {
         return processoEm(caminhoAte(base.tipo(), base.faixa(), base.situacao()));
+    }
+
+    /**
+     * Processos montados uma vez por caminho e reaproveitados pelas matrizes de ação recusada. Reaproveitar é seguro
+     * porque a recusa não muda o processo (cada caso confere a situação antes e que nada mudou depois) e porque
+     * nenhuma rotina age na situação final do caminho. Em pagamento solicitado a rotina da tesouraria age sozinha:
+     * esses caminhos não são compartilhados. Ação aceita muda o processo e nunca usa este mapa.
+     */
+    private static final Map<Caminho, Long> PROCESSOS_COMPARTILHADOS = new ConcurrentHashMap<>();
+
+    private static long processoCompartilhadoEm(Caminho caminho) {
+        if (PAGAMENTO_SOLICITADO.equals(caminho.situacaoFinal())) {
+            return processoEm(caminho);
+        }
+        return PROCESSOS_COMPARTILHADOS.computeIfAbsent(caminho, c -> processoEm(c));
+    }
+
+    private static long processoCompartilhadoEm(Base base) {
+        return processoCompartilhadoEm(caminhoAte(base.tipo(), base.faixa(), base.situacao()));
+    }
+
+    /** Guarda do processo compartilhado: parte da situação esperada, e não de um estado deixado por outro caso. */
+    private static void conferirSituacaoAntes(long processo, String situacao) {
+        assertThat("situação do processo antes da ação recusada", consultarProcesso(processo).get("estado"),
+                equalTo(situacao));
     }
 
     private static long processoAprovado() {
