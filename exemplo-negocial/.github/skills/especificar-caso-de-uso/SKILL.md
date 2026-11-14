@@ -1,6 +1,6 @@
 ---
 name: especificar-caso-de-uso
-description: Use quando houver uma ideia, pedido ou necessidade de negócio ainda sem requisito escrito e for preciso transformá-la em um caso de uso confirmado, antes de escrever código ou teste. Serve também para MUDAR um caso de uso já confirmado (regra nova, alterada ou removida), por um rascunho da mudança que o dono confirma. Entrevista o dono, ou registra o que um intermediário trouxe dele, e grava as regras de negócio, o ciclo de vida, os erros e os exemplos no caso-de-uso.md que as skills arquiteto-padrao e teste-aceitacao-modelos usam como entrada. Não use para sistema existente sem requisito (use teste-aceitacao-legado) nem para decidir arquitetura.
+description: Use quando houver uma ideia, pedido ou necessidade de negócio ainda sem requisito escrito e for preciso transformá-la em um caso de uso confirmado, antes de escrever código ou teste. Serve também para MUDAR um caso de uso já confirmado (regra nova, alterada ou removida), por um rascunho da mudança que o dono confirma. Entrevista o dono, ou registra o que um intermediário trouxe dele, e grava as regras de negócio, o ciclo de vida, os erros e os exemplos no caso-de-uso.md que as skills arquiteto-padrao e de teste (teste-unidade, teste-componente, teste-aceitacao) podem usar como ponto de partida. Não use para decidir arquitetura nem para escrever testes.
 ---
 
 # Especificar caso de uso
@@ -24,7 +24,7 @@ Esta skill não escreve código, teste, tabela nem endpoint, e não escolhe past
 7. **Apresente ao dono e pare.** Ele responde as dúvidas e corrige as regras.
 8. **Registre as respostas sem apagar nada.** Dúvida respondida vai de "Abertas" para "Respondidas", com a resposta e a data; identificador de regra e de dúvida nunca é renumerado. Dúvida resolvida por decorrência de outra resposta diz isso na linha, e o dono pode contestar.
 9. **Só com a confirmação**, grave `src/test/resources/aceitacao/<capacidade>/caso-de-uso.md` com `Situação: CONFIRMADO` e a data. Dúvida que ficou sem resposta continua na seção de dúvidas, e a regra que depende dela não entra.
-10. **Indique o próximo passo:** a receita "nova funcionalidade" da skill `arquiteto-padrao`, que divide o caso de uso em fatias e chama a `teste-aceitacao-modelos`.
+10. **Indique o próximo passo:** a receita "nova funcionalidade" da skill `arquiteto-padrao`, que divide o caso de uso em fatias e chama as skills de teste de cada nível.
 
 ## Quando você não fala com o dono
 

@@ -1,6 +1,6 @@
-# Modelos e critérios
+# Técnicas e critérios de parada
 
-Não é preciso conhecer os livros. Este texto explica cada técnica e mostra quando usar. Os nomes em inglês são os termos usados em *Introduction to Software Testing* (Ammann e Offutt) e *The Art of Software Testing* (Myers, Sandler e Badgett), para quem quiser se aprofundar.
+Não é preciso conhecer os livros. Este texto explica cada técnica e mostra quando usar. No teste de unidade, a "entrada" é a chamada de método e o "efeito" é o estado do objeto (situação, histórico, valores), conferido logo depois. Os nomes em inglês são os termos usados em *Introduction to Software Testing* (Ammann e Offutt) e *The Art of Software Testing* (Myers, Sandler e Badgett), para quem quiser se aprofundar.
 
 ## A ideia
 
@@ -14,27 +14,12 @@ Assim, a pergunta "testamos o suficiente?" tem resposta objetiva. Os dois livros
 
 | Parte | Pergunta | Exemplo |
 |---|---|---|
-| Pré-condição | O que precisa existir antes? | Pedido aprovado, criado pelos endpoints |
-| Entrada | O que o usuário faz? | `POST /pedidos/{id}/cancelar` |
-| Resultado esperado | O que o negócio manda acontecer? **Um só.** | `200` e situação `CANCELADO` |
-| Verificação do efeito | Como confirmar por outro endpoint? | `GET /pedidos/{id}` mostra `CANCELADO` |
+| Pré-condição | O que precisa existir antes? | Pedido aprovado, montado pela fábrica do domínio |
+| Entrada | O que acontece? | `pedido.cancelar(autor, motivo)` |
+| Resultado esperado | O que a regra manda acontecer? **Um só.** | situação `CANCELADO` |
+| Verificação do efeito | O que mais mudou, ou não mudou? | histórico ganhou uma entrada com o motivo |
 
-**Por que só o status não basta (modelo RIPR):** para um teste revelar um defeito, o caso precisa **alcançar** o ponto errado, o erro precisa **contaminar** o estado, a contaminação precisa **propagar** até algo visível, e o teste precisa **olhar** para esse lugar. Conferir só o status deixa de olhar para boa parte do que foi afetado.
-
-## Cobertura de terminais: o mínimo para qualquer endpoint
-
-Trate o contrato como uma gramática. Os **terminais** são os valores concretos que ela permite: cada campo, valor de enumeração, ação do caminho e status de resposta. O critério (*Terminal Symbol Coverage*) exige que cada terminal apareça em ao menos um teste.
-
-| Contrato | Terminais a cobrir |
-|---|---|
-| `POST /pedidos {tipo, valor}` | campos `tipo` e `valor` |
-| `tipo`: `NORMAL`, `EXPRESSO` | os dois valores |
-| `POST /pedidos/{id}/aprovar`, `/recusar` | as duas ações |
-| Status `201`, `400`, `404`, `409` | os quatro status |
-
-Monte uma lista e marque cada item. Se um status não tem caso possível, isso vira uma dúvida no plano.
-
-**Aprofunde com cobertura de produções** (*Production Coverage*) quando há campos opcionais ou alternativas: cubra cada forma, com o campo presente e ausente.
+**Por que só o retorno não basta (modelo RIPR):** para um teste revelar um defeito, o caso precisa **alcançar** o ponto errado, o erro precisa **contaminar** o estado, a contaminação precisa **propagar** até algo visível, e o teste precisa **olhar** para esse lugar. Conferir só o retorno deixa de olhar para boa parte do que foi afetado.
 
 ## Particionamento do espaço de entrada
 
@@ -76,7 +61,7 @@ Mínimo:
 - **Cada estado final** é alcançado por ao menos um caminho.
 - **Cada ação inválida em cada estado:** cada "recusar" da tabela é um caso, que também confere que a situação não mudou.
 
-**Montagem do estado nas recusas.** Em matriz de ação recusada, o estado montado pode ser compartilhado entre os casos que partem da mesma situação: o processo da situação é montado uma vez e reaproveitado. Só vale se cada caso conferir a situação **antes** da ação e conferir **depois** que nada mudou, e se nenhuma rotina automática (agendador, fila, prazo) agir naquela situação. Situação em que algo age sozinho monta do zero em cada caso. Caso **aceito** muda o estado e nunca compartilha: monta o seu. Os casos, os nomes e as asserções não mudam; só a montagem.
+Em unidade a matriz inteira custa milissegundos: use `@ParameterizedTest` com `@EnumSource`/`@MethodSource` sobre situações e ações. Cada recusa confere a exceção **e** que a situação e o histórico não mudaram. Para "vale em qualquer caminho" (estado final sem saída, nada é pago sem aprovação), complemente com um teste de propriedade que anda por caminhos gerados ([propriedades](propriedades.md)).
 
 Se o grafo for pequeno, cubra os **caminhos primos** (*Prime Path Coverage*), que em um fluxo sem ciclos são todos os caminhos do início a cada estado final.
 
@@ -92,14 +77,14 @@ Use quando uma regra combina condições (Myers: grafo de causa e efeito). Cada 
 
 ## Suposição de erro
 
-Liste o que costuma dar errado, por experiência (Myers: *error guessing*): corpo vazio, JSON malformado, identificador inexistente, ação repetida, pedidos simultâneos. O que o requisito define vira caso. O resto vai para a [sessão exploratória](testes-exploratorios.md).
+Liste o que costuma dar errado, por experiência (Myers: *error guessing*): nulo, vazio, zero, negativo, ação repetida, lista sem itens, mesma pessoa em dois papéis. O que o dev confirmou na entrevista vira caso; o resto vira dúvida no plano.
 
 ## Rastreabilidade
 
-Inclua no `caso-de-uso.md`:
+No plano (e no `caso-de-uso.md`, se existir):
 
-| Regra | Modelo e critério | Teste | Casos |
+| Regra | Técnica e critério | Teste | Casos |
 |---|---|---|---|
-| R1 | Máquina de estados: todas as transições | `fluxoChegaASituacaoFinal` | 9 |
+| R1 | Máquina de estados: todas as transições | `PedidoFluxoTest.transicoes` | 9 |
 
 Regra sem teste é lacuna. Teste sem regra é suposição.

@@ -28,11 +28,11 @@ Logo depois de `Situação`, um bloco **Para quem mantém os testes**:
 - regras que mudaram só a redação (os testes não mudam);
 - defeitos e perguntas ainda abertos da sessão exploratória do confirmado, por regra, para não se perderem na substituição.
 
-Esse bloco é o que a skill `teste-aceitacao-modelos` precisa para achar os testes afetados. Ele sai do arquivo na confirmação ou fica como histórico, a critério do dono.
+Esse bloco é o que as skills de teste precisam para achar os testes e as linhas de tabela afetados. Ele sai do arquivo na confirmação ou fica como histórico, a critério do dono.
 
 ## O que o rascunho não copia
 
-O confirmado costuma ter, além das regras, seções acrescentadas depois pela implementação e pela skill `teste-aceitacao-modelos`: contrato, modelo de teste, rastreabilidade e sessão exploratória. O rascunho **não as copia**: elas descrevem testes e contrato que ainda não existem para as regras novas. Depois da confirmação, essas seções são refeitas pela skill de testes a partir das regras confirmadas.
+O confirmado costuma ter, além das regras, seções acrescentadas depois pela implementação e pelas skills de teste: rastreabilidade e sessão exploratória. O rascunho **não as copia**: elas descrevem testes que ainda não existem para as regras novas. Depois da confirmação, essas seções são refeitas pelas skills de teste a partir das regras confirmadas.
 
 ## Antes de apresentar o rascunho
 
@@ -46,6 +46,6 @@ Além da lista da skill:
 1. Registre as respostas como no passo 8 da skill (sem apagar nem renumerar).
 2. Regra do rascunho que depende de dúvida sem resposta não entra: volte-a ao texto do confirmado, ou tire-a se é nova. A dúvida continua na seção de dúvidas.
 3. Com a confirmação do dono, troque a situação para `CONFIRMADO em <data> por <dono>`. O rascunho **substitui** o `caso-de-uso.md` e o arquivo de rascunho é **removido**.
-4. Avise quem mantém os testes: a skill `teste-aceitacao-modelos` refaz contrato, modelo, rastreabilidade e sessão exploratória, partindo da lista de regras que mudaram. Indique depois a receita "nova funcionalidade" da `arquiteto-padrao` para o que precisa de código.
+4. Avise quem mantém os testes: partindo da lista de regras que mudaram, a `teste-unidade` refaz as matrizes da regra e a `teste-aceitacao` ajusta as linhas da tabela de cenários. Indique depois a receita "nova funcionalidade" da `arquiteto-padrao` para o que precisa de código.
 
 Se o dono não confirma, o rascunho fica, e o confirmado continua valendo sem alteração.

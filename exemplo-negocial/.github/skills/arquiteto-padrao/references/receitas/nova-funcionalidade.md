@@ -7,12 +7,13 @@ Entregue em **fatias**: cada fatia é uma operação que funciona do endpoint ao
 1. **Divida em fatias.** Liste as operações do caso de uso e ordene: primeiro a que cria o dado, depois as que o alteram, por fim as consultas e telas. Mostre a lista ao dono antes de começar.
 2. **Decisões novas.** Se a funcionalidade pede algo que o padrão não cobre (agregado novo, sistema externo novo, forma de tratar transação com sistema externo, tipo novo na raiz de uma camada), pare e siga [nova decisão](nova-decisao.md).
 3. **Para cada fatia**, na ordem:
-   1. Teste de aceitação da fatia (skill `teste-aceitacao-modelos`). Ele falha: ainda não há código.
+   1. Cenários da fatia na tabela de aceitação (skill `teste-aceitacao`). Eles falham: ainda não há código.
    2. Agregado novo? [Novo agregado](novo-agregado.md).
    3. Escrita: [nova operação de escrita](novo-caso-de-uso-escrita.md) ou, se for mudança de estado, [novo estado, ação ou tipo](novo-estado-acao-ou-tipo.md).
    4. Sistema externo: [nova integração externa](nova-integracao-externa.md), e [concorrência](../concorrencia.md).
    5. Consulta ou tela: [nova consulta](nova-consulta.md), [novo endpoint de canal](novo-endpoint-de-canal.md).
-   6. `./mvnw verify` verde, com o teste de aceitação da fatia passando.
+   6. Os testes de unidade da regra (skill `teste-unidade`) e de componente do que a fatia ligou (skill `teste-componente`) nascem junto com o código de cada passo acima.
+   7. `./mvnw verify` verde, com os cenários da fatia passando.
 4. **Ao fim de cada fatia**, diga o que ficou pronto, o que falta e o que você não conseguiu verificar. Divergência entre o caso de uso e o que foi possível fazer é pergunta para o dono, não decisão sua.
 
 Funcionalidade que acrescenta filhos a um agregado já existente: a migration vem com o filho padrão para as linhas atuais ([migrations](../migrations.md)), e a consulta dos filhos é fatia própria ([nova consulta](nova-consulta.md)).

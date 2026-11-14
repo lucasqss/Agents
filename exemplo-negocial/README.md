@@ -256,7 +256,7 @@ O ArchUnit detecta o erro no build. Estas peças evitam que ele aconteça e impe
 | Orientar | Do pedido de negócio ao caso de uso confirmado, antes do código: `/especificar-caso-de-uso` | `.github/skills/especificar-caso-de-uso/` |
 | Orientar | O padrão de arquitetura, o ADR e as receitas de código novo: `/arquiteto-padrao` | `.github/skills/arquiteto-padrao/` |
 | Orientar | Como trazer um projeto legado para o padrão: `/adequar-ao-padrao` | `.github/skills/adequar-ao-padrao/` |
-| Orientar | Testes de aceitação pelos endpoints: `/teste-aceitacao-modelos` a partir do requisito, `/teste-aceitacao-legado` a partir do código existente | `.github/skills/teste-aceitacao-modelos/`, `.github/skills/teste-aceitacao-legado/` |
+| Orientar | Testes por nível: `/teste-unidade` (regra, exaustiva), `/teste-componente` (serviço montado), `/teste-aceitacao` (cenários de negócio em tabela, com Karate) | `.github/skills/teste-unidade/`, `.github/skills/teste-componente/`, `.github/skills/teste-aceitacao/` |
 | Orientar | O papel e as proibições de cada pacote, lidos pela IA ao abrir a pasta | `package-info.java` |
 | Detectar | Enforcer, ErrorProne + NullAway e HQL validado na compilação; regras ArchUnit, testes de propriedade e de contrato REST no teste ([barreiras](#barreiras-de-qualidade-no-build)) | `pom.xml`, `src/test/...` |
 | Bloquear | Donos das partes sensíveis | `.github/CODEOWNERS` |
@@ -268,6 +268,12 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 1. *Require a pull request before merging*, com *Require review from Code Owners*.
 2. *Require status checks to pass*, marcando o check da esteira que roda `./mvnw verify`. A proteção de branch continua nele; só a esteira de geração de versão usa `./mvnw verify -Pversao`, que acrescenta os `*IT`.
 3. *Block force pushes* e, se quiser, *Require linear history*.
+
+### Testes por nível
+
+Cada comportamento é provado no nível mais baixo que consegue prová-lo ([índice](.github/skills/arquiteto-padrao/references/testes.md)): regra de negócio na **unidade** (`domain/`, `application/`), serviço montado no **componente** (`integracao/`) e cenários de negócio na **aceitação**, em tabelas CSV de massa e cenários executadas pelo Karate (skill `teste-aceitacao`).
+
+**Migração pendente:** os testes de aceitação deste exemplo (`src/test/java/.../aceitacao/`) ainda estão no formato anterior, em Java com RestAssured e matrizes exaustivas por HTTP (cerca de 1290 testes, a maior parte do tempo do build). Eles serão migrados para o formato das skills: as matrizes descem para a unidade e os cenários de negócio viram tabelas. Até lá, não os use como modelo; o modelo é `.github/skills/teste-aceitacao/assets/`.
 
 ### Barreiras de qualidade no build
 

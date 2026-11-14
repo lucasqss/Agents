@@ -8,6 +8,8 @@ Onde aparece `PACOTE_RAIZ`, use o pacote raiz do componente (o mesmo em que fica
 ```xml
 <properties>
     <maven.compiler.release>25</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.version>3.33.4</quarkus.platform.version>
@@ -87,7 +89,12 @@ Inclua só as dos recursos que o componente usa. Um componente sem sistema exter
 </dependency>
 <!-- Testes de propriedade (*PropriedadesTest) -->
 <dependency><groupId>net.jqwik</groupId><artifactId>jqwik</artifactId><version>${jqwik.version}</version><scope>test</scope></dependency>
+<!-- Aceitação por tabela (skill teste-aceitacao) e simulador de sistema externo -->
+<dependency><groupId>io.karatelabs</groupId><artifactId>karate-junit5</artifactId><version>1.5.2</version><scope>test</scope></dependency>
+<dependency><groupId>org.wiremock</groupId><artifactId>wiremock-standalone</artifactId><version>3.13.2</version><scope>test</scope></dependency>
 ```
+
+O Karate 1.5.2 foi verificado com Java 25, Quarkus 3.33 e o Enforcer ligado. O mock server dele não funciona com o Quarkus (conflito de Netty): o simulador de sistema externo é o WireMock ([karate](../../teste-aceitacao/references/karate.md)).
 
 Com identidade, a configuração segue o ADR do projeto: emissor (`mp.jwt.verify.issuer`) e chave pública (`mp.jwt.verify.publickey.location`) por propriedade, **sem valor padrão em `%prod`** (a aplicação não sobe sem a chave do provedor). A chave de teste fica em `src/test/resources` e só vale no perfil `%test`.
 

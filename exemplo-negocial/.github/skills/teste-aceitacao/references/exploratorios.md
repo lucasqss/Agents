@@ -1,6 +1,6 @@
 # Testes exploratórios
 
-Os testes baseados em modelos cobrem o que o requisito diz. A sessão exploratória procura o que ninguém especificou. Quem explora projeta e executa ao mesmo tempo, guiado pelo que acabou de observar.
+Os cenários da tabela cobrem o que o analista definiu. A sessão exploratória procura o que ninguém especificou. Quem explora projeta e executa ao mesmo tempo, guiado pelo que acabou de observar.
 
 ## Como fazer
 
@@ -14,11 +14,11 @@ Os testes baseados em modelos cobrem o que o requisito diz. A sessão explorató
 
 | O que aconteceu | Classificação | O que fazer |
 |---|---|---|
-| Confirma uma regra | Confirmado | Se a regra ainda não tem caso, volte ao modo plan, confirme e automatize |
+| Confirma uma regra | Confirmado | Se a regra ainda não tem cenário, proponha a linha da tabela ao dev e automatize depois da confirmação |
 | Contradiz uma regra ou o contrato | **Defeito** | Relate. Automatize apenas se o resultado for determinístico |
 | A regra não diz nada | **Pergunta** | Registre a pergunta. **Não fixe o comportamento em teste** |
 
-Um comportamento observado não é, sozinho, o comportamento correto. Só o requisito ou o usuário definem isso.
+Um comportamento observado não é, sozinho, o comportamento correto. Só o dev, com o negócio, define isso.
 
 ## Ideias de exploração
 
@@ -39,4 +39,4 @@ Defeitos de concorrência dependem do momento em que os pedidos chegam. Relate q
 
 ## Registro
 
-No `caso-de-uso.md`, mantenha três listas: **Defeitos**, **Perguntas** e **Confirmado**. Cada item traz a tentativa e o que foi observado.
+No relato ao dev (e no `caso-de-uso.md`, se existir), mantenha três listas: **Defeitos**, **Perguntas** e **Confirmado**. Cada item traz a tentativa e o que foi observado. O que é erro técnico (formato, status, cabeçalho) vira caso da `teste-componente`, não linha da tabela.

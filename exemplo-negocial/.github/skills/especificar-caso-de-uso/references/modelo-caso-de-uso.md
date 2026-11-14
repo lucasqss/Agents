@@ -1,6 +1,6 @@
 # Modelo do `caso-de-uso.md`
 
-Copie o bloco e preencha todas as seções, nesta ordem. Seção sem conteúdo leva "nenhum", nunca é apagada. As seções de contrato, modelo e rastreabilidade (e a sessão exploratória) são acrescentadas depois, ao mesmo arquivo, pela implementação e pela skill `teste-aceitacao-modelos`. Rascunho de mudança de caso de uso confirmado: veja [mudar um caso de uso confirmado](mudar-caso-de-uso-confirmado.md).
+Copie o bloco e preencha todas as seções, nesta ordem. Seção sem conteúdo leva "nenhum", nunca é apagada. As seções de rastreabilidade (regra → teste) e da sessão exploratória podem ser acrescentadas depois, ao mesmo arquivo, pelas skills de teste. Rascunho de mudança de caso de uso confirmado: veja [mudar um caso de uso confirmado](mudar-caso-de-uso-confirmado.md).
 
 **Origem.** Regra e linha do quadro de papéis dizem de onde vêm, numa coluna "Origem". Valores: `dono, <data>` (o dono disse; se um intermediário relatou, `dono, <data>, via <quem>`), ou `proposta, Dn` (veio de quem escreveu ou intermediou; Dn é a dúvida aberta com a pergunta exata). Quando a dúvida é respondida, a origem passa a `dono, <data> (Dn)`; se foi por decorrência, `decorrência de <Rn ou Dn>`.
 

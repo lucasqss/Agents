@@ -1,21 +1,24 @@
 # Testes esperados em cada mudança
 
-Os testes ficam no mesmo pacote da classe testada (`src/test/java/.../domain/cota/CotaTest.java`). Testes de API ficam em `src/test/java/.../integracao/`.
+**Cada comportamento é provado no nível mais baixo que consegue prová-lo.** A regra de negócio é provada de forma exaustiva na unidade, em milissegundos; o serviço montado prova que ela está ligada; a aceitação prova os cenários de negócio de ponta a ponta. Repetir em cima o que embaixo já prova só deixa o build lento.
 
-- **Regra de negócio:** teste JUnit puro, sem Quarkus, em `domain/<agregado>/`.
-- **Endpoint novo:** `@QuarkusTest` + RestAssured, cobrindo o caminho feliz e o erro principal. Em canal, conferir os **nomes exatos dos campos** e os textos formatados (em `src/test/java/.../integracao/CanaisContratoTest.java`; crie se ainda não existir).
-- **Formato novo de canal:** linha nova em `src/test/java/.../entrypoint/apresentacao/PadroesDeCanalTest.java` (crie se ainda não existir).
-- **Mapper:** a ida e volta `paraEntidade(paraDominio(entity))` preserva todos os campos, inclusive enum, subtipo e versão.
-- **Value Object:** teste JUnit puro de cada regra (validação, arredondamento, rateio que fecha a soma) e um `*PropriedadesTest` com jqwik para o que precisa valer **para qualquer valor** (o rateio sempre fecha a soma; somar e subtrair se desfazem). O jqwik gera os valores e, na falha, mostra o menor exemplo. Modelo: `domain/DinheiroPropriedadesTest.java`.
-- **Tabela de fluxo:** além dos exemplos, um `*PropriedadesTest` que anda por caminhos gerados a partir do estado inicial e confere as regras que valem em qualquer caminho (estado final não tem saída; acima da alçada, só se paga depois da aprovação na alçada). Modelo: `domain/processo/tipo/FluxosPropriedadesTest.java`.
-- **Contrato REST:** copie `assets/contrato/ContratoRestTest.java` para `src/test/java/<pacote raiz>/` (troque `PACOTE_RAIZ`). Ele compara o OpenAPI com `docs/api/openapi-base.json` e falha se um campo de resposta some, muda de nome ou de tipo. Em mudança aditiva, atualize a linha de base no mesmo commit: `./mvnw package -DskipTests && cp target/openapi/openapi.json docs/api/openapi-base.json`.
-- **Repositório em memória para use case:** um por agregado, em `src/test/java/.../application/<agregado>/`, com contador de `salvar`. O objeto em memória muda mesmo sem gravar; o banco não. Modelo: `application/processo/ProcessosEmMemoria.java`.
-- **Concorrência:** caso de uso com bloqueio ou chamada externa ganha um teste que dispara a operação em paralelo e confere que o efeito aconteceu uma vez só. Agregado com versão ganha um teste do 409.
-- **Identidade:** os testes geram tokens assinados com a chave de teste (papéis e identificação do cliente nos claims); sem token, 401, e papel errado, 403, ambos no formato de erro padrão. O teste de integração do artefato empacotado (`*IT`, que roda só na geração de versão, com `-Pversao`) precisa da mesma configuração de identidade (emissor e chave de teste), senão a aplicação empacotada não sobe. Regra de permissão é testada no domínio ([domínio](dominio.md)).
-- **Sistema externo:** nunca chamar o real nos testes. Use um Service Stub ([exemplo](exemplos-codigo.md)) com chave para simular falha, e teste o 503.
-- **Rotina com sistema externo:** o stub tem verbos de negócio (confirmar, recusar, derrubar) e deixa consultar o que recebeu. Um teste de concorrência roda a rotina duas vezes ao mesmo tempo e confere que o resultado foi aplicado uma vez. Havendo circuito, não conte os pedidos recebidos de vários itens enquanto o stub responde com erro: com o circuito aberto nem toda tentativa chega.
-- **Teste de aceitação de usuário:** siga a skill `teste-aceitacao-modelos`, que parte só do requisito e do contrato, ou, sem requisito escrito, a `teste-aceitacao-legado`, que deriva as regras do código e as confirma com o usuário. Os testes ficam em `src/test/java/.../aceitacao/<capacidade>/`, e o Service Stub JAX-RS não serve para eles, porque não entra no artefato testado pelo `*IT`.
+| Nível | Skill | Prova | Onde |
+|---|---|---|---|
+| Unidade | `teste-unidade` | regra de negócio (toda transição, toda recusa, todo limite), Value Object, tabela de fluxo, caso de uso com repositório em memória, mapper, assembler, propriedades (jqwik), mutação (PITest) | `src/test/java/.../domain/`, `application/`, `entrypoint/apresentacao/` |
+| Componente | `teste-componente` | persistência, formato da entrada (`400`), identidade (`401`/`403` por endpoint), tradução de erro (`404`/`409`/`503`), concorrência, integração simulada, contrato REST, campos de canal | `src/test/java/.../integracao/` |
+| Aceitação | `teste-aceitacao` | cenários de negócio em tabela (massa + cenários em CSV), pelo Karate, no par `*Test`/`*IT` | `src/test/resources/aceitacao/<capacidade>/` |
 
-**Mutante sobrevivente** (`./mvnw verify -Pauditoria`, relatório em `target/pit-reports/index.html`): o PITest mudou o código (trocou `>` por `>=`, apagou uma chamada, devolveu `null`) e nenhum teste falhou. Escreva o teste que afirma a regra naquele ponto, em geral o caso de fronteira (exatamente o máximo), o texto da mensagem ou o efeito colateral (gravou?). Exceção conhecida: código que só roda na inicialização de um `enum` ou de um campo `static`, porque o PITest aplica o mutante depois dela.
+Todas as três entrevistam o dev antes de escrever e só seguem com o plano de cobertura confirmado.
 
-Antes de terminar qualquer tarefa, rode `./mvnw verify`. Ele roda domínio, ArchUnit e `@QuarkusTest` (inclusive aceitação) e empacota. Os `*IT` repetem a aceitação contra o artefato empacotado e rodam só na geração de versão (`./mvnw verify -Pversao`); o failsafe respeita `skipITs`, `true` por padrão. O par `*Test`/`*IT` continua obrigatório.
+## O que cada tipo de mudança pede
+
+| Mudança | Unidade | Componente | Aceitação |
+|---|---|---|---|
+| Regra de negócio nova ou alterada | matriz da regra | um caso que prova a ligação | cenário, se o analista definiu |
+| Estado, ação ou tipo novo no fluxo | toda transição e recusa nova | um caso aceito e um recusado pelo endpoint | cenário do caminho novo |
+| Endpoint novo | — | formato, identidade, erros, contrato | cenário que o usa |
+| Tabela ou coluna nova | mapper (ida e volta) | persistência pelo endpoint | — |
+| Integração externa nova | caso de uso com gateway falso | simulador: sucesso, recusa, indisponível, timeout | linha na massa externa |
+| Formato novo de canal | linha no teste do padrão de canal | nomes dos campos do `*Response` | — |
+
+Antes de terminar qualquer tarefa, rode `./mvnw verify`. Os `*IT` da aceitação rodam contra o artefato empacotado só na geração de versão (`./mvnw verify -Pversao`); o teste de mutação, a cada pull request (`./mvnw verify -Pauditoria`).
