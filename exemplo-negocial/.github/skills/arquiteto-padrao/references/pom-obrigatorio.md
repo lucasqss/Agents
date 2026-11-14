@@ -13,7 +13,20 @@ A stack é **Java 25 e Quarkus 3.33**. Confira cada trecho abaixo no `pom.xml` d
     <archunit.version>1.4.1</archunit.version>
     <compiler-plugin.version>3.15.0</compiler-plugin.version>
     <surefire-plugin.version>3.5.6</surefire-plugin.version>
+    <!-- Os *IT repetem os testes de aceitação contra o pacote final e rodam só na geração de versão (-Pversao) -->
+    <skipITs>true</skipITs>
 </properties>
+```
+
+O `maven-failsafe-plugin` (goals `integration-test` e `verify`, versão `${surefire-plugin.version}`) respeita `skipITs`. Com ele `true` por padrão, os `*IT` ficam fora do `./mvnw verify` do dia a dia. O perfil que os liga fica em `<profiles>`:
+
+```xml
+<profile>
+    <id>versao</id>
+    <properties>
+        <skipITs>false</skipITs>
+    </properties>
+</profile>
 ```
 
 ## Dependências
@@ -80,7 +93,8 @@ Sem `hibernate-processor`, os repositórios Jakarta Data não são gerados e o H
 ## Rodar
 
 ```bash
-./mvnw verify
+./mvnw verify            # domínio, ArchUnit e @QuarkusTest (inclusive aceitação) e empacota
+./mvnw verify -Pversao    # o anterior + os *IT contra o artefato empacotado (geração de versão)
 ```
 
 Se o repositório não tiver `mvnw`, ou se ele falhar no Linux ou WSL com `cannot execute: required file not found` (fim de linha CRLF), use `mvn verify`, com o `JAVA_HOME` apontando para um JDK 25.

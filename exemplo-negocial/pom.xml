@@ -22,6 +22,9 @@
         <wiremock.version>3.13.2</wiremock.version>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
+
+        <!-- Os *IT repetem os testes de aceitação contra o pacote final e rodam só na geração de versão (-Pversao) -->
+        <skipITs>true</skipITs>
     </properties>
 
     <dependencyManagement>
@@ -157,7 +160,7 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
-            <!-- Testes de integração (*IT, @QuarkusIntegrationTest) contra o artefato empacotado, na fase verify -->
+            <!-- Testes de integração (*IT, @QuarkusIntegrationTest) contra o artefato empacotado, na fase verify. Respeita skipITs: só roda com -Pversao -->
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
@@ -179,4 +182,14 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Geração de versão fechada: acrescenta os *IT contra o artefato empacotado (mvn verify -Pversao) -->
+        <profile>
+            <id>versao</id>
+            <properties>
+                <skipITs>false</skipITs>
+            </properties>
+        </profile>
+    </profiles>
 </project>

@@ -10,6 +10,7 @@ find src/test -path "*aceitacao*" -name "*.java"
 ```
 
 - **Sem `maven-failsafe-plugin`:** o `*IT` não roda e nenhum erro aparece. Pare e mostre ao usuário o bloco abaixo antes de alterar o pom.
+- **O `*IT` roda só na geração de versão** (`-Pversao`): o failsafe respeita `skipITs`, que fica `true` por padrão, e o perfil `versao` o desliga. O par `*Test`/`*IT` continua obrigatório.
 - **Já existe `ApiAceitacao` ou `*Stub`:** reaproveite os métodos de mecânica (criar dados, enviar, consultar). Não copie os resultados esperados de outros testes.
 
 ```xml
@@ -26,6 +27,24 @@ find src/test -path "*aceitacao*" -name "*.java"
         </systemPropertyVariables>
     </configuration>
 </plugin>
+```
+
+E, no mesmo pom, a propriedade e o perfil:
+
+```xml
+<properties>
+    <!-- Os *IT repetem os testes de aceitação contra o pacote final e rodam só na geração de versão (-Pversao) -->
+    <skipITs>true</skipITs>
+</properties>
+
+<profiles>
+    <profile>
+        <id>versao</id>
+        <properties>
+            <skipITs>false</skipITs>
+        </properties>
+    </profile>
+</profiles>
 ```
 
 ## B3. Os arquivos
@@ -188,10 +207,11 @@ public class SistemaStubResource implements QuarkusTestResourceLifecycleManager 
 ## B4. Rodar
 
 ```bash
-./mvnw verify
+./mvnw verify            # só *Test (inclusive aceitação)
+./mvnw verify -Pversao    # acrescenta os *IT contra o artefato empacotado
 ```
 
-Se o `mvnw` falhar com `required file not found`, ele está com fim de linha CRLF: use `mvn verify`.
+Para conferir o par completo, rode com `-Pversao`. Se o `mvnw` falhar com `required file not found`, ele está com fim de linha CRLF: use `mvn verify`.
 
 ## B5. Quando falhar, classifique antes de mexer
 
@@ -214,8 +234,8 @@ Se o `mvnw` falhar com `required file not found`, ele está com fim de linha CRL
 
 ## B7. Antes de terminar
 
-- [ ] `./mvnw verify` verde, ou vermelho só por defeito registrado e relatado.
-- [ ] `target/surefire-reports` e `target/failsafe-reports` têm o **mesmo número** de testes de aceitação.
+- [ ] `./mvnw verify -Pversao` verde, ou vermelho só por defeito registrado e relatado.
+- [ ] `target/surefire-reports` e `target/failsafe-reports` (só existe com `-Pversao`) têm o **mesmo número** de testes de aceitação.
 - [ ] Este comando não mostra nada (nenhum import de produção):
   `grep -h "^import" $(find src/test -path "*aceitacao*" -name "*.java") | grep -v "\.aceitacao\.\|io\.quarkus\.test\|io\.restassured\|org\.junit\|org\.hamcrest\|java\.\|com\.github\.tomakehurst"`
 - [ ] O `caso-de-uso.md` tem a situação `CONFIRMADO` e as seções 7 a 10 preenchidas.

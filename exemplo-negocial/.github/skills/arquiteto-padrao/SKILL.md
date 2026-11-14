@@ -153,7 +153,7 @@ Se algo usado por vários agregados não está nessa lista, pare e pergunte ao d
 3. Descubra o **agregado** e a **camada** (seção "Onde cada coisa mora"; em ACL e BFF, a referência do tipo).
 4. Leia a referência indicada na tabela "Onde coloco X?" **antes** de escrever.
 5. Para tarefa conhecida, siga a receita (seção "Receitas").
-6. Rode `./mvnw verify`. Ele compila (o HQL é validado aqui) e roda domínio, ArchUnit, contrato e integração. Se não houver `mvnw`, ou se ele falhar por fim de linha CRLF, use `mvn verify`.
+6. Rode `./mvnw verify`. Ele compila (o HQL é validado aqui) e roda domínio, ArchUnit, contrato e integração (`@QuarkusTest`); os `*IT` contra o artefato empacotado só rodam na geração de versão, com `-Pversao`. Se não houver `mvnw`, ou se ele falhar por fim de linha CRLF, use `mvn verify`.
 7. Se uma regra ArchUnit falhar, **o código está no lugar errado: mude o código, nunca a regra.** A falha traz um ID (ex.: `DOM-002`) e um "Corrija:". Se achar que a regra está errada, diga isso e pare.
 
 ## Árvore de decisão (qual tipo de componente?)

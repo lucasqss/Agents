@@ -11,7 +11,7 @@ Este documento é a referência da equipe e dos agentes de IA. Nomes como `cota`
 
 **Por quê:** um teste que olha o código repete o que o código faz e confirma até os erros dele. Um teste que parte do negócio continua válido quando a solução é reescrita.
 
-Cada teste roda duas vezes, sem duplicar código: na fase de teste unitário (`*Test`, com `@QuarkusTest`) e na fase de integração (`*IT`, com `@QuarkusIntegrationTest`, contra o sistema empacotado).
+Cada teste existe em duas formas, sem duplicar código: `*Test` (com `@QuarkusTest`), que roda em todo `./mvnw verify`, e `*IT` (com `@QuarkusIntegrationTest`, contra o sistema empacotado), que roda só na geração de versão (`./mvnw verify -Pversao`). O par continua obrigatório.
 
 Esta skill cobre apenas testes de aceitação pelos endpoints. Não use para testes de unidade, de arquitetura ou de componentes internos. Requisito ainda não escrito, para funcionalidade nova: use antes a skill [`especificar-caso-de-uso`](../especificar-caso-de-uso/SKILL.md), e parta do `caso-de-uso.md` que ela grava. Sistema existente sem requisito escrito, em que as regras precisam sair do código: use a skill [`teste-aceitacao-legado`](../teste-aceitacao-legado/SKILL.md).
 
@@ -111,8 +111,8 @@ Em qualquer um desses casos, volte à etapa 5.
 
 ## Antes de terminar
 
-1. Rode o build com testes (`./mvnw verify`). Build vermelho por defeito de produção segue a regra 4.
-2. Confirme que os relatórios `target/surefire-reports` e `target/failsafe-reports` mostram o **mesmo número** de testes de aceitação.
+1. Rode o build com testes e os `*IT` (`./mvnw verify -Pversao`). Build vermelho por defeito de produção segue a regra 4.
+2. Confirme que os relatórios `target/surefire-reports` e `target/failsafe-reports` mostram o **mesmo número** de testes de aceitação. Sem `-Pversao` não há relatório do failsafe.
 3. Confirme que nenhum arquivo em `aceitacao/` importa classe de produção.
 4. Relate ao usuário defeitos, dúvidas abertas e resultado da sessão exploratória.
 

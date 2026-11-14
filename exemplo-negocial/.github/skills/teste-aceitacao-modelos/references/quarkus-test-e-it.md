@@ -31,10 +31,11 @@ class PagamentoAceitacaoIT extends PagamentoAceitacaoTest {
 | Anotação | `@QuarkusTest` | `@QuarkusIntegrationTest` |
 | Plugin Maven | surefire | failsafe |
 | Fase | `test` | `integration-test` e `verify` |
+| Quando roda | todo `mvn verify` | só com `-Pversao` (geração de versão) |
 | O que roda | aplicação na JVM do teste | o artefato empacotado, em **outro processo** |
 | Perfil | `test` | `prod` |
 
-O pom precisa do `maven-failsafe-plugin` com os goals `integration-test` e `verify`. Sem isso, o `*IT` não roda e nenhum erro aparece.
+O pom precisa do `maven-failsafe-plugin` com os goals `integration-test` e `verify`. Sem isso, o `*IT` não roda e nenhum erro aparece. O failsafe respeita `skipITs`: o pom o deixa `true` por padrão, para o `mvn verify` do dia a dia não repetir a aceitação contra o pacote, e o perfil `versao` o desliga. O par `*Test`/`*IT` continua obrigatório; só o momento de rodar o `*IT` muda.
 
 ```xml
 <plugin>
@@ -56,6 +57,24 @@ O pom precisa do `maven-failsafe-plugin` com os goals `integration-test` e `veri
         </systemPropertyVariables>
     </configuration>
 </plugin>
+```
+
+E, no mesmo pom, a propriedade e o perfil:
+
+```xml
+<properties>
+    <!-- Os *IT repetem os testes de aceitação contra o pacote final e rodam só na geração de versão (-Pversao) -->
+    <skipITs>true</skipITs>
+</properties>
+
+<profiles>
+    <profile>
+        <id>versao</id>
+        <properties>
+            <skipITs>false</skipITs>
+        </properties>
+    </profile>
+</profiles>
 ```
 
 Dependências de teste:
@@ -140,7 +159,8 @@ Configure a situação normal em um `@BeforeEach`, para um caso não afetar o se
 ## Rodar
 
 ```bash
-./mvnw verify
+./mvnw verify            # domínio, ArchUnit e @QuarkusTest (inclusive aceitação) e empacota
+./mvnw verify -Pversao    # o anterior + os *IT contra o artefato empacotado (geração de versão)
 ```
 
 Se o `mvnw` não executar no Linux ou WSL com `cannot execute: required file not found`, o arquivo está com fim de linha CRLF. Use o `mvn` instalado, com o `JAVA_HOME` no JDK do projeto.
@@ -150,6 +170,7 @@ Se o `mvnw` não executar no Linux ou WSL com `cannot execute: required file not
 | Sintoma | Causa |
 |---|---|
 | `IllegalStateException: Expected response body to be verified as JSON, HTML or XML but no content-type was defined` | A resposta veio sem corpo, e o teste esperava um campo. Compare com o contrato: pode ser defeito |
-| O `*IT` não aparece no relatório | Falta o failsafe, ou o nome não termina em `IT` |
+| O `*IT` não roda no `mvn verify` | Esperado: o `skipITs` é `true` por padrão. Rode com `-Pversao` |
+| O `*IT` não aparece no relatório mesmo com `-Pversao` | Falta o failsafe, ou o nome não termina em `IT` |
 | Quantidade de testes difere entre as fases | Algum teste foi desligado no `*IT` |
 | Chamada ao sistema externo falha só no `*IT` | O stub está em `src/test` como recurso JAX-RS |

@@ -260,13 +260,13 @@ O ArchUnit detecta o erro no build. Estas peças evitam que ele aconteça e impe
 | Orientar | O papel e as proibições de cada pacote, lidos pela IA ao abrir a pasta | `package-info.java` |
 | Detectar | Regras ArchUnit, testes de contrato, HQL validado na compilação | `src/test/...` |
 | Bloquear | Donos das partes sensíveis | `.github/CODEOWNERS` |
-| Bloquear | `./mvnw verify` na esteira corporativa | fora deste repositório |
+| Bloquear | `./mvnw verify` na esteira corporativa (a esteira de versão usa `./mvnw verify -Pversao`) | fora deste repositório |
 
 **Neste repositório, a pasta `.github` é um modelo:** o GitHub só lê `.github` na raiz do repositório. Ao criar um projeto a partir deste exemplo, ela vai para a raiz, junto com o `AGENTS.md`.
 
 O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem** o merge, configure no GitHub, em *Settings → Rules → Rulesets* (ou *Branches → Branch protection*), para a `main`:
 1. *Require a pull request before merging*, com *Require review from Code Owners*.
-2. *Require status checks to pass*, marcando o check da esteira que roda `./mvnw verify`.
+2. *Require status checks to pass*, marcando o check da esteira que roda `./mvnw verify`. A proteção de branch continua nele; só a esteira de geração de versão usa `./mvnw verify -Pversao`, que acrescenta os `*IT`.
 3. *Block force pushes* e, se quiser, *Require linear history*.
 
 ## API
@@ -305,7 +305,8 @@ Requisitos: JDK 25 (`sdk env install` com SDKMAN) e Docker. O Dev Services sobe 
 ```bash
 ./mvnw quarkus:dev            # API em http://localhost:8080 e Swagger UI em /q/swagger-ui
 ./mvnw test                   # testes de domínio, ArchUnit e @QuarkusTest
-./mvnw verify                 # o anterior + empacotamento + testes de integração (*IT)
+./mvnw verify                 # domínio, ArchUnit e @QuarkusTest (inclusive aceitação) + empacotamento
+./mvnw verify -Pversao        # o anterior + *IT contra o artefato empacotado (geração de versão fechada)
 docker compose up --build     # app empacotada + PostgreSQL (rode ./mvnw package antes)
 ```
 

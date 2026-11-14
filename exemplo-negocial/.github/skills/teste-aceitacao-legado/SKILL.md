@@ -56,7 +56,7 @@ Quando a resposta do usuário a um suspeito for:
 - **fixar como está:** o teste espera o comportamento atual e o `@DisplayName` começa com `[atual]`;
 - **é defeito:** o teste espera o resultado correto que o usuário indicou.
 
-**B4.** Rode `./mvnw verify`.
+**B4.** Rode `./mvnw verify -Pversao`. O `*IT` só roda com esse perfil.
 
 **B5.** Se falhar, classifique pela tabela do `fase-b-escrever-testes.md`:
 - **Falha de mecânica** (compilação, JSON, dados): corrija o teste.
