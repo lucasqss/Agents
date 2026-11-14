@@ -13,6 +13,7 @@ public enum EstadoProcesso {
     AGUARDANDO_VISTORIA(false),
     AGUARDANDO_CONCORDANCIA(false),
     APROVADO(false),
+    PAGAMENTO_SOLICITADO(false),
     PAGO(true),
     REPROVADO(true),
     CANCELADO(true);

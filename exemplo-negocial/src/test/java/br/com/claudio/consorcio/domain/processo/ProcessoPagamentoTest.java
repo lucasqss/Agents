@@ -7,16 +7,18 @@ import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCLU
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.DEVOLVER_PARA_ANALISE;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.DISCORDAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.INICIAR_ANALISE;
-import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.PAGAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.PROPOR_ALTERACAO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.RECEBER_DOCUMENTO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.REPROVAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.SOLICITAR_DOCUMENTO;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.SOLICITAR_PAGAMENTO;
+import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONFIRMAR_PAGAMENTO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.ABERTO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.AGUARDANDO_VISTORIA;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.APROVADO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.CANCELADO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.EM_ANALISE;
+import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.PAGAMENTO_SOLICITADO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.PAGO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.PENDENTE_DOCUMENTO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.REPROVADO;
@@ -36,6 +38,7 @@ import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,6 +49,13 @@ class ProcessoPagamentoTest {
     private static final Long COTA = 1L;
     private static final Dinheiro VALOR = Dinheiro.de("30000.00");
     private static final Instant AGORA = Instant.parse("2026-01-15T12:00:00Z");
+    private static final IdentificacaoSolicitacao IDENTIFICACAO = new IdentificacaoSolicitacao(UUID.randomUUID());
+
+    /** Leva o aprovado a pago: solicita e a rotina confirma. */
+    private static void pagar(ProcessoPagamento processo) {
+        processo.solicitarPagamento(IDENTIFICACAO, AGORA, null);
+        processo.confirmarPagamento("PROT-1", AGORA);
+    }
 
     private static List<Favorecido> favorecidoUnico(Dinheiro parte) {
         return List.of(new Favorecido("Favorecido Único", Documento.de("12345678901"), "vendedor", parte));
@@ -103,7 +113,7 @@ class ProcessoPagamentoTest {
             processo.executar(CONCLUIR_VISTORIA, AGORA, null);
             assertEquals(APROVADO, processo.estado());
 
-            processo.pagar("PROT-1", AGORA);
+            pagar(processo);
             assertEquals(PAGO, processo.estado());
             assertFalse(processo.ativo());
         }
@@ -113,7 +123,7 @@ class ProcessoPagamentoTest {
             processo.executar(INICIAR_ANALISE, AGORA, null);
             processo.executar(CONCLUIR_ANALISE, AGORA, null);
 
-            invalida(processo, PAGAR);
+            invalida(processo, SOLICITAR_PAGAMENTO);
         }
 
         @Test
@@ -137,7 +147,7 @@ class ProcessoPagamentoTest {
             processo.executar(CONCLUIR_ANALISE, AGORA, null);
             assertEquals(APROVADO, processo.estado());
 
-            processo.pagar("PROT-1", AGORA);
+            pagar(processo);
             assertEquals(PAGO, processo.estado());
         }
 
@@ -158,11 +168,11 @@ class ProcessoPagamentoTest {
 
         invalida(processo, CONCLUIR_ANALISE);
         invalida(processo, CONCLUIR_VISTORIA);
-        invalida(processo, PAGAR);
+        invalida(processo, SOLICITAR_PAGAMENTO);
 
         processo.executar(INICIAR_ANALISE, AGORA, null);
         invalida(processo, INICIAR_ANALISE);
-        invalida(processo, PAGAR);
+        invalida(processo, SOLICITAR_PAGAMENTO);
         assertEquals(EM_ANALISE, processo.estado(), "ação recusada não muda o estado");
     }
 
@@ -182,7 +192,7 @@ class ProcessoPagamentoTest {
     @EnumSource(TipoProcesso.class)
     void estadosFinaisNaoAceitamNenhumaAcao(TipoProcesso tipo) {
         ProcessoPagamento pago = aprovado(tipo);
-        pago.pagar("PROT-1", AGORA);
+        pagar(pago);
         assertTrue(pago.acoesDisponiveis().isEmpty());
         for (AcaoProcesso acao : AcaoProcesso.values()) {
             invalida(pago, acao);
@@ -208,44 +218,46 @@ class ProcessoPagamentoTest {
     }
 
     @Test
-    void pagarMudaOEstadoEGuardaOProtocoloJuntos() {
+    void pagarPassaPelaSolicitacaoEPelaConfirmacaoDaRotina() {
         ProcessoPagamento processo = aprovado(TipoProcesso.SERVICO);
-        assertThrows(DominioException.class, () -> processo.pagar(" ", AGORA));
-        assertThrows(DominioException.class, () -> processo.pagar(null, AGORA));
-        assertEquals(APROVADO, processo.estado());
 
-        processo.pagar("PROT-1", AGORA);
+        processo.solicitarPagamento(IDENTIFICACAO, AGORA, null);
+        assertEquals(PAGAMENTO_SOLICITADO, processo.estado());
+        assertNull(processo.protocoloPagamento());
+
+        processo.confirmarPagamento("PROT-1", AGORA);
         assertEquals(PAGO, processo.estado());
         assertEquals("PROT-1", processo.protocoloPagamento());
     }
 
     @Test
-    void naoFicaPagoSemProtocolo() {
+    void naoFicaPagoPeloExecutarGenerico() {
         ProcessoPagamento processo = aprovado(TipoProcesso.SERVICO);
+        processo.solicitarPagamento(IDENTIFICACAO, AGORA, null);
 
-        assertThrows(DominioException.class, () -> processo.executar(PAGAR, AGORA, null));
-        assertEquals(APROVADO, processo.estado());
+        assertThrows(DominioException.class, () -> processo.executar(CONFIRMAR_PAGAMENTO, AGORA, null));
+        assertEquals(PAGAMENTO_SOLICITADO, processo.estado());
         assertNull(processo.protocoloPagamento());
     }
 
     @Test
     void exigirQuePodeConfereSemAplicar() {
         ProcessoPagamento aberto = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
-        assertThrows(TransicaoInvalidaException.class, () -> aberto.exigirQuePode(PAGAR));
+        assertThrows(TransicaoInvalidaException.class, () -> aberto.exigirQuePode(SOLICITAR_PAGAMENTO));
 
         ProcessoPagamento aprovado = aprovado(TipoProcesso.SERVICO);
-        aprovado.exigirQuePode(PAGAR);
+        aprovado.exigirQuePode(SOLICITAR_PAGAMENTO);
         assertEquals(APROVADO, aprovado.estado());
     }
 
     @Test
     void reconstituirExigeProtocoloSeESomenteSePago() {
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), APROVADO, "PROT-1", null, 0));
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), APROVADO, "PROT-1", null, null, 0));
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, null, null, 0));
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, null, null, null, 0));
 
-        ProcessoPagamento pago = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, "PROT-1", null, 3);
+        ProcessoPagamento pago = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, "PROT-1", null, null, 3);
         assertEquals("PROT-1", pago.protocoloPagamento());
         assertEquals(3, pago.versao());
     }
@@ -278,14 +290,14 @@ class ProcessoPagamentoTest {
         assertTrue(processo.novasTransicoes().isEmpty());
 
         processo.executar(INICIAR_ANALISE, AGORA, "  Documentos recebidos  ");
-        invalida(processo, PAGAR);
+        invalida(processo, SOLICITAR_PAGAMENTO);
         processo.executar(CONCLUIR_ANALISE, AGORA, " ");
-        processo.pagar("PROT-1", AGORA.plusSeconds(60));
+        processo.solicitarPagamento(IDENTIFICACAO, AGORA.plusSeconds(60), null);
 
         assertEquals(List.of(
                 new Transicao(ABERTO, EM_ANALISE, INICIAR_ANALISE, AGORA, "Documentos recebidos"),
                 new Transicao(EM_ANALISE, APROVADO, CONCLUIR_ANALISE, AGORA, null),
-                new Transicao(APROVADO, PAGO, PAGAR, AGORA.plusSeconds(60), null)),
+                new Transicao(APROVADO, PAGAMENTO_SOLICITADO, SOLICITAR_PAGAMENTO, AGORA.plusSeconds(60), null)),
                 processo.novasTransicoes());
     }
 
@@ -301,7 +313,7 @@ class ProcessoPagamentoTest {
 
     @Test
     void processoReconstituidoNaoTrazTransicoesAntigas() {
-        ProcessoPagamento lido = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), EM_ANALISE, null, null, 1);
+        ProcessoPagamento lido = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), EM_ANALISE, null, null, null, 1);
         assertTrue(lido.novasTransicoes().isEmpty());
     }
 
@@ -358,7 +370,8 @@ class ProcessoPagamentoTest {
 
     @Test
     void soEstasAcoesExigemMotivo() {
-        Set<AcaoProcesso> exigem = Set.of(SOLICITAR_DOCUMENTO, REPROVAR, DEVOLVER_PARA_ANALISE, CANCELAR, PROPOR_ALTERACAO, DISCORDAR);
+        Set<AcaoProcesso> exigem = Set.of(SOLICITAR_DOCUMENTO, REPROVAR, DEVOLVER_PARA_ANALISE, CANCELAR, PROPOR_ALTERACAO, DISCORDAR,
+                AcaoProcesso.RECUSAR_PAGAMENTO, AcaoProcesso.TENTAR_PAGAMENTO);
         for (AcaoProcesso acao : AcaoProcesso.values()) {
             assertEquals(exigem.contains(acao), acao.exigeMotivo(), acao.name());
         }

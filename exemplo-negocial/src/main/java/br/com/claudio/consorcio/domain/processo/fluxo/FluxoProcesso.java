@@ -2,6 +2,7 @@ package br.com.claudio.consorcio.domain.processo.fluxo;
 
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,11 +28,16 @@ public final class FluxoProcesso {
                 .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.REPROVAR, EstadoProcesso.REPROVADO)
                 .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.CONCLUIR_ANALISE, EstadoProcesso.APROVADO)
                 .transicao(EstadoProcesso.APROVADO, AcaoProcesso.DEVOLVER_PARA_ANALISE, EstadoProcesso.EM_ANALISE)
-                .transicao(EstadoProcesso.APROVADO, AcaoProcesso.PAGAR, EstadoProcesso.PAGO)
+                .transicao(EstadoProcesso.APROVADO, AcaoProcesso.SOLICITAR_PAGAMENTO, EstadoProcesso.PAGAMENTO_SOLICITADO)
+                .transicao(EstadoProcesso.PAGAMENTO_SOLICITADO, AcaoProcesso.CONFIRMAR_PAGAMENTO, EstadoProcesso.PAGO)
+                .transicao(EstadoProcesso.PAGAMENTO_SOLICITADO, AcaoProcesso.RECUSAR_PAGAMENTO, EstadoProcesso.APROVADO)
+                .transicao(EstadoProcesso.PAGAMENTO_SOLICITADO, AcaoProcesso.TENTAR_PAGAMENTO, EstadoProcesso.PAGAMENTO_SOLICITADO)
                 .transicao(EstadoProcesso.ABERTO, AcaoProcesso.ALTERAR, EstadoProcesso.ABERTO)
                 .transicao(EstadoProcesso.EM_ANALISE, AcaoProcesso.PROPOR_ALTERACAO, EstadoProcesso.AGUARDANDO_CONCORDANCIA)
                 .transicao(EstadoProcesso.AGUARDANDO_CONCORDANCIA, AcaoProcesso.CONCORDAR, EstadoProcesso.EM_ANALISE)
-                .transicao(EstadoProcesso.AGUARDANDO_CONCORDANCIA, AcaoProcesso.DISCORDAR, EstadoProcesso.EM_ANALISE);
+                .transicao(EstadoProcesso.AGUARDANDO_CONCORDANCIA, AcaoProcesso.DISCORDAR, EstadoProcesso.EM_ANALISE)
+                // Com o pagamento solicitado, só a rotina tira o processo dali: nem a pessoa cancela (R4, R20).
+                .semCancelamentoEm(EstadoProcesso.PAGAMENTO_SOLICITADO);
     }
 
     /** Próximo estado, ou {@link TransicaoInvalidaException} se a ação não vale no estado atual. */
@@ -43,14 +49,22 @@ public final class FluxoProcesso {
         return destino;
     }
 
+    /** Ações que uma pessoa pode pedir no estado: as da rotina de pagamento valem na tabela, mas não aparecem aqui. */
     public Set<AcaoProcesso> acoesDisponiveis(EstadoProcesso atual) {
-        return transicoes.get(atual).keySet();
+        Set<AcaoProcesso> daPessoa = EnumSet.noneOf(AcaoProcesso.class);
+        for (AcaoProcesso acao : transicoes.get(atual).keySet()) {
+            if (!acao.daRotina()) {
+                daPessoa.add(acao);
+            }
+        }
+        return Collections.unmodifiableSet(daPessoa);
     }
 
     public static final class Builder {
 
         private final Map<EstadoProcesso, Map<AcaoProcesso, EstadoProcesso>> transicoes =
                 new EnumMap<>(EstadoProcesso.class);
+        private final Set<EstadoProcesso> semCancelamento = EnumSet.noneOf(EstadoProcesso.class);
 
         private Builder() {
             for (EstadoProcesso estado : EstadoProcesso.values()) {
@@ -67,12 +81,21 @@ public final class FluxoProcesso {
             return this;
         }
 
-        /** Fecha a tabela. Regra de todos os tipos: qualquer estado não final pode ser cancelado. */
+        /** Exceção declarada à regra geral de cancelamento: neste estado a pessoa não cancela. */
+        public Builder semCancelamentoEm(EstadoProcesso estado) {
+            semCancelamento.add(estado);
+            return this;
+        }
+
+        /**
+         * Fecha a tabela. Regra de todos os tipos: qualquer estado não final pode ser cancelado, salvo os declarados
+         * em {@link #semCancelamentoEm}.
+         */
         public FluxoProcesso construir() {
             Map<EstadoProcesso, Map<AcaoProcesso, EstadoProcesso>> tabela = new EnumMap<>(EstadoProcesso.class);
             transicoes.forEach((estado, saidas) -> {
                 Map<AcaoProcesso, EstadoProcesso> linhas = new EnumMap<>(saidas);
-                if (!estado.finalizado()) {
+                if (!estado.finalizado() && !semCancelamento.contains(estado)) {
                     linhas.put(AcaoProcesso.CANCELAR, EstadoProcesso.CANCELADO);
                 }
                 tabela.put(estado, Collections.unmodifiableMap(linhas));

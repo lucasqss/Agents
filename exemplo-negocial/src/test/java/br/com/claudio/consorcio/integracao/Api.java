@@ -74,6 +74,23 @@ final class Api {
         return post("/processos/" + processoId + "/" + acao, Map.of("motivo", motivo));
     }
 
+    /** Solicita o pagamento: só grava Pagamento solicitado; a rotina é que fala com a tesouraria. */
+    static ValidatableResponse solicitarPagamento(long processoId) {
+        return acao(processoId, "solicitar-pagamento");
+    }
+
+    /** Estado do processo, lido da última entrada do histórico (ABERTO se ainda não há nenhuma). */
+    static String estado(long processoId) {
+        List<Map<String, Object>> historico = given().when().get("/processos/" + processoId + "/historico").then()
+                .statusCode(200).extract().jsonPath().getList("$");
+        return historico.isEmpty() ? "ABERTO" : (String) historico.getLast().get("para");
+    }
+
+    static List<Map<String, Object>> historico(long processoId) {
+        return given().when().get("/processos/" + processoId + "/historico").then().statusCode(200)
+                .extract().jsonPath().getList("$");
+    }
+
     static ValidatableResponse post(String path, Object corpo) {
         return given().contentType(ContentType.JSON).body(corpo).when().post(path).then();
     }

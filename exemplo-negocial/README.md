@@ -49,12 +49,12 @@ O Jakarta Data do Hibernate usa **stateless session**: não há *dirty checking*
 | Acoplamento | a escrita mapeia para o domínio; a leitura projeta direto do banco | o Gateway traduz; client e DTOs externos não saem do pacote |
 | Transação | a mesma do use case | fora do nosso controle (veja o trade-off abaixo) |
 | Falha | rara, vira 500 | esperada: timeout, retry e circuit breaker no client; vira `SistemaExternoIndisponivelException` (503) |
-| Teste | PostgreSQL real (Dev Services) | **Service Stub** (`TesourariaFake`), nunca o sistema real |
+| Teste | PostgreSQL real (Dev Services) | **Service Stub** (`TesourariaFake`; WireMock na aceitação), nunca o sistema real |
 | Config | datasource (`DB_*`); permite réplica de leitura no futuro | `quarkus.rest-client.<sistema>.*` (`TESOURARIA_URL`) |
 
 Só os use cases chamam sistemas externos, por isso eles usam o Gateway direto, sem porta. Se um dia uma regra do **domínio** precisar de um sistema externo, aí sim o domínio declara uma interface e um `*GatewayAdapter` em `gateway/<sistema>/` delega ao Gateway.
 
-**Exemplo: a Tesouraria.** Ao pagar, `PagarProcessoUseCase` faz a transição primeiro (assim uma transição inválida nem chega à tesouraria), depois chama `TesourariaGateway.registrarPagamento` e guarda o protocolo no processo. Se a tesouraria falhar, a exceção desfaz a transação e o processo continua APROVADO. Trade-off: a chamada externa acontece dentro da transação do banco. Em produção, quando isso pesar, use um outbox.
+**Exemplo: a Tesouraria.** Pagar é uma saga orquestrada ([ADR 002](docs/adr/ADR_002_pagamento_como_saga.md)). `SolicitarPagamentoProcessoUseCase` só grava `PAGAMENTO_SOLICITADO`, com a identificação da solicitação; nada vai à tesouraria. Uma rotina agendada (`entrypoint/batch/processo/RotinaDePagamentoJob` → `ExecutarRotinaDePagamentoUseCase`) chama `TesourariaGateway.solicitarPagamento` **fora de transação**, com a identificação como chave de idempotência, e `AplicarResultadoPagamentoUseCase` grava o resultado em transação curta, com o processo bloqueado. O gateway traduz tudo (inclusive 5xx, timeout de 2 s e circuito aberto) para `RespostaDaTesouraria`, sem lançar exceção; quem repete é a rotina. Consistência eventual: ver o ADR para o que acontece em cada falha.
 
 ### Padrões (PoEAA)
 
@@ -179,8 +179,10 @@ Os fronts são gerados por low-code e não formatam nada, então o backend entre
 - **Um fluxo por tipo** (`domain.processo.tipo`): `TipoProcesso` guarda a tabela do tipo. Toda tabela parte de `FluxoProcesso.comum()` e troca só as linhas em que o tipo difere (`FluxoImobiliario`, `FluxoServico`).
 
 ```
-Imobiliário: ABERTO → EM_ANALISE → AGUARDANDO_VISTORIA → APROVADO → PAGO
-Serviço:     ABERTO → EM_ANALISE → APROVADO → PAGO
+Imobiliário: ABERTO → EM_ANALISE → AGUARDANDO_VISTORIA → APROVADO → PAGAMENTO_SOLICITADO → PAGO
+Serviço:     ABERTO → EM_ANALISE → APROVADO → PAGAMENTO_SOLICITADO → PAGO
+Solicitar pagamento: APROVADO → PAGAMENTO_SOLICITADO (só grava; pessoa)
+Rotina (nunca pessoa): PAGAMENTO_SOLICITADO → PAGO (confirmar, com protocolo) | → APROVADO (recusar, com motivo) | → PAGAMENTO_SOLICITADO (tentar de novo)
 Solicitar documento: EM_ANALISE → PENDENTE_DOCUMENTO; receber documento: PENDENTE_DOCUMENTO → EM_ANALISE
 Reprovar: EM_ANALISE → REPROVADO (final)
 Devolver para análise: APROVADO → EM_ANALISE (e AGUARDANDO_VISTORIA → EM_ANALISE no imobiliário)
@@ -188,7 +190,7 @@ Alterar: ABERTO → ABERTO (o cliente troca valor e favorecidos na hora)
 Propor alteração: EM_ANALISE → AGUARDANDO_CONCORDANCIA (o backoffice propõe, com motivo)
 Concordar: AGUARDANDO_CONCORDANCIA → EM_ANALISE (a proposta passa a valer)
 Discordar: AGUARDANDO_CONCORDANCIA → EM_ANALISE (a proposta é descartada; motivo obrigatório)
-Qualquer estado não final → CANCELADO (em AGUARDANDO_CONCORDANCIA só valem concordar, discordar e cancelar)
+Qualquer estado não final → CANCELADO, exceto PAGAMENTO_SOLICITADO (exceção declarada na tabela: só a rotina tira o processo dali) (em AGUARDANDO_CONCORDANCIA só valem concordar, discordar e cancelar)
 ```
 
 Pago, reprovado e cancelado são finais: não aceitam nenhuma ação e liberam a cota para um novo processo.
@@ -219,7 +221,7 @@ Pago, reprovado e cancelado são finais: não aceitam nenhuma ação e liberam a
 
 Transições inválidas lançam `TransicaoInvalidaException` (HTTP 409). Cada cota tem no máximo um processo em andamento. No banco, `processo_pagamento` guarda `tipo` e `estado` em texto, e `processo_transicao` guarda o histórico: uma linha por mudança de estado, com a ação, a data e a observação. O mapper reconstrói o tipo e o estado pelo código gravado (`TipoProcesso.valueOf`, `EstadoProcesso.valueOf`), sem herança JPA. A coluna `versao` impede que duas operações simultâneas gravem por cima uma da outra.
 
-Um único caso de uso, `ExecutarAcaoProcessoUseCase`, atende as ações que só mudam o estado. `PagarProcessoUseCase` é separado porque chama a tesouraria.
+Um único caso de uso, `ExecutarAcaoProcessoUseCase`, atende as ações que só mudam o estado. `SolicitarPagamentoProcessoUseCase` é separado porque a solicitação traz a identificação; a rotina tem os seus próprios casos de uso. As ações `CONFIRMAR_PAGAMENTO`, `RECUSAR_PAGAMENTO` e `TENTAR_PAGAMENTO` são da rotina (`AcaoProcesso.daRotina()`): não aparecem em `/acoes` nem passam pelo executar genérico.
 
 **Como estender o motor**
 
@@ -263,13 +265,13 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 | Escrita | `POST /processos` `{cotaId, tipo, valor, favorecidos: [{nome, documento, papel, valor}]}` | Cria processo (`IMOBILIARIO` ou `SERVICO`) com o valor (número maior que zero, até 2 casas, até o crédito disponível da cota), dividido entre ao menos um favorecido (partes somando o valor) |
 | Escrita | `POST /processos/{id}/iniciar-analise` · `concluir-analise` · `concluir-vistoria` · `receber-documento` | Transições; corpo opcional `{"observacao": "..."}` (até 500 caracteres) |
 | Escrita | `POST /processos/{id}/solicitar-documento` · `reprovar` · `devolver-para-analise` · `cancelar` | Transições; corpo obrigatório `{"motivo": "..."}` (não vazio, até 500 caracteres), gravado no histórico |
-| Escrita | `POST /processos/{id}/pagar` | Transição que registra a ordem na Tesouraria; sem corpo |
+| Escrita | `POST /processos/{id}/solicitar-pagamento` | Só leva APROVADO a PAGAMENTO_SOLICITADO (corpo opcional `{"observacao"}`); a rotina fala com a Tesouraria. Não existe endpoint para disparar a rotina nem para a Tesouraria avisar |
 | Leitura | `GET /clientes` | Clientes com a quantidade de cotas |
 | Leitura | `GET /cotas/{id}` | Cota com o nome do cliente, o processo atual e o `creditoDisponivel` |
 | Canal web | `GET /web/v1/cotas/{id}` | Cota no padrão web, com o processo atual |
 | Canal mobile | `GET /mobile/v1/cotas/{id}` · `GET /mobile/v1/clientes` | Card da cota; clientes com o total de cotas somado |
 | Canal TAA | `GET /taa/v1/cotas/{id}` | Cota no padrão do terminal |
-| Leitura | `GET /processos?tipo=&estado=&pagina=1&tamanho=20` | Processos filtrados (`estado` inclui `PENDENTE_DOCUMENTO` e `REPROVADO`) e paginados, com o valor e o protocolo de pagamento |
+| Leitura | `GET /processos?tipo=&estado=&pagina=1&tamanho=20` | Processos filtrados (`estado` inclui `PENDENTE_DOCUMENTO`, `PAGAMENTO_SOLICITADO` e `REPROVADO`) e paginados, com o valor e o protocolo de pagamento |
 | Leitura | `GET /processos/{id}/acoes` · `GET /processos/{id}/historico` | Ações que o processo aceita no estado atual; histórico das transições |
 | Leitura | `GET /processos/{id}/favorecidos` | Favorecidos `[{nome, documento, papel, valor}]` na ordem informada; 404 se o processo não existe |
 
@@ -292,6 +294,6 @@ Requisitos: JDK 25 (`sdk env install` com SDKMAN) e Docker. O Dev Services sobe 
 docker compose up --build     # app empacotada + PostgreSQL (rode ./mvnw package antes)
 ```
 
-Em produção, informe o banco com `DB_URL`, `DB_USER` e `DB_PASSWORD`, e a tesouraria com `TESOURARIA_URL`. Em `quarkus:dev`, sem uma tesouraria em `http://localhost:8089`, o `pagar` retorna 503.
+Em produção, informe o banco com `DB_URL`, `DB_USER` e `DB_PASSWORD`, e a tesouraria com `TESOURARIA_URL`. A rotina de pagamento roda a cada `pagamento.rotina.intervalo` (padrão `5m`; `off` desliga). Em `quarkus:dev`, sem uma tesouraria em `http://localhost:8089`, os processos ficam em PAGAMENTO_SOLICITADO e cada rodada registra uma tentativa no histórico. Nos testes de integração o agendamento está desligado (`%test.pagamento.rotina.intervalo=off`) e o caso de uso é chamado direto; nos de aceitação o intervalo é de 1 s.
 
 Cópia do exemplo mantido em um repositório privado (branch `exemplo-negocial`). Rode os comandos acima de dentro desta pasta.

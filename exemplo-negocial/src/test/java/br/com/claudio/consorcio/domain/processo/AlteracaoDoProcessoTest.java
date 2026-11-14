@@ -388,7 +388,7 @@ class AlteracaoDoProcessoTest {
         private final AlteracaoProposta proposta = new AlteracaoProposta(NOVO_VALOR, NOVOS, "motivo");
 
         private ProcessoPagamento reconstituir(EstadoProcesso estado, AlteracaoProposta comProposta) {
-            return ProcessoPagamento.reconstituir(1L, 1L, TipoProcesso.SERVICO, VALOR, VIGENTES, estado, null, comProposta, 2);
+            return ProcessoPagamento.reconstituir(1L, 1L, TipoProcesso.SERVICO, VALOR, VIGENTES, estado, null, comProposta, null, 2);
         }
 
         @Test

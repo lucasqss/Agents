@@ -19,7 +19,9 @@ public class TesourariaStubResource implements QuarkusTestResourceLifecycleManag
         servidor = new WireMockServer(options().dynamicPort());
         servidor.start();
         System.setProperty(TesourariaStub.PROPRIEDADE_PORTA, String.valueOf(servidor.port()));
-        return Map.of("quarkus.rest-client.tesouraria.url", servidor.baseUrl());
+        // A rotina de pagamento roda sozinha, por tempo: no ambiente de teste, a cada segundo (em vez dos 5 minutos).
+        return Map.of("quarkus.rest-client.tesouraria.url", servidor.baseUrl(),
+                "pagamento.rotina.intervalo", "1s");
     }
 
     @Override

@@ -15,6 +15,7 @@ public final class Rotulos {
             "AGUARDANDO_VISTORIA", "Aguardando vistoria",
             "AGUARDANDO_CONCORDANCIA", "Aguardando concordância",
             "APROVADO", "Aprovado",
+            "PAGAMENTO_SOLICITADO", "Pagamento solicitado",
             "PAGO", "Pago",
             "REPROVADO", "Reprovado",
             "CANCELADO", "Cancelado");

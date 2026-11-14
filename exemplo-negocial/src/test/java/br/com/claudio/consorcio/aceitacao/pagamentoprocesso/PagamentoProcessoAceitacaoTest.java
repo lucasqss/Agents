@@ -1,6 +1,12 @@
 package br.com.claudio.consorcio.aceitacao.pagamentoprocesso;
 
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.AUSENTE;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.TENTAR_PAGAMENTO;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.aguardar;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.aguardarSituacao;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.aguardarTentativas;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.consultarHistoricoSemTentativas;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.quantidadeDeTentativas;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.CREDITO_PADRAO;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.VALOR_PADRAO;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.abrirProcesso;
@@ -48,7 +54,14 @@ import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamen
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.IMOBILIARIO;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.INICIAR_ANALISE;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.PAGAR;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.PAGAMENTO_SOLICITADO;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.PAGO;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.MOTIVO_DA_TESOURARIA;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.PROTOCOLO_DA_TESOURARIA;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.ROTINA_CONFIRMOU;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.ROTINA_RECUSOU;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.SOLICITAR_PAGAMENTO;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.DEVOLVER_PARA_ANALISE;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CANCELADO;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CANCELAR;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.SERVICO;
@@ -57,8 +70,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.comparesEqualTo;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -67,6 +84,8 @@ import static org.hamcrest.Matchers.nullValue;
 
 import br.com.claudio.consorcio.aceitacao.ApiAceitacao.Proposta;
 import br.com.claudio.consorcio.aceitacao.TesourariaStub;
+import br.com.claudio.consorcio.aceitacao.TesourariaStub.OrdemRecebida;
+import br.com.claudio.consorcio.aceitacao.TesourariaStub.Parte;
 import br.com.claudio.consorcio.aceitacao.TesourariaStubResource;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.AcaoInvalida;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Alteracao;
@@ -78,12 +97,14 @@ import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProce
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CenarioCredito;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.ProcessoPlanejado;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Passo;
+import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Resposta;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Resultado;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -96,6 +117,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -114,9 +136,15 @@ class PagamentoProcessoAceitacaoTest {
 
     private static final long INEXISTENTE = 999_999_999L;
 
+    /** A tesouraria começa e termina cada caso confirmando: a rotina roda sobre todos os processos, de todos os casos. */
     @BeforeEach
     void tesourariaNoAr() {
-        TesourariaStub.ficarDisponivel();
+        TesourariaStub.confirmar();
+    }
+
+    @AfterEach
+    void tesourariaDeVolta() {
+        TesourariaStub.confirmar();
     }
 
     // Grafo: todos os caminhos até uma situação final (regras 2, 3 e 4).
@@ -150,7 +178,24 @@ class PagamentoProcessoAceitacaoTest {
         assertThat(consultarProcesso(processo).get("estado"), equalTo(ABERTO));
 
         for (Passo passo : caminho.passos()) {
-            aplicar(processo, passo.acao(), esperado).statusCode(200).body("estado", equalTo(passo.situacao()));
+            switch (passo.acao()) {
+                case ROTINA_CONFIRMOU -> {
+                    TesourariaStub.confirmar(PROTOCOLO_DA_TESOURARIA);
+                    aguardarSituacao(processo, PAGO);
+                }
+                case ROTINA_RECUSOU -> {
+                    TesourariaStub.recusar(MOTIVO_DA_TESOURARIA);
+                    aguardarSituacao(processo, APROVADO);
+                    TesourariaStub.confirmar();
+                }
+                case SOLICITAR_PAGAMENTO -> {
+                    // A tesouraria fica fora do ar até conferir o pagamento solicitado: a rotina não tira o processo de lá.
+                    TesourariaStub.ficarIndisponivel();
+                    aplicar(processo, passo.acao(), esperado).statusCode(200).body("estado", equalTo(passo.situacao()));
+                }
+                default -> aplicar(processo, passo.acao(), esperado).statusCode(200)
+                        .body("estado", equalTo(passo.situacao()));
+            }
             esperado.confirmar(passo.acao());
             // R24 a R28: a cada passo, a situação, o valor, os favorecidos, o crédito e a proposta pendente
             // são os vigentes esperados.
@@ -158,8 +203,8 @@ class PagamentoProcessoAceitacaoTest {
         }
         conferirHistoricoDeValores(processo, esperado);
 
-        // R19: cada ação aceita está no histórico, em ordem, com o motivo.
-        List<Map<String, Object>> historico = consultarHistorico(processo);
+        // R19: cada ação aceita e cada resultado da rotina está no histórico, em ordem, com o motivo.
+        List<Map<String, Object>> historico = consultarHistoricoSemTentativas(processo);
         assertThat(historico.size(), equalTo(caminho.passos().size()));
         String anterior = ABERTO;
         Instant ultimo = Instant.MIN;
@@ -172,10 +217,20 @@ class PagamentoProcessoAceitacaoTest {
             if (exigeMotivo(passo.acao())) {
                 assertThat(item.get("observacao"), equalTo(motivoPadrao(passo.acao())));
             }
+            if (ROTINA_RECUSOU.equals(passo.acao())) {
+                assertThat(item.get("observacao"), equalTo(MOTIVO_DA_TESOURARIA));
+            }
             Instant quando = Instant.parse((String) item.get("quando"));
             assertThat(quando, greaterThanOrEqualTo(ultimo));
             ultimo = quando;
             anterior = passo.situacao();
+        }
+        // R20: o protocolo só existe depois de pago, e é o que a tesouraria devolveu.
+        Object protocolo = consultarProcesso(processo).get("protocoloPagamento");
+        if (PAGO.equals(caminho.situacaoFinal())) {
+            assertThat(protocolo, equalTo(PROTOCOLO_DA_TESOURARIA));
+        } else {
+            assertThat(protocolo, nullValue());
         }
     }
 
@@ -190,14 +245,14 @@ class PagamentoProcessoAceitacaoTest {
     @DisplayName("Ação fora da ordem é recusada e a situação não muda")
     void acaoForaDaOrdemERecusada(AcaoInvalida invalida) {
         long processo = abrirProcesso(novaCota(), invalida.ate().tipo());
-        invalida.ate().passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
-        int itensNoHistorico = consultarHistorico(processo).size();
+        levar(processo, invalida.ate());
+        int itensNoHistorico = consultarHistoricoSemTentativas(processo).size();
 
         // Motivo válido nas ações que o exigem, para que só a ordem seja o problema.
         aplicar(processo, invalida.acao()).statusCode(409).body("mensagem", notNullValue());
 
         assertThat(consultarProcesso(processo).get("estado"), equalTo(invalida.ate().situacaoFinal()));
-        assertThat(consultarHistorico(processo).size(), equalTo(itensNoHistorico));
+        assertThat(consultarHistoricoSemTentativas(processo).size(), equalTo(itensNoHistorico));
     }
 
     // Particionamento do espaço de entrada de POST /processos, com Base Choice (regra 1).
@@ -276,7 +331,7 @@ class PagamentoProcessoAceitacaoTest {
     void cotaComProcessoEmAndamentoNaoAbreOutro(Caminho caminho) {
         long cota = novaCota();
         long processo = abrirProcesso(cota, caminho.tipo());
-        caminho.passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
+        levar(processo, caminho);
 
         tentarAbrirProcesso(cota, SERVICO).statusCode(409)
                 .body("mensagem", notNullValue());
@@ -288,7 +343,7 @@ class PagamentoProcessoAceitacaoTest {
     void cotaComProcessoFinalizadoAbreOutro(Caminho caminho) {
         long cota = novaCota();
         long processo = abrirProcesso(cota, caminho.tipo());
-        caminho.passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
+        levar(processo, caminho);
 
         long novo = abrirProcesso(cota, SERVICO);
 
@@ -328,35 +383,7 @@ class PagamentoProcessoAceitacaoTest {
         assertThat(quantidadeDeProcessosDaCota(cota), equalTo(1L));
     }
 
-    // Tesouraria (regras 7 e 8).
-
-    @Test
-    @DisplayName("Pagamento guarda o protocolo emitido pela tesouraria")
-    void pagamentoGuardaProtocolo() {
-        long processo = processoAprovado();
-        assertThat(consultarProcesso(processo).get("protocoloPagamento"), nullValue());
-
-        executar(processo, PAGAR).statusCode(200).body("estado", equalTo(PAGO));
-
-        assertThat(consultarProcesso(processo).get("protocoloPagamento"), equalTo(TesourariaStub.PROTOCOLO));
-    }
-
-    @Test
-    @DisplayName("Tesouraria indisponível recusa o pagamento, e ele pode ser refeito depois")
-    void tesourariaIndisponivel() {
-        long processo = processoAprovado();
-
-        TesourariaStub.ficarIndisponivel();
-        executar(processo, PAGAR).statusCode(503).body("mensagem", notNullValue());
-
-        Map<String, Object> aposFalha = consultarProcesso(processo);
-        assertThat(aposFalha.get("estado"), equalTo(APROVADO));
-        assertThat(aposFalha.get("protocoloPagamento"), nullValue());
-
-        TesourariaStub.ficarDisponivel();
-        executar(processo, PAGAR).statusCode(200).body("estado", equalTo(PAGO));
-        assertThat(consultarProcesso(processo).get("protocoloPagamento"), equalTo(TesourariaStub.PROTOCOLO));
-    }
+    // Pagamento como saga (R7, R8, R20 a R22, R31): ver a seção da fatia 5, mais adiante.
 
     // Terminais do contrato que os grupos acima não alcançam.
 
@@ -541,6 +568,7 @@ class PagamentoProcessoAceitacaoTest {
     @DisplayName("Ação de observação opcional é aceita com objeto vazio")
     void observacaoOpcionalAceitaObjetoVazio(Base base) {
         long processo = processoEm(base);
+        segurarPagamentoSolicitado(base);
 
         executarComCorpo(processo, base.acao(), "{}").statusCode(200).body("estado", equalTo(base.destino()));
 
@@ -558,11 +586,12 @@ class PagamentoProcessoAceitacaoTest {
     @DisplayName("Observação informada é aceita e aparece no histórico")
     void observacaoFicaNoHistorico(Base base, String descricao, String observacao) {
         long processo = processoEm(base);
+        segurarPagamentoSolicitado(base);
 
         executarComObservacao(processo, base.acao(), observacao).statusCode(200)
                 .body("estado", equalTo(base.destino()));
 
-        Map<String, Object> ultimo = consultarHistorico(processo).getLast();
+        Map<String, Object> ultimo = consultarHistoricoSemTentativas(processo).getLast();
         assertThat(ultimo.get("para"), equalTo(base.destino()));
         assertThat(ultimo.get("acao"), equalTo(nomeNoHistorico(base.acao())));
         assertThat(ultimo.get("observacao"), equalTo(observacao));
@@ -601,8 +630,8 @@ class PagamentoProcessoAceitacaoTest {
     // Consulta: filtro por situação aceita as situações novas (fatia 1).
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {PENDENTE_DOCUMENTO, REPROVADO, AGUARDANDO_CONCORDANCIA})
-    @DisplayName("Listagem filtra pelas situações pendente de documento, reprovado e aguardando concordância")
+    @ValueSource(strings = {PENDENTE_DOCUMENTO, REPROVADO, AGUARDANDO_CONCORDANCIA, PAGAMENTO_SOLICITADO})
+    @DisplayName("Listagem filtra pelas situações pendente de documento, reprovado, aguardando concordância e pagamento solicitado")
     void listagemFiltraPorSituacoesNovas(String situacao) {
         long processo = processoEm(caminhoAte(SERVICO, situacao));
 
@@ -726,8 +755,9 @@ class PagamentoProcessoAceitacaoTest {
         return ModeloPagamentoProcesso.cenariosDeCredito();
     }
 
+    /** Cada processo pago custa a espera da rotina: o valor-limite usa uma amostra dos cenários (ver o modelo). */
     static Stream<CenarioCredito> cenariosComCotaLivre() {
-        return ModeloPagamentoProcesso.cenariosComCotaLivre();
+        return ModeloPagamentoProcesso.cenariosComCotaLivreAmostrados();
     }
 
     static Stream<CenarioCredito> cenariosComCotaLivreECreditoRestante() {
@@ -735,12 +765,16 @@ class PagamentoProcessoAceitacaoTest {
                 .filter(c -> c.creditoDisponivelEsperado().signum() > 0);
     }
 
+    static Stream<CenarioCredito> cenariosComCotaLivreAmostradosECreditoRestante() {
+        return cenariosComCotaLivre().filter(c -> c.creditoDisponivelEsperado().signum() > 0);
+    }
+
     /** Cota nova com o crédito do cenário e seus processos levados às situações do cenário. */
     private static long cotaDoCenario(CenarioCredito cenario) {
         long cota = novaCota(cenario.credito());
         for (ProcessoPlanejado planejado : cenario.processos()) {
             long processo = abrirProcesso(cota, planejado.tipo(), planejado.valor());
-            planejado.caminho().passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
+            levar(processo, planejado.caminho());
         }
         return cota;
     }
@@ -755,7 +789,7 @@ class PagamentoProcessoAceitacaoTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("cenariosComCotaLivreECreditoRestante")
+    @MethodSource("cenariosComCotaLivreAmostradosECreditoRestante")
     @DisplayName("Valor exatamente igual ao crédito disponível é aceito e não consome crédito enquanto não é pago")
     void valorIgualAoCreditoDisponivelEAceito(CenarioCredito cenario) {
         long cota = cotaDoCenario(cenario);
@@ -793,9 +827,8 @@ class PagamentoProcessoAceitacaoTest {
     void exemploDoCasoDeUsoCreditoRestante() {
         long cota = novaCota(new BigDecimal("250000.00"));
         long pago = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
-        aplicar(pago, INICIAR_ANALISE).statusCode(200);
-        aplicar(pago, CONCLUIR_ANALISE).statusCode(200);
-        aplicar(pago, PAGAR).statusCode(200).body("estado", equalTo(PAGO));
+        levar(pago, caminhoAte(SERVICO, PAGO));
+        assertThat(consultarProcesso(pago).get("estado"), equalTo(PAGO));
         assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(new BigDecimal("150000.00")));
 
         tentarAbrirProcesso(cota, SERVICO, new BigDecimal("150000.01")).statusCode(409);
@@ -817,9 +850,7 @@ class PagamentoProcessoAceitacaoTest {
     void creditoEsgotadoRecusaQualquerValor() {
         long cota = novaCota(new BigDecimal("1000.00"));
         long pago = abrirProcesso(cota, SERVICO, new BigDecimal("1000.00"));
-        aplicar(pago, INICIAR_ANALISE).statusCode(200);
-        aplicar(pago, CONCLUIR_ANALISE).statusCode(200);
-        aplicar(pago, PAGAR).statusCode(200);
+        levar(pago, caminhoAte(SERVICO, PAGO));
 
         assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(BigDecimal.ZERO));
         tentarAbrirProcesso(cota, SERVICO, new BigDecimal("0.01")).statusCode(409);
@@ -832,9 +863,7 @@ class PagamentoProcessoAceitacaoTest {
         long cota = novaCota();
         long outra = novaCota();
         long pago = abrirProcesso(outra, SERVICO, new BigDecimal("100000.00"));
-        aplicar(pago, INICIAR_ANALISE).statusCode(200);
-        aplicar(pago, CONCLUIR_ANALISE).statusCode(200);
-        aplicar(pago, PAGAR).statusCode(200);
+        levar(pago, caminhoAte(SERVICO, PAGO));
 
         assertThat(consultarCreditoDisponivel(outra), comparesEqualTo(new BigDecimal("150000.00")));
         assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
@@ -843,34 +872,41 @@ class PagamentoProcessoAceitacaoTest {
     }
 
     @Test
-    @DisplayName("Pagamento recusado pela tesouraria (503) não consome crédito")
+    @DisplayName("Pagamento recusado pela tesouraria não consome crédito; pago depois, consome")
     void pagamentoNaoConcluidoNaoConsomeCredito() {
         long cota = novaCota();
         long processo = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
-        aplicar(processo, INICIAR_ANALISE).statusCode(200);
-        aplicar(processo, CONCLUIR_ANALISE).statusCode(200);
+        levar(processo, caminhoAte(SERVICO, APROVADO));
 
-        TesourariaStub.ficarIndisponivel();
-        aplicar(processo, PAGAR).statusCode(503);
+        TesourariaStub.recusar(MOTIVO_DA_TESOURARIA);
+        aplicar(processo, SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarSituacao(processo, APROVADO);
 
         assertThat(consultarProcesso(processo).get("estado"), equalTo(APROVADO));
         assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
 
-        TesourariaStub.ficarDisponivel();
-        aplicar(processo, PAGAR).statusCode(200);
+        TesourariaStub.confirmar();
+        aplicar(processo, SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarSituacao(processo, PAGO);
         assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(new BigDecimal("150000.00")));
     }
 
     @Test
-    @DisplayName("Crédito só diminui quando o processo é pago: aprovado ainda não consome")
+    @DisplayName("Crédito só diminui quando o processo é pago: aprovado e pagamento solicitado ainda não consomem")
     void creditoSoDiminuiNoPagamento() {
         long cota = novaCota();
         long processo = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
-        aplicar(processo, INICIAR_ANALISE).statusCode(200);
-        aplicar(processo, CONCLUIR_ANALISE).statusCode(200);
+        levar(processo, caminhoAte(SERVICO, APROVADO));
         assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
 
-        aplicar(processo, PAGAR).statusCode(200);
+        TesourariaStub.ficarIndisponivel();
+        aplicar(processo, SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarTentativas(processo, 1);
+        assertThat(consultarProcesso(processo).get("estado"), equalTo(PAGAMENTO_SOLICITADO));
+        assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
+
+        TesourariaStub.confirmar();
+        aguardarSituacao(processo, PAGO);
 
         assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(new BigDecimal("150000.00")));
     }
@@ -914,8 +950,7 @@ class PagamentoProcessoAceitacaoTest {
         long processo = abrirProcesso(cota, tipo, valor);
         assertThat(valorDoProcesso(consultarProcesso(processo)), comparesEqualTo(valor));
 
-        caminhoAte(tipo, APROVADO).passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
-        aplicar(processo, PAGAR).statusCode(200);
+        levar(processo, caminhoAte(tipo, PAGO));
 
         assertThat(valorDoProcesso(consultarProcesso(processo)), comparesEqualTo(valor));
     }
@@ -1136,7 +1171,7 @@ class PagamentoProcessoAceitacaoTest {
     void favorecidosPermanecemEmCadaSituacao(Caminho caminho) {
         CasoFavorecidos caso = ModeloPagamentoProcesso.exemploDoCasoDeUso();
         long processo = abrirProcesso(novaCota(), caminho.tipo(), caso.valor(), caso.favorecidos());
-        caminho.passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
+        levar(processo, caminho);
 
         conferirFavorecidos(processo, caso.esperados());
     }
@@ -1209,7 +1244,7 @@ class PagamentoProcessoAceitacaoTest {
 
     /** R19: cada ação aceita no histórico, na ordem, com valor anterior e novo nas alterações e nulos nas demais. */
     private static void conferirHistoricoDeValores(long processo, ProcessoEsperado esperado) {
-        List<Map<String, Object>> historico = consultarHistorico(processo);
+        List<Map<String, Object>> historico = consultarHistoricoSemTentativas(processo);
         List<Registro> registros = esperado.historico();
         assertThat(historico.size(), equalTo(registros.size()));
         for (int i = 0; i < registros.size(); i++) {
@@ -1352,7 +1387,10 @@ class PagamentoProcessoAceitacaoTest {
         conferir(a, APROVADO);
         assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO));
 
-        passo(a, PAGAR, PAGO);
+        TesourariaStub.confirmar();
+        passo(a, SOLICITAR_PAGAMENTO, PAGAMENTO_SOLICITADO);
+        aguardarSituacao(a.processo(), PAGO);
+        a.esperado().confirmar(ROTINA_CONFIRMOU);
 
         conferir(a, PAGO);
         assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO.subtract(valorFinal)));
@@ -1528,7 +1566,7 @@ class PagamentoProcessoAceitacaoTest {
     void propostaPendenteNaoConsomeCredito() {
         long cota = novaCota(CREDITO_PADRAO);
         long pago = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
-        caminhoAte(SERVICO, PAGO).passos().forEach(p -> aplicar(pago, p.acao()).statusCode(200));
+        levar(pago, caminhoAte(SERVICO, PAGO));
         long processo = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
         executar(processo, INICIAR_ANALISE).statusCode(200);
         BigDecimal disponivel = new BigDecimal("150000.00");
@@ -1793,8 +1831,9 @@ class PagamentoProcessoAceitacaoTest {
     // Valor-limite do crédito na alteração (R13): exatamente o disponível aceito, um centavo acima recusado (409).
 
     static Stream<Arguments> viasComCenariosDeCreditoRestante() {
+        // Cada processo pago custa a espera da rotina: "dois pagos" fica de fora (já está em creditoDisponivelConsideraSoOsPagos).
         List<String> amostra = List.of("cota sem processo", "pago 100000 (serviço)",
-                "dois pagos somam: 100000 e 50000", "crédito com centavos: pago 500,25 de 1000,50");
+                "crédito com centavos: pago 500,25 de 1000,50");
         return Stream.of(Via.values()).flatMap(via -> cenariosComCotaLivreECreditoRestante()
                 .filter(cenario -> amostra.contains(cenario.nome()))
                 .map(cenario -> Arguments.of(via, cenario)));
@@ -1846,7 +1885,7 @@ class PagamentoProcessoAceitacaoTest {
     void exemploDoCasoDeUsoDeCreditoNaAlteracao() {
         long cota = novaCota(CREDITO_PADRAO);
         long pago = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
-        caminhoAte(SERVICO, PAGO).passos().forEach(p -> aplicar(pago, p.acao()).statusCode(200));
+        levar(pago, caminhoAte(SERVICO, PAGO));
         ProcessoEsperado esperado = ProcessoEsperado.comUmFavorecido(new BigDecimal("100000.00"));
         long processo = abrirProcesso(cota, SERVICO, esperado.valor(), esperado.favorecidos());
         Acompanhado a = new Acompanhado(cota, processo, esperado, SERVICO);
@@ -1978,6 +2017,514 @@ class PagamentoProcessoAceitacaoTest {
     }
 
 
+    // ---- Fatia 5: pagamento como saga (R7, R8, R20, R21, R22, R31) ----
+    // Solicitar só grava; uma rotina agendada (a cada segundo no ambiente de teste) fala com a tesouraria. Os casos
+    // esperam o efeito da rotina consultando a API em laço, e conferem o que a tesouraria RECEBEU pelo stub.
+
+    static Stream<Arguments> respostasPorTipo() {
+        return ModeloPagamentoProcesso.respostasPorTipo();
+    }
+
+    static Stream<Arguments> acoesDepoisDaRecusa() {
+        return tipos().flatMap(tipo -> Stream.of(
+                Arguments.of(tipo, DEVOLVER_PARA_ANALISE, EM_ANALISE),
+                Arguments.of(tipo, CANCELAR, CANCELADO)));
+    }
+
+    // R7: solicitar só grava, não depende da tesouraria. O endpoint antigo não existe mais.
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tipos")
+    @DisplayName("Solicitar pagamento com a tesouraria indisponível é aceito e o processo fica em pagamento solicitado, sem protocolo")
+    void solicitarComTesourariaIndisponivelFicaEmPagamentoSolicitado(String tipo) {
+        Acompanhado a = aberto(tipo);
+        levar(a.processo(), caminhoAte(tipo, APROVADO));
+        TesourariaStub.ficarIndisponivel();
+
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200).body("estado", equalTo(PAGAMENTO_SOLICITADO));
+
+        // R8: a tesouraria indisponível não recusa nem paga: a rotina tenta e o processo continua onde está.
+        aguardarTentativas(a.processo(), 1);
+        Map<String, Object> processo = consultarProcesso(a.processo());
+        assertThat(processo.get("estado"), equalTo(PAGAMENTO_SOLICITADO));
+        assertThat(processo.get("protocoloPagamento"), nullValue());
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO));
+        List<Map<String, Object>> historico = consultarHistoricoSemTentativas(a.processo());
+        Map<String, Object> ultimo = historico.getLast();
+        assertThat(ultimo.get("acao"), equalTo("SOLICITAR_PAGAMENTO"));
+        assertThat(ultimo.get("de"), equalTo(APROVADO));
+        assertThat(ultimo.get("para"), equalTo(PAGAMENTO_SOLICITADO));
+    }
+
+    @Test
+    @DisplayName("O endpoint antigo de pagar não existe mais: 404 e nada muda")
+    void pagarNaoExisteMais() {
+        Acompanhado a = aberto(SERVICO);
+        levar(a.processo(), caminhoAte(SERVICO, APROVADO));
+        int itensNoHistorico = consultarHistorico(a.processo()).size();
+
+        executar(a.processo(), PAGAR).statusCode(404);
+        executar(INEXISTENTE, PAGAR).statusCode(404);
+
+        assertThat(consultarProcesso(a.processo()).get("estado"), equalTo(APROVADO));
+        assertThat(consultarHistorico(a.processo()).size(), equalTo(itensNoHistorico));
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tipos")
+    @DisplayName("Em aprovado a consulta de ações oferece solicitar-pagamento no lugar de pagar")
+    void aprovadoOfereceSolicitarPagamentoNoLugarDePagar(String tipo) {
+        long processo = processoAprovado(tipo);
+
+        List<String> acoes = consultarAcoes(processo);
+
+        assertThat(acoes, hasItem(SOLICITAR_PAGAMENTO));
+        assertThat(acoes, not(hasItem(PAGAR)));
+    }
+
+    // R20, R21, R22, R31: tabela de decisão da resposta da tesouraria × efeito no processo.
+
+    @ParameterizedTest(name = "{0} | {1}")
+    @MethodSource("respostasPorTipo")
+    @DisplayName("Cada resposta da tesouraria tem o efeito do modelo: situação, protocolo, histórico, crédito e cota")
+    void respostaDaTesourariaTemOEfeitoDoModelo(Resposta resposta, String tipo) {
+        Acompanhado a = aberto(tipo);
+        levar(a.processo(), caminhoAte(tipo, APROVADO));
+        int antes = consultarHistorico(a.processo()).size();
+        tesourariaResponde(resposta);
+
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200).body("estado", equalTo(PAGAMENTO_SOLICITADO));
+        if (resposta.aplicada()) {
+            aguardarSituacao(a.processo(), resposta.situacaoDepois);
+        } else {
+            // R31 e R22: nada é aplicado e a rotina tenta de novo, com a mesma identificação.
+            aguardarTentativas(a.processo(), 2);
+            aguardarOrdens(a.processo(), 2);
+            assertThat(identificacaoDaSolicitacao(a.processo()), not(blankOrNullString()));
+        }
+
+        Map<String, Object> processo = consultarProcesso(a.processo());
+        assertThat(processo.get("estado"), equalTo(resposta.situacaoDepois));
+        assertThat(processo.get("protocoloPagamento"), equalTo(resposta.protocolo()));
+        BigDecimal credito = resposta.paga() ? CREDITO_PADRAO.subtract(VALOR_PADRAO) : CREDITO_PADRAO;
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(credito));
+
+        List<String> esperadas = new ArrayList<>(List.of("SOLICITAR_PAGAMENTO"));
+        if (resposta.aplicada()) {
+            esperadas.add(resposta.acaoDoResultado);
+        }
+        List<Map<String, Object>> historico = consultarHistoricoSemTentativas(a.processo());
+        assertThat(acoesDesde(a.processo(), antes), equalTo(esperadas));
+        if (resposta == Resposta.RECUSOU) {
+            assertThat(historico.getLast().get("observacao"), equalTo(MOTIVO_DA_TESOURARIA));
+            assertThat(historico.getLast().get("de"), equalTo(PAGAMENTO_SOLICITADO));
+            assertThat(historico.getLast().get("para"), equalTo(APROVADO));
+        }
+        if (!resposta.aplicada()) {
+            conferirTentativas(a.processo(), 2);
+        }
+
+        // R6 e R20: só o pago libera a cota; ainda aprovado ou em pagamento solicitado, ela segue indisponível.
+        if (resposta.paga()) {
+            assertThat(consultarAcoes(a.processo()), empty());
+            long novo = abrirProcesso(a.cota(), SERVICO);
+            assertThat(consultarProcesso(novo).get("estado"), equalTo(ABERTO));
+        } else {
+            tentarAbrirProcesso(a.cota(), SERVICO).statusCode(409).body("mensagem", notNullValue());
+            if (resposta == Resposta.RECUSOU) {
+                assertThat(consultarAcoes(a.processo()), hasItem(SOLICITAR_PAGAMENTO));
+            } else {
+                assertThat(consultarAcoes(a.processo()), empty());
+            }
+        }
+    }
+
+    // R22: indisponível por algumas tentativas e depois confirma, sempre com a mesma identificação.
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tipos")
+    @DisplayName("Tesouraria indisponível por três tentativas e depois confirma: a identificação é a mesma e o processo vai a pago")
+    void indisponivelPorAlgumasTentativasDepoisConfirma(String tipo) {
+        Acompanhado a = aberto(tipo);
+        levar(a.processo(), caminhoAte(tipo, APROVADO));
+        int antes = consultarHistorico(a.processo()).size();
+        TesourariaStub.ficarIndisponivel();
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+
+        aguardarTentativas(a.processo(), 3);
+        aguardarOrdens(a.processo(), 3);
+        String identificacao = identificacaoDaSolicitacao(a.processo());
+        assertThat(consultarProcesso(a.processo()).get("estado"), equalTo(PAGAMENTO_SOLICITADO));
+        conferirTentativas(a.processo(), 3);
+
+        TesourariaStub.confirmar(PROTOCOLO_DA_TESOURARIA);
+        aguardarSituacao(a.processo(), PAGO);
+
+        Map<String, Object> processo = consultarProcesso(a.processo());
+        assertThat(processo.get("estado"), equalTo(PAGO));
+        assertThat(processo.get("protocoloPagamento"), equalTo(PROTOCOLO_DA_TESOURARIA));
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO.subtract(VALOR_PADRAO)));
+        assertThat(identificacaoDaSolicitacao(a.processo()), equalTo(identificacao));
+        assertThat(acoesColapsadasDesde(a.processo(), antes),
+                contains("SOLICITAR_PAGAMENTO", TENTAR_PAGAMENTO, "CONFIRMAR_PAGAMENTO"));
+        assertThat(quantidadeDeTentativas(a.processo()), greaterThanOrEqualTo(3L));
+    }
+
+    @Test
+    @DisplayName("Tesouraria demora mais de 2 segundos nas primeiras tentativas e depois diz que já fez a ordem: vale como confirmação")
+    void semRespostaDepoisJaProcessouValeComoConfirmacao() {
+        Acompanhado a = aberto(SERVICO);
+        levar(a.processo(), caminhoAte(SERVICO, APROVADO));
+        TesourariaStub.demorar();
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarTentativas(a.processo(), 2);
+        aguardarOrdens(a.processo(), 2);
+        String identificacao = identificacaoDaSolicitacao(a.processo());
+        assertThat(consultarProcesso(a.processo()).get("estado"), equalTo(PAGAMENTO_SOLICITADO));
+
+        TesourariaStub.jaProcessou(PROTOCOLO_DA_TESOURARIA);
+        aguardarSituacao(a.processo(), PAGO);
+
+        assertThat(consultarProcesso(a.processo()).get("protocoloPagamento"), equalTo(PROTOCOLO_DA_TESOURARIA));
+        assertThat(identificacaoDaSolicitacao(a.processo()), equalTo(identificacao));
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO.subtract(VALOR_PADRAO)));
+    }
+
+    @Test
+    @DisplayName("Tesouraria que responde dentro do prazo (1 segundo de atraso) tem a resposta aplicada")
+    void respostaDentroDoPrazoEAplicada() {
+        Acompanhado a = aberto(SERVICO);
+        levar(a.processo(), caminhoAte(SERVICO, APROVADO));
+        TesourariaStub.confirmarComAtraso(Duration.ofSeconds(1), PROTOCOLO_DA_TESOURARIA);
+
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarSituacao(a.processo(), PAGO);
+
+        assertThat(consultarProcesso(a.processo()).get("protocoloPagamento"), equalTo(PROTOCOLO_DA_TESOURARIA));
+    }
+
+    // R31: resposta incoerente não é aplicada; a nova tentativa, coerente, é.
+
+    @Test
+    @DisplayName("Confirmação sem protocolo não é aplicada; na tentativa seguinte a confirmação com protocolo leva a pago")
+    void confirmacaoSemProtocoloNaoEAplicadaEDepoisConfirma() {
+        Acompanhado a = aberto(SERVICO);
+        levar(a.processo(), caminhoAte(SERVICO, APROVADO));
+        int antes = consultarHistorico(a.processo()).size();
+        TesourariaStub.confirmarSemProtocolo();
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+
+        aguardarTentativas(a.processo(), 2);
+        aguardarOrdens(a.processo(), 2);
+        String identificacao = identificacaoDaSolicitacao(a.processo());
+        Map<String, Object> processo = consultarProcesso(a.processo());
+        assertThat(processo.get("estado"), equalTo(PAGAMENTO_SOLICITADO));
+        assertThat(processo.get("protocoloPagamento"), nullValue());
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO));
+        conferirTentativas(a.processo(), 2);
+
+        TesourariaStub.confirmar(PROTOCOLO_DA_TESOURARIA);
+        aguardarSituacao(a.processo(), PAGO);
+
+        assertThat(consultarProcesso(a.processo()).get("protocoloPagamento"), equalTo(PROTOCOLO_DA_TESOURARIA));
+        assertThat(identificacaoDaSolicitacao(a.processo()), equalTo(identificacao));
+        assertThat(acoesColapsadasDesde(a.processo(), antes),
+                contains("SOLICITAR_PAGAMENTO", TENTAR_PAGAMENTO, "CONFIRMAR_PAGAMENTO"));
+    }
+
+    @Test
+    @DisplayName("Recusa sem motivo não é aplicada; na tentativa seguinte a recusa com motivo volta a aprovado com o motivo no histórico")
+    void recusaSemMotivoNaoEAplicadaEDepoisRecusaComMotivo() {
+        Acompanhado a = aberto(SERVICO);
+        levar(a.processo(), caminhoAte(SERVICO, APROVADO));
+        int antes = consultarHistorico(a.processo()).size();
+        TesourariaStub.recusarSemMotivo();
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+
+        aguardarTentativas(a.processo(), 2);
+        aguardarOrdens(a.processo(), 2);
+        assertThat(consultarProcesso(a.processo()).get("estado"), equalTo(PAGAMENTO_SOLICITADO));
+        assertThat(acoesDesde(a.processo(), antes), contains("SOLICITAR_PAGAMENTO"));
+        conferirTentativas(a.processo(), 2);
+
+        TesourariaStub.recusar(MOTIVO_DA_TESOURARIA);
+        aguardarSituacao(a.processo(), APROVADO);
+
+        assertThat(consultarProcesso(a.processo()).get("estado"), equalTo(APROVADO));
+        assertThat(consultarHistoricoSemTentativas(a.processo()).getLast().get("observacao"),
+                equalTo(MOTIVO_DA_TESOURARIA));
+        assertThat(acoesColapsadasDesde(a.processo(), antes),
+                contains("SOLICITAR_PAGAMENTO", TENTAR_PAGAMENTO, "RECUSAR_PAGAMENTO"));
+    }
+
+    // R21: recusa volta a aprovado; nova solicitação, sem limite de vezes, com identificação nova.
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tipos")
+    @DisplayName("Recusada duas vezes e confirmada na terceira: cada solicitação tem identificação nova e o motivo de cada recusa fica no histórico")
+    void recusaVoltaAAprovadoENovaSolicitacaoTemIdentificacaoNova(String tipo) {
+        Acompanhado a = aberto(tipo);
+        levar(a.processo(), caminhoAte(tipo, APROVADO));
+        int antes = consultarHistorico(a.processo()).size();
+
+        for (int rodada = 1; rodada <= 2; rodada++) {
+            String motivo = MOTIVO_DA_TESOURARIA + " " + rodada;
+            TesourariaStub.recusar(motivo);
+            executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200).body("estado", equalTo(PAGAMENTO_SOLICITADO));
+            aguardarSituacao(a.processo(), APROVADO);
+
+            Map<String, Object> processo = consultarProcesso(a.processo());
+            assertThat(processo.get("estado"), equalTo(APROVADO));
+            assertThat(processo.get("protocoloPagamento"), nullValue());
+            assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO));
+            assertThat(consultarAcoes(a.processo()), hasItem(SOLICITAR_PAGAMENTO));
+            tentarAbrirProcesso(a.cota(), SERVICO).statusCode(409);
+            Map<String, Object> recusa = consultarHistoricoSemTentativas(a.processo()).getLast();
+            assertThat(recusa.get("acao"), equalTo("RECUSAR_PAGAMENTO"));
+            assertThat(recusa.get("de"), equalTo(PAGAMENTO_SOLICITADO));
+            assertThat(recusa.get("para"), equalTo(APROVADO));
+            assertThat(recusa.get("observacao"), equalTo(motivo));
+            assertThat(TesourariaStub.identificacoesRecebidas(a.processo()).size(), equalTo(rodada));
+        }
+
+        TesourariaStub.confirmar(PROTOCOLO_DA_TESOURARIA);
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarSituacao(a.processo(), PAGO);
+
+        List<String> identificacoes = TesourariaStub.identificacoesRecebidas(a.processo());
+        assertThat(identificacoes.size(), equalTo(3));
+        assertThat(identificacoes.stream().distinct().count(), equalTo(3L));
+        assertThat(identificacoes, everyItem(not(blankOrNullString())));
+        assertThat(consultarProcesso(a.processo()).get("protocoloPagamento"), equalTo(PROTOCOLO_DA_TESOURARIA));
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO.subtract(VALOR_PADRAO)));
+        assertThat(acoesDesde(a.processo(), antes),
+                contains("SOLICITAR_PAGAMENTO", "RECUSAR_PAGAMENTO", "SOLICITAR_PAGAMENTO", "RECUSAR_PAGAMENTO",
+                        "SOLICITAR_PAGAMENTO", "CONFIRMAR_PAGAMENTO"));
+    }
+
+    @ParameterizedTest(name = "{0} | {1}")
+    @MethodSource("acoesDepoisDaRecusa")
+    @DisplayName("Depois da recusa da tesouraria o processo aprovado pode ser devolvido para análise ou cancelado, como qualquer aprovado")
+    void recusaDaTesourariaNaoImpedeDevolverNemCancelar(String tipo, String acao, String destino) {
+        Acompanhado a = aberto(tipo);
+        levar(a.processo(), caminhoAte(tipo, APROVADO));
+        TesourariaStub.recusar(MOTIVO_DA_TESOURARIA);
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarSituacao(a.processo(), APROVADO);
+
+        executarComMotivo(a.processo(), acao, "depois da recusa da tesouraria").statusCode(200)
+                .body("estado", equalTo(destino));
+
+        assertThat(consultarProcesso(a.processo()).get("estado"), equalTo(destino));
+        assertThat(consultarHistoricoSemTentativas(a.processo()).getLast().get("observacao"),
+                equalTo("depois da recusa da tesouraria"));
+        if (CANCELADO.equals(destino)) {
+            long novo = abrirProcesso(a.cota(), SERVICO);
+            assertThat(consultarProcesso(novo).get("estado"), equalTo(ABERTO));
+        }
+    }
+
+    // R20: em pagamento solicitado toda ação de pessoa é recusada; a cota segue indisponível.
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tipos")
+    @DisplayName("Em pagamento solicitado cancelar e devolver para análise são recusados com 409, a cota segue indisponível e nada muda")
+    void cancelarEDevolverEmPagamentoSolicitadoSaoRecusados(String tipo) {
+        Acompanhado a = aberto(tipo);
+        levar(a.processo(), caminhoAte(tipo, PAGAMENTO_SOLICITADO));
+        int itensNoHistorico = consultarHistoricoSemTentativas(a.processo()).size();
+
+        executarComMotivo(a.processo(), CANCELAR, "desistência da cota").statusCode(409)
+                .body("mensagem", notNullValue());
+        executarComMotivo(a.processo(), DEVOLVER_PARA_ANALISE, "documento divergente").statusCode(409)
+                .body("mensagem", notNullValue());
+
+        assertThat(consultarProcesso(a.processo()).get("estado"), equalTo(PAGAMENTO_SOLICITADO));
+        assertThat(consultarHistoricoSemTentativas(a.processo()).size(), equalTo(itensNoHistorico));
+        tentarAbrirProcesso(a.cota(), SERVICO).statusCode(409);
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO));
+    }
+
+    @Test
+    @DisplayName("Listagem por pagamento solicitado acompanha a rotina: o processo sai da lista quando é pago")
+    void listagemAcompanhaARotina() {
+        Acompanhado a = aberto(SERVICO);
+        levar(a.processo(), caminhoAte(SERVICO, PAGAMENTO_SOLICITADO));
+        assertThat(idsDaListagem(PAGAMENTO_SOLICITADO), hasItem(a.processo()));
+        assertThat(idsDaListagem(APROVADO), not(hasItem(a.processo())));
+
+        TesourariaStub.confirmar();
+        aguardarSituacao(a.processo(), PAGO);
+
+        assertThat(idsDaListagem(PAGAMENTO_SOLICITADO), not(hasItem(a.processo())));
+        assertThat(consultarProcesso(a.processo()).get("estado"), equalTo(PAGO));
+    }
+
+    // R20: o que a tesouraria recebe: identificação, processo, valor e partes vigentes.
+
+    @Test
+    @DisplayName("O pedido à tesouraria leva o valor e as partes vigentes depois de alterações do cliente em aberto")
+    void pedidoTemOsDadosVigentesDepoisDeAlterarEmAberto() {
+        Acompanhado a = aberto(SERVICO);
+        passo(a, ALTERAR, ABERTO);
+        passo(a, ALTERAR, ABERTO);
+        passo(a, INICIAR_ANALISE, EM_ANALISE);
+        passo(a, CONCLUIR_ANALISE, APROVADO);
+
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarSituacao(a.processo(), PAGO);
+
+        conferirPedidos(a.processo(), a.esperado());
+    }
+
+    @Test
+    @DisplayName("O pedido à tesouraria leva o valor e as partes que o cliente aceitou na proposta do backoffice")
+    void pedidoTemOsDadosVigentesDepoisDeConcordarComAProposta() {
+        Acompanhado a = emAnalise(IMOBILIARIO);
+        passo(a, PROPOR_ALTERACAO, AGUARDANDO_CONCORDANCIA);
+        passo(a, CONCORDAR, EM_ANALISE);
+        passo(a, CONCLUIR_ANALISE, "AGUARDANDO_VISTORIA");
+        passo(a, CONCLUIR_VISTORIA, APROVADO);
+
+        executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarSituacao(a.processo(), PAGO);
+
+        conferirPedidos(a.processo(), a.esperado());
+    }
+
+    /** Todo pedido que a tesouraria recebeu do processo tem a identificação, o valor e as partes vigentes (R15, R20). */
+    private static void conferirPedidos(long processo, ProcessoEsperado esperado) {
+        List<OrdemRecebida> ordens = TesourariaStub.ordensRecebidas(processo);
+        assertThat(ordens, not(empty()));
+        for (OrdemRecebida ordem : ordens) {
+            assertThat(ordem.requestId(), not(blankOrNullString()));
+            assertThat(ordem.processId(), equalTo(processo));
+            assertThat(ordem.valor(), comparesEqualTo(esperado.valor()));
+            assertThat(ordem.partes().size(), equalTo(esperado.favorecidos().size()));
+            for (Map<String, Object> favorecido : esperado.favorecidos()) {
+                Parte parte = ordem.partes().stream()
+                        .filter(p -> p.documento().equals(favorecido.get("documento"))).findFirst()
+                        .orElseThrow(() -> new AssertionError("Sem a parte do favorecido " + favorecido));
+                assertThat(parte.nome(), equalTo(favorecido.get("nome")));
+                assertThat(parte.papel(), equalTo(favorecido.get("papel")));
+                assertThat(parte.valor(), comparesEqualTo((BigDecimal) favorecido.get("valor")));
+            }
+        }
+    }
+
+    // Dois processos de cotas diferentes em pagamento solicitado ao mesmo tempo.
+
+    @Test
+    @DisplayName("Duas cotas em pagamento solicitado ao mesmo tempo: uma recusada e outra confirmada, cada uma com seu resultado")
+    void duasCotasEmPagamentoSolicitadoCadaUmaComSeuResultado() {
+        Acompanhado recusada = aberto(SERVICO);
+        Acompanhado confirmada = aberto(IMOBILIARIO);
+        levar(recusada.processo(), caminhoAte(SERVICO, APROVADO));
+        levar(confirmada.processo(), caminhoAte(IMOBILIARIO, APROVADO));
+        TesourariaStub.confirmar();
+        TesourariaStub.recusarProcesso(recusada.processo(), "conta inválida da primeira");
+        TesourariaStub.confirmarProcesso(confirmada.processo(), "PROTOCOLO-DA-SEGUNDA");
+
+        executar(recusada.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+        executar(confirmada.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarSituacao(recusada.processo(), APROVADO);
+        aguardarSituacao(confirmada.processo(), PAGO);
+
+        Map<String, Object> daRecusada = consultarProcesso(recusada.processo());
+        assertThat(daRecusada.get("estado"), equalTo(APROVADO));
+        assertThat(daRecusada.get("protocoloPagamento"), nullValue());
+        assertThat(consultarCreditoDisponivel(recusada.cota()), comparesEqualTo(CREDITO_PADRAO));
+        assertThat(consultarHistoricoSemTentativas(recusada.processo()).getLast().get("observacao"),
+                equalTo("conta inválida da primeira"));
+        Map<String, Object> daConfirmada = consultarProcesso(confirmada.processo());
+        assertThat(daConfirmada.get("estado"), equalTo(PAGO));
+        assertThat(daConfirmada.get("protocoloPagamento"), equalTo("PROTOCOLO-DA-SEGUNDA"));
+        assertThat(consultarCreditoDisponivel(confirmada.cota()), comparesEqualTo(CREDITO_PADRAO.subtract(VALOR_PADRAO)));
+        assertThat(identificacaoDaSolicitacao(recusada.processo()),
+                not(equalTo(identificacaoDaSolicitacao(confirmada.processo()))));
+    }
+
+    @Test
+    @DisplayName("Duas cotas em pagamento solicitado com resposta incoerente da tesouraria: cada uma repete só a própria identificação, e as duas são diferentes")
+    void duasSolicitacoesPendentesTemIdentificacoesDiferentes() {
+        Acompanhado primeira = aberto(SERVICO);
+        Acompanhado segunda = aberto(SERVICO);
+        levar(primeira.processo(), caminhoAte(SERVICO, APROVADO));
+        levar(segunda.processo(), caminhoAte(SERVICO, APROVADO));
+        // Resposta incoerente (R31), e não erro: com a tesouraria fora do ar o circuito de proteção deixa passar poucos pedidos.
+        TesourariaStub.confirmarSemProtocolo();
+
+        executar(primeira.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+        executar(segunda.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarOrdens(primeira.processo(), 2);
+        aguardarOrdens(segunda.processo(), 2);
+
+        assertThat(identificacaoDaSolicitacao(primeira.processo()),
+                not(equalTo(identificacaoDaSolicitacao(segunda.processo()))));
+        assertThat(consultarProcesso(primeira.processo()).get("estado"), equalTo(PAGAMENTO_SOLICITADO));
+        assertThat(consultarProcesso(segunda.processo()).get("estado"), equalTo(PAGAMENTO_SOLICITADO));
+    }
+
+    // R20: a rotina só olha processos em pagamento solicitado.
+
+    @Test
+    @DisplayName("A rotina só pede à tesouraria os processos em pagamento solicitado: pago, aprovado, em análise e recusado não geram novos pedidos")
+    void rotinaSoOlhaProcessosEmPagamentoSolicitado() {
+        long pago = processoEmCotaNova(SERVICO, PAGO);
+        long aprovado = processoEmCotaNova(SERVICO, APROVADO);
+        long emAnalise = processoEmCotaNova(SERVICO, EM_ANALISE);
+        long recusado = processoEmCotaNova(SERVICO, APROVADO);
+        TesourariaStub.recusar(MOTIVO_DA_TESOURARIA);
+        executar(recusado, SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarSituacao(recusado, APROVADO);
+        int ordensDoPago = TesourariaStub.quantidadeDeOrdens(pago);
+        int ordensDoRecusado = TesourariaStub.quantidadeDeOrdens(recusado);
+        assertThat(ordensDoPago, greaterThanOrEqualTo(1));
+        assertThat(ordensDoRecusado, greaterThanOrEqualTo(1));
+
+        // Um processo em pagamento solicitado serve de relógio: três pedidos dele são três rodadas da rotina.
+        TesourariaStub.confirmarSemProtocolo();
+        long relogio = processoEmCotaNova(SERVICO, APROVADO);
+        executar(relogio, SOLICITAR_PAGAMENTO).statusCode(200);
+        aguardarOrdens(relogio, 3);
+
+        assertThat(TesourariaStub.quantidadeDeOrdens(aprovado), equalTo(0));
+        assertThat(TesourariaStub.quantidadeDeOrdens(emAnalise), equalTo(0));
+        assertThat(TesourariaStub.quantidadeDeOrdens(pago), equalTo(ordensDoPago));
+        assertThat(TesourariaStub.quantidadeDeOrdens(recusado), equalTo(ordensDoRecusado));
+    }
+
+    // Recusas: dois pedidos de solicitar pagamento ao mesmo tempo, quem chega primeiro vale.
+
+    @Test
+    @DisplayName("Solicitações de pagamento simultâneas: uma vale, as outras são recusadas e a tesouraria recebe uma só identificação")
+    void solicitacoesSimultaneasDePagamentoValemUmaSo() throws Exception {
+        Acompanhado a = aberto(SERVICO);
+        levar(a.processo(), caminhoAte(SERVICO, APROVADO));
+        int antes = consultarHistorico(a.processo()).size();
+        int quantidade = 4;
+        CyclicBarrier largada = new CyclicBarrier(quantidade);
+        Callable<Integer> pedido = () -> {
+            largada.await(30, TimeUnit.SECONDS);
+            return executar(a.processo(), SOLICITAR_PAGAMENTO).extract().statusCode();
+        };
+
+        List<Integer> respostas = new ArrayList<>();
+        try (ExecutorService executor = Executors.newFixedThreadPool(quantidade)) {
+            for (Future<Integer> resposta : executor.invokeAll(Collections.nCopies(quantidade, pedido))) {
+                respostas.add(resposta.get());
+            }
+        }
+        aguardarSituacao(a.processo(), PAGO);
+
+        assertThat(Collections.frequency(respostas, 200), equalTo(1));
+        assertThat(Collections.frequency(respostas, 409), equalTo(quantidade - 1));
+        assertThat(acoesDesde(a.processo(), antes),
+                contains("SOLICITAR_PAGAMENTO", "CONFIRMAR_PAGAMENTO"));
+        assertThat(TesourariaStub.identificacoesRecebidas(a.processo()).size(), equalTo(1));
+    }
+
     /**
      * Ação com o corpo que o contrato exige: motivo nas ações que o pedem, valor e favorecidos (e motivo) nas
      * alterações, nenhum corpo nas demais. As alterações levam dados válidos (R12, R13, R15, R29).
@@ -1999,7 +2546,7 @@ class PagamentoProcessoAceitacaoTest {
 
     private static long processoEm(Caminho caminho) {
         long processo = abrirProcesso(novaCota(), caminho.tipo());
-        caminho.passos().forEach(p -> aplicar(processo, p.acao()).statusCode(200));
+        levar(processo, caminho);
         return processo;
     }
 
@@ -2012,5 +2559,129 @@ class PagamentoProcessoAceitacaoTest {
         executar(processo, INICIAR_ANALISE).statusCode(200);
         executar(processo, CONCLUIR_ANALISE).statusCode(200).body("estado", equalTo(APROVADO));
         return processo;
+    }
+
+    private static long processoAprovado(String tipo) {
+        return processoEmCotaNova(tipo, APROVADO);
+    }
+
+    /** Processo de uma cota nova, levado pelo caminho mais curto até a situação. */
+    private static long processoEmCotaNova(String tipo, String situacao) {
+        long processo = abrirProcesso(novaCota(), tipo);
+        levar(processo, caminhoAte(tipo, situacao));
+        return processo;
+    }
+
+    /**
+     * Leva o processo, já aberto, pelo caminho do modelo. A rotina é do ambiente: ao solicitar o pagamento, a
+     * tesouraria já fica como o próximo passo do caminho manda (confirma, recusa) ou, se o caminho termina em
+     * pagamento solicitado, fora do ar, para a rotina não tirar o processo dali. "Rotina confirmou" e "rotina
+     * recusou" são esperas pelo efeito da rotina.
+     */
+    private static void levar(long processo, Caminho caminho) {
+        List<Passo> passos = caminho.passos();
+        for (int i = 0; i < passos.size(); i++) {
+            Passo passo = passos.get(i);
+            switch (passo.acao()) {
+                case ROTINA_CONFIRMOU -> {
+                    TesourariaStub.confirmar();
+                    aguardarSituacao(processo, PAGO);
+                }
+                case ROTINA_RECUSOU -> {
+                    TesourariaStub.recusar(MOTIVO_DA_TESOURARIA);
+                    aguardarSituacao(processo, APROVADO);
+                    TesourariaStub.confirmar();
+                }
+                case SOLICITAR_PAGAMENTO -> {
+                    String proxima = i + 1 < passos.size() ? passos.get(i + 1).acao() : null;
+                    if (ROTINA_CONFIRMOU.equals(proxima)) {
+                        TesourariaStub.confirmar();
+                    } else if (ROTINA_RECUSOU.equals(proxima)) {
+                        TesourariaStub.recusar(MOTIVO_DA_TESOURARIA);
+                    } else {
+                        TesourariaStub.ficarIndisponivel();
+                    }
+                    aplicar(processo, passo.acao()).statusCode(200).body("estado", equalTo(passo.situacao()));
+                }
+                default -> aplicar(processo, passo.acao()).statusCode(200).body("estado", equalTo(passo.situacao()));
+            }
+        }
+    }
+
+    /** Solicitar pagamento leva a pagamento solicitado, e a tesouraria fora do ar o mantém ali para ser conferido. */
+    private static void segurarPagamentoSolicitado(Base base) {
+        if (SOLICITAR_PAGAMENTO.equals(base.acao())) {
+            TesourariaStub.ficarIndisponivel();
+        }
+    }
+
+    private static void tesourariaResponde(Resposta resposta) {
+        switch (resposta) {
+            case CONFIRMOU -> TesourariaStub.confirmar(PROTOCOLO_DA_TESOURARIA);
+            case JA_PROCESSOU -> TesourariaStub.jaProcessou(PROTOCOLO_DA_TESOURARIA);
+            case RECUSOU -> TesourariaStub.recusar(MOTIVO_DA_TESOURARIA);
+            case INDISPONIVEL -> TesourariaStub.ficarIndisponivel();
+            case DEMOROU -> TesourariaStub.demorar();
+            case CONFIRMACAO_SEM_PROTOCOLO -> TesourariaStub.confirmarSemProtocolo();
+            case RECUSA_SEM_MOTIVO -> TesourariaStub.recusarSemMotivo();
+        }
+    }
+
+    /** Espera a tesouraria ter recebido ao menos {@code minimo} pedidos do processo. */
+    private static void aguardarOrdens(long processo, int minimo) {
+        aguardar("a tesouraria tivesse recebido %d pedidos do processo %d".formatted(minimo, processo),
+                () -> TesourariaStub.quantidadeDeOrdens(processo), quantidade -> quantidade >= minimo);
+    }
+
+    /** A identificação da solicitação: a mesma em todos os pedidos do processo (R22), e não vazia. */
+    private static String identificacaoDaSolicitacao(long processo) {
+        List<String> identificacoes = TesourariaStub.identificacoesRecebidas(processo);
+        assertThat("uma só identificação nos pedidos do processo " + processo, identificacoes.size(), equalTo(1));
+        assertThat(identificacoes.getFirst(), not(blankOrNullString()));
+        return identificacoes.getFirst();
+    }
+
+    /** Ações do histórico depois das primeiras {@code antes} entradas (as do caminho até aprovado), sem as tentativas. */
+    private static List<String> acoesDesde(long processo, int antes) {
+        return consultarHistorico(processo).stream().skip(antes)
+                .filter(item -> !TENTAR_PAGAMENTO.equals(item.get("acao"))).map(item -> (String) item.get("acao")).toList();
+    }
+
+    /** Como {@link #acoesColapsadas}, só do que veio depois das primeiras {@code antes} entradas. */
+    private static List<String> acoesColapsadasDesde(long processo, int antes) {
+        List<String> acoes = new ArrayList<>();
+        for (Map<String, Object> item : consultarHistorico(processo).stream().skip(antes).toList()) {
+            String acao = (String) item.get("acao");
+            if (TENTAR_PAGAMENTO.equals(acao) && !acoes.isEmpty() && TENTAR_PAGAMENTO.equals(acoes.getLast())) {
+                continue;
+            }
+            acoes.add(acao);
+        }
+        return acoes;
+    }
+
+    /** Histórico em ordem, com as tentativas seguidas da rotina reduzidas a uma (o número delas não é certo). */
+    private static List<String> acoesColapsadas(long processo) {
+        List<String> acoes = new ArrayList<>();
+        for (Map<String, Object> item : consultarHistorico(processo)) {
+            String acao = (String) item.get("acao");
+            if (TENTAR_PAGAMENTO.equals(acao) && !acoes.isEmpty() && TENTAR_PAGAMENTO.equals(acoes.getLast())) {
+                continue;
+            }
+            acoes.add(acao);
+        }
+        return acoes;
+    }
+
+    /** R19, R22: ao menos {@code minimo} tentativas no histórico, cada uma em pagamento solicitado e com o fato descrito. */
+    private static void conferirTentativas(long processo, int minimo) {
+        List<Map<String, Object>> tentativas = consultarHistorico(processo).stream()
+                .filter(item -> TENTAR_PAGAMENTO.equals(item.get("acao"))).toList();
+        assertThat(tentativas.size(), greaterThanOrEqualTo(minimo));
+        for (Map<String, Object> tentativa : tentativas) {
+            assertThat(tentativa.get("de"), equalTo(PAGAMENTO_SOLICITADO));
+            assertThat(tentativa.get("para"), equalTo(PAGAMENTO_SOLICITADO));
+            assertThat((String) tentativa.get("observacao"), not(blankOrNullString()));
+        }
     }
 }

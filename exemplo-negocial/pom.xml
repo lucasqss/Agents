@@ -62,6 +62,12 @@
             <artifactId>quarkus-smallrye-fault-tolerance</artifactId>
         </dependency>
 
+        <!-- Rotina de pagamento: job agendado (entrypoint/batch) que fala com a tesouraria; ver docs/adr/ADR_002_pagamento_como_saga.md -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-scheduler</artifactId>
+        </dependency>
+
         <!-- Persistência: Hibernate ORM + Jakarta Data (escrita e leitura) sobre PostgreSQL, schema via Flyway -->
         <dependency>
             <groupId>io.quarkus</groupId>

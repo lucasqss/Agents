@@ -312,7 +312,7 @@ Nenhuma vira regra, teste ou código enquanto estiver sem resposta. Dúvida resp
 
 ## Contrato usado
 
-Seção mantida pela skill de testes. Estado: **fatia 4 de 7** (a implementação da fatia 4 ainda não existe; o contrato abaixo foi definido pelo time de implementação e é o que os testes usam). O que não está aqui não é conhecido pelos testes.
+Seção mantida pela skill de testes. Estado: **fatia 5 de 7** (a implementação da fatia 5 ainda não existe; o contrato abaixo foi definido por quem coordena a implementação e é o que os testes usam). O que não está aqui não é conhecido pelos testes.
 
 ### Ações sobre o processo (fatia 1)
 
@@ -322,7 +322,7 @@ Todas `POST /processos/{id}/<acao>`, resposta `200` com `{"estado": "<SITUACAO>"
 |---|---|
 | `iniciar-analise`, `concluir-analise`, `concluir-vistoria`, `receber-documento` | opcional: `{"observacao": "texto"}` (até 500 caracteres). Sem corpo e sem Content-Type também vale |
 | `solicitar-documento`, `reprovar`, `devolver-para-analise`, `cancelar` | obrigatório: `{"motivo": "texto"}`, não vazio nem só espaços, até 500 caracteres |
-| `pagar` | nenhum (como hoje; some na fatia 5) |
+| `solicitar-pagamento` (fatia 5) | opcional: `{"observacao": "texto"}`, como as ações sem dado. Substitui `pagar`, que deixou de existir |
 
 | Status | Quando |
 |---|---|
@@ -330,7 +330,7 @@ Todas `POST /processos/{id}/<acao>`, resposta `200` com `{"estado": "<SITUACAO>"
 | 404 | processo inexistente |
 | 409 | ação fora da ordem (R5); a situação não muda |
 | 415 | corpo com conteúdo e tipo que não é JSON |
-| 503 | `pagar` com a tesouraria indisponível (comportamento de hoje; muda na fatia 5) |
+| 503 | deixou de existir na fatia 5: a tesouraria indisponível não recusa nada (R8) |
 
 Formato único de erro: `{"mensagem": "...", "campos": [{"campo": "...", "mensagem": "..."}]}`.
 
@@ -339,7 +339,7 @@ Formato único de erro: `{"mensagem": "...", "campos": [{"campo": "...", "mensag
 | Operação | Resposta |
 |---|---|
 | `GET /processos/{id}/acoes` | `{"acoes": ["iniciar-analise", ...]}`: as ações aceitas na situação atual, com os nomes das ações acima |
-| `GET /processos/{id}/historico` | lista em ordem cronológica; cada item tem `de`, `para`, `acao`, `quando`, `observacao`. O motivo informado aparece em `observacao` (um campo só, para motivo e observação). `acao` segue o padrão observado no sistema de hoje: nome do caminho em maiúsculas com `_` (`INICIAR_ANALISE`, `CONCLUIR_VISTORIA`, `PAGAR`, `CANCELAR`); as novas seguem o mesmo padrão (`SOLICITAR_DOCUMENTO`, `RECEBER_DOCUMENTO`, `REPROVAR`, `DEVOLVER_PARA_ANALISE`) |
+| `GET /processos/{id}/historico` | lista em ordem cronológica; cada item tem `de`, `para`, `acao`, `quando`, `observacao`. O motivo informado aparece em `observacao` (um campo só, para motivo e observação). `acao` segue o padrão observado no sistema de hoje: nome do caminho em maiúsculas com `_` (`INICIAR_ANALISE`, `CONCLUIR_VISTORIA`, `CANCELAR`); as novas seguem o mesmo padrão (`SOLICITAR_DOCUMENTO`, `RECEBER_DOCUMENTO`, `REPROVAR`, `DEVOLVER_PARA_ANALISE`, `SOLICITAR_PAGAMENTO`). As entradas da rotina estão em "Pagamento como saga (fatia 5)" |
 | `GET /processos?tipo=&estado=&pagina=&tamanho=` | `{"itens": [{"id", "cotaId", "tipo", "estado", "protocoloPagamento", ...}], "pagina", "tamanho", "total"}`; `estado` aceita também `PENDENTE_DOCUMENTO` e `REPROVADO` |
 
 ### Valor e crédito (fatia 2)
@@ -402,12 +402,46 @@ Em toda recusa nada muda: situação, valor vigente, favorecidos vigentes, hist�
 | `GET /processos/{id}/acoes` | inclui `alterar` em ABERTO, `propor-alteracao` em EM_ANALISE e, em AGUARDANDO_CONCORDANCIA, exatamente `concordar`, `discordar`, `cancelar` |
 | `GET /processos?estado=AGUARDANDO_CONCORDANCIA` | filtra a situação nova |
 
+### Pagamento como saga (fatia 5)
+
+Decidido por quem coordena a implementação; os testes usam só isto. Nesta fatia qualquer chamador pode chamar qualquer endpoint (papéis: fatia 7). Situação nova: `PAGAMENTO_SOLICITADO`.
+
+| Operação | Contrato |
+|---|---|
+| `POST /processos/{id}/solicitar-pagamento` | corpo opcional `{"observacao"}`, como as ações sem dado. Só em APROVADO: `200 {"estado": "PAGAMENTO_SOLICITADO"}`. Não depende de a tesouraria estar disponível e não envia nada a ela (R7). Fora de APROVADO: `409`. Processo inexistente: `404`. JSON malformado: `400`; corpo com tipo que não é JSON: `415` (como as demais ações com corpo) |
+| `POST /processos/{id}/pagar` | não existe mais: `404` |
+| Rotina | não há endpoint para disparar a rotina nem para a tesouraria nos avisar. A rotina roda sozinha, por tempo; no ambiente de teste o intervalo é de 1 segundo, pela propriedade `pagamento.rotina.intervalo` (`1s`), que o `TesourariaStubResource` devolve junto com a URL da tesouraria (vale no `*Test` e no `*IT`) |
+
+| Efeito observável | Contrato |
+|---|---|
+| `GET /processos` | `estado` PAGAMENTO_SOLICITADO (filtro `estado=PAGAMENTO_SOLICITADO` também); `protocoloPagamento` nulo até PAGO e depois o protocolo da tesouraria |
+| `GET /processos/{id}/acoes` | APROVADO oferece `solicitar-pagamento` no lugar de `pagar`; PAGAMENTO_SOLICITADO: lista vazia |
+| `GET /cotas/{id}` | `creditoDisponivel` só cai quando o processo é PAGO |
+| `GET /processos/{id}/historico` | ações novas: `SOLICITAR_PAGAMENTO` (APROVADO para PAGAMENTO_SOLICITADO); `CONFIRMAR_PAGAMENTO` (para PAGO); `RECUSAR_PAGAMENTO` (para APROVADO, `observacao` = motivo dado pela tesouraria); `TENTAR_PAGAMENTO` (de PAGAMENTO_SOLICITADO para PAGAMENTO_SOLICITADO, uma entrada por tentativa sem resultado aplicado: indisponível, sem resposta ou resposta incoerente; `observacao` não vazia descrevendo o fato, texto livre: os testes só conferem que não é vazia). As tentativas se repetem a cada intervalo: os testes conferem "ao menos N entradas `TENTAR_PAGAMENTO`" e a ordem relativa, nunca o total exato. O autor "sistema" das entradas da rotina fica para a fatia 7 |
+
+Espera: os testes esperam o efeito da rotina consultando a API em laço (a cada 100 ms, até 30 segundos, `aguardar` em `ApiAceitacao`), sem `Thread.sleep` fixo como asserção. O estado do processo é seguido pela última entrada do histórico (consulta por processo, barata). O sistema pode ter proteção (circuito aberto por alguns segundos depois de falhas seguidas): por isso os 30 segundos.
+
+#### Contrato da tesouraria usado pelo stub
+
+Sistema externo: só o `TesourariaStub` o conhece, e a chave de configuração da URL (`quarkus.rest-client.tesouraria.url`) só o `TesourariaStubResource`. Decidido por quem coordena a implementação.
+
+| Item | Contrato |
+|---|---|
+| Pedido | `POST /ordens-pagamento` com JSON `{"requestId": "<identificação da solicitação, texto não vazio>", "processId": <id do processo>, "amount": <valor>, "payees": [{"name", "document", "role", "amount"}]}` |
+| Confirmou | `200 {"status": "ACCEPTED", "protocolNumber": "..."}` |
+| Recusou | `200 {"status": "REJECTED", "reason": "..."}` |
+| Já fez a ordem | `200 {"status": "ALREADY_PROCESSED", "protocolNumber": "..."}`: vale como confirmação (R31) |
+| Indisponível ou sem resposta | resposta 5xx, ou demora acima de 2 segundos (o stub demora 3) |
+| Incoerentes | `ACCEPTED` sem `protocolNumber`; `REJECTED` sem `reason` |
+
+Verbos de negócio do stub: `confirmar(protocolo)`, `recusar(motivo)`, `jaProcessou(protocolo)`, `ficarIndisponivel()`, `demorar()`, `confirmarSemProtocolo()`, `recusarSemMotivo()`, `confirmarComAtraso(duração, protocolo)` e, só para um processo (vale antes do comportamento geral), `confirmarProcesso(id, protocolo)` e `recusarProcesso(id, motivo)`. Consultas ao que a tesouraria RECEBEU (journal do WireMock, sempre filtrado por `processId`): `ordensRecebidas(id)` (identificação, valor e partes), `quantidadeDeOrdens(id)`, `identificacoesRecebidas(id)`. O estado do stub é compartilhado e a rotina roda sobre todos os processos em pagamento solicitado: cada caso começa e termina com o stub confirmando, filtra o journal pelo próprio processo e nunca depende de contagem global. Quando o caso precisa ver o processo PARADO em pagamento solicitado, deixa o stub indisponível ANTES de solicitar.
+
 ### Que continua como hoje (testes mantidos)
 
 | Operação | Entrada e resposta |
 |---|---|
 | `POST /processos` | ver "Valor e crédito (fatia 2)" e "Favorecidos (fatia 3)" acima |
-| `pagar` | de APROVADO para PAGO, com `protocoloPagamento` do processo preenchido pelo protocolo da tesouraria; tesouraria indisponível: 503, e o processo continua APROVADO |
+| `pagar` | deixou de existir na fatia 5 (ver "Pagamento como saga (fatia 5)") |
 | Pré-condições de cadastro | `POST /clientes` e `POST /cotas` (com `valorCredito`), só para criar dados próprios de cada caso. Os auxiliares abrem processo com o valor padrão R$ 30.000,00, dentro do crédito padrão de R$ 250.000,00, e (fatia 3) com UM favorecido válido que recebe o valor inteiro |
 
 ## Modelo
@@ -420,10 +454,11 @@ Máquina de estados de negócio da **fatia 1** (o que não está listado numa si
 | EM_ANALISE | solicitar documento* → PENDENTE_DOCUMENTO; reprovar* → REPROVADO; concluir análise → APROVADO; cancelar* → CANCELADO | igual, mas concluir análise → AGUARDANDO_VISTORIA |
 | PENDENTE_DOCUMENTO | receber documento → EM_ANALISE; cancelar* → CANCELADO | igual |
 | AGUARDANDO_VISTORIA | não existe | concluir vistoria → APROVADO; devolver para análise* → EM_ANALISE; cancelar* → CANCELADO |
-| APROVADO | pagar → PAGO; devolver para análise* → EM_ANALISE; cancelar* → CANCELADO | igual |
+| APROVADO | solicitar pagamento → PAGAMENTO_SOLICITADO (fatia 5; era `pagar → PAGO`); devolver para análise* → EM_ANALISE; cancelar* → CANCELADO | igual |
+| PAGAMENTO_SOLICITADO (fatia 5) | nenhuma ação de pessoa é aceita; só a rotina tira o processo dali: tesouraria confirmou → PAGO; tesouraria recusou → APROVADO | igual |
 | PAGO, REPROVADO, CANCELADO | final: toda ação é recusada | igual |
 
-\* ação com motivo obrigatório. As demais ações com corpo (iniciar análise, concluir análise, concluir vistoria, receber documento) têm observação opcional.
+\* ação com motivo obrigatório. As demais ações com corpo (iniciar análise, concluir análise, concluir vistoria, receber documento, e a partir da fatia 5 solicitar pagamento) têm observação opcional.
 
 Critérios aplicados:
 
@@ -478,9 +513,31 @@ Em `ModeloPagamentoProcesso`. A máquina de estados ganha a situação AGUARDAND
 - Suposição de erro: JSON malformado (400) e tipo que não é JSON (415) nas quatro ações novas; concordar e discordar ao mesmo tempo (um vale).
 - Oráculo antigo ajustado: `acoesAceitasNaSituacao` agora espera `alterar` em ABERTO e `propor-alteracao` em EM_ANALISE (compara sem depender da ordem, como antes); os testes de motivo (`motivoAusenteERecusado`, `motivoInvalidoERecusado`, `motivoValidoFicaNoHistorico`) montam o corpo pela ação (em propor, com valor e favorecidos válidos, para o motivo ser o único defeito); `consultarHistorico` lê números como BigDecimal. As verificações não mudaram.
 
+### Modelo de pagamento como saga (fatia 5)
+
+Em `ModeloPagamentoProcesso`. A máquina de estados ganha a situação PAGAMENTO_SOLICITADO e troca `pagar` por `solicitar-pagamento` (13 ações de pessoa). "Rotina: tesouraria confirmou" (→ PAGO) e "rotina: tesouraria recusou" (→ APROVADO) são **transições do modelo, não ações de pessoa**: entram nos caminhos, mas nunca nas ações aceitas, recusadas ou consultadas. PAGAMENTO_SOLICITADO está em andamento (R6): a cota segue indisponível e o crédito só é consumido em PAGO.
+
+| Situação | Transições novas (serviço e imobiliário) |
+|---|---|
+| APROVADO | solicitar pagamento → PAGAMENTO_SOLICITADO |
+| PAGAMENTO_SOLICITADO | toda ação de pessoa recusada (R20); rotina confirmou → PAGO; rotina recusou → APROVADO; rotina sem resposta, indisponível ou incoerente: continua, e cada tentativa vai ao histórico |
+
+Como o teste conduz o processo (`levar`): ao solicitar, a tesouraria já fica como o próximo passo do caminho manda (confirma, recusa) ou, se o caminho termina em PAGAMENTO_SOLICITADO, fora do ar; "rotina confirmou" e "rotina recusou" são esperas pelo efeito, em laço. Nos caminhos de `fluxoChegaASituacaoFinal` a tesouraria fica fora do ar até o pagamento solicitado ser conferido, e só então confirma ou recusa.
+
+Critérios aplicados:
+
+- Máquina de estados: todas as transições (os caminhos sem ação de alteração passam de 43 para 61: 26 no serviço e 35 no imobiliário, com 22 passos da rotina); cada situação final alcançada (PAGO por confirmação da rotina); cada ação inválida em cada situação (a coluna "solicitar pagamento" em toda situação, e a linha PAGAMENTO_SOLICITADO com as 13 ações de pessoa recusadas, nos dois tipos: 212 pares em `acaoForaDaOrdemERecusada`).
+- Tabela de decisão da resposta da tesouraria × efeito (`Resposta`): confirmou, já processou, recusou, indisponível, demorou, confirmação sem protocolo e recusa sem motivo; o efeito conferido é situação, protocolo, histórico, crédito, ações oferecidas e cota (livre só em PAGO). Serviço em todas as respostas e imobiliário em confirmou e recusou.
+- Sequências: indisponível por três tentativas e depois confirma (mesma identificação, nos dois tipos); sem resposta e depois "já fiz essa ordem"; confirmação sem protocolo e depois confirmação; recusa sem motivo e depois recusa com motivo; recusa, nova solicitação, recusa, nova solicitação, confirmação (três identificações diferentes); recusa e depois devolver para análise ou cancelar; duas cotas ao mesmo tempo, cada uma com seu resultado (resposta por processo) e com identificações diferentes.
+- Dados enviados: valor e partes vigentes depois de alterações do cliente em aberto e depois de concordar com a proposta do backoffice; identificação não vazia; `processId` do processo.
+- Cobertura de terminais: `solicitar-pagamento` (200, 400, 404, 409, 415), `pagar` (404), `protocoloPagamento`, as quatro ações novas do histórico, o filtro `estado=PAGAMENTO_SOLICITADO`, `acoes` em APROVADO e em PAGAMENTO_SOLICITADO.
+- Suposição de erro: solicitações simultâneas (uma vale), a rotina que só olha processos em PAGAMENTO_SOLICITADO (um processo em pagamento solicitado serve de relógio: três pedidos dele são três rodadas), JSON malformado e tipo que não é JSON na ação nova.
+- Ajustes nos casos antigos: os que chegavam a PAGO por `pagar` chegam por `solicitar-pagamento` mais a espera da rotina; o histórico dos fluxos é conferido sem as entradas `TENTAR_PAGAMENTO` (que não têm número certo); a observação opcional (`observacaoOpcionalAceitaObjetoVazio`, `observacaoFicaNoHistorico`) passa a valer também para `solicitar-pagamento`, com a tesouraria fora do ar para o processo ficar em pagamento solicitado.
+- Amostragem por custo (cada processo pago custa 1 a 2 segundos de espera da rotina): o valor-limite do crédito na abertura usa 7 dos 12 cenários de cota livre (sem processo, um pago, dois pagos, cancelado, reprovado, crédito com centavos, crédito esgotado), e na alteração 3 cenários (sem processo, um pago, crédito com centavos). Os 26 cenários de `creditoDisponivelConsideraSoOsPagos` continuam inteiros.
+
 ## Rastreabilidade
 
-Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118; casos novos da fatia 4: 299 (total 782) no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoAceitacaoIT` herda os mesmos). "Pendente: fatia N" marca regra cuja fatia ainda não chegou, sem teste.
+Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118; casos novos da fatia 4: 299 (total 782); fatia 5: 833 no total (os 2 casos antigos de pagar foram substituídos, 5 + 5 casos de valor-limite do crédito e 4 da alteração saíram por amostragem, e as demais mudanças vêm de situação e ação novas no modelo) no `PagamentoProcessoAceitacaoTest` (o `PagamentoProcessoAceitacaoIT` herda os mesmos). "Pendente: fatia N" marca regra cuja fatia ainda não chegou, sem teste.
 
 | Regra | Modelo e critério | Teste | Casos |
 |---|---|---|---|
@@ -489,13 +546,18 @@ Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118; 
 | R1 ("só o cliente abre") | | pendente: fatia 7 | |
 | R2 e R3 (parte: abertura, análise, documento, vistoria, aprovação, pagamento direto) | Máquina de estados: todas as transições e cada final | `fluxoChegaASituacaoFinal` | 43 |
 | R2 e R3 (aguardando concordância) | Máquina de estados: todas as transições novas, cada final depois de alteração e cada ação inválida na situação nova | `fluxoComAlteracaoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada`, `proporDiscordarProporConcordar`, `acoesAceitasNaSituacao` | 6, 76 novos, 2, 2 |
-| R2 e R3 (aguardando alçada, pagamento solicitado) | | pendente: fatias 5 e 6 | |
+| R2 e R3 (pagamento solicitado; pago pela rotina) | Máquina de estados: todas as transições (solicitar pagamento, rotina confirmou, rotina recusou), cada final e cada ação inválida | `fluxoChegaASituacaoFinal`, `fluxoComAlteracaoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada`, `acoesAceitasNaSituacao`, `pagarNaoExisteMais`, `aprovadoOfereceSolicitarPagamentoNoLugarDePagar` | 61, 6, 212, 19, 1, 2 |
+| R2 e R3 (aguardando alçada) | | pendente: fatia 6 | |
 | R4 (parte: reprovado final; cancelar com motivo) | Máquina de estados: finais e ação inválida; particionamento do motivo | `fluxoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada`, `motivoAusenteERecusado`, `corpoAusenteEmAcaoComMotivo`, `motivoInvalidoERecusado`, `motivoValidoFicaNoHistorico` | contado em cada teste |
 | R4 (cancelar em aguardando concordância descarta a alteração) | Máquina de estados; motivo | `proporECancelar`, `propostaSomeDepoisDaResposta`, `motivoAusenteERecusado`, `motivoValidoFicaNoHistorico` | 2, 2, 2, 2 |
-| R4 (cancelar em pagamento solicitado; só backoffice e aprovador) | | pendente: fatias 5 e 7 | |
-| R5 | Máquina de estados: cada ação inválida em cada situação; 404 em processo inexistente | `acaoForaDaOrdemERecusada`, `acaoEmProcessoInexistente` | 110, 9 |
-| R6 | Tabela de decisão: cada situação em andamento recusa, cada final libera, outra cota não impede, simultâneos | `cotaComProcessoEmAndamentoNaoAbreOutro`, `cotaComProcessoFinalizadoAbreOutro`, `reprovadoLiberaACota`, `processoDeOutraCotaNaoImpede`, `pedidosSimultaneosAbremUmUnicoProcesso` | 9, 6, 1, 1, 1 |
-| R7, R8 | | `pagamentoGuardaProtocolo`, `tesourariaIndisponivel` descrevem o comportamento de HOJE (pagar direto) e serão substituídos na fatia 5; regra nova: pendente: fatia 5 | 2 |
+| R4 (cancelar em pagamento solicitado é recusado e nada muda) | Máquina de estados: ação inválida em pagamento solicitado | `acaoForaDaOrdemERecusada`, `cancelarEDevolverEmPagamentoSolicitadoSaoRecusados` | contado, 2 |
+| R4 (aprovado que teve o pagamento recusado cancela normalmente) | Sequência: recusa da tesouraria e depois cancelar | `recusaDaTesourariaNaoImpedeDevolverNemCancelar` | 4 (com devolver, R23) |
+| R4 (só backoffice e aprovador cancelam) | | pendente: fatia 7 | |
+| R5 | Máquina de estados: cada ação inválida em cada situação; 404 em processo inexistente | `acaoForaDaOrdemERecusada`, `acaoEmProcessoInexistente` | 212, 13 |
+| R6 | Tabela de decisão: cada situação em andamento recusa, cada final libera, outra cota não impede, simultâneos | `cotaComProcessoEmAndamentoNaoAbreOutro`, `cotaComProcessoFinalizadoAbreOutro`, `reprovadoLiberaACota`, `processoDeOutraCotaNaoImpede`, `pedidosSimultaneosAbremUmUnicoProcesso` | 13, 6, 1, 1, 1 |
+| R7 (solicitar só leva a pagamento solicitado; não depende da tesouraria; sem protocolo; observação opcional) | Máquina de estados; cobertura de terminais; efeito pelo histórico, pela listagem e pela cota | `solicitarComTesourariaIndisponivelFicaEmPagamentoSolicitado`, `respostaDaTesourariaTemOEfeitoDoModelo`, `observacaoOpcionalAceitaObjetoVazio`, `observacaoFicaNoHistorico`, `jsonMalformadoNaAcao`, `corpoQueNaoEJsonNaAcao`, `acaoEmProcessoInexistente`, `acaoForaDaOrdemERecusada`, `pagarNaoExisteMais` | 2, 9, 11, 22, 13, 13, 13, 212, 1 |
+| R7 (nada é enviado à tesouraria ao solicitar) | não observável por fora: entre solicitar e a primeira rodada não há como provar ausência; prova-se que solicitar responde 200 com a tesouraria indisponível e que a rotina só olha pagamento solicitado | `solicitarComTesourariaIndisponivelFicaEmPagamentoSolicitado`, `rotinaSoOlhaProcessosEmPagamentoSolicitado` | 2, 1 |
+| R8 (indisponível ou sem resposta não recusa nem paga; continua em pagamento solicitado) | Tabela de decisão da resposta; sequência | `respostaDaTesourariaTemOEfeitoDoModelo` (indisponível e demorou), `indisponivelPorAlgumasTentativasDepoisConfirma`, `semRespostaDepoisJaProcessouValeComoConfirmacao`, `respostaDentroDoPrazoEAplicada` (valor-limite do prazo) | 2, 2, 1, 1 |
 | R9 | Cobertura de terminais: toda recusa traz `mensagem` | asserção de `mensagem` nos testes de recusa acima | contado em cada teste |
 | R10 | Máquina de estados: solicitar documento (com motivo) e receber documento; particionamento do motivo e da observação | `fluxoChegaASituacaoFinal`, `motivoAusenteERecusado`, `motivoValidoFicaNoHistorico`, `observacaoOpcionalAceitaObjetoVazio`, `observacaoFicaNoHistorico`, `acoesAceitasNaSituacao` | contado em cada teste |
 | R11 (parte: reprovar em análise) | Máquina de estados: transição, final e ação inválida (inclusive reprovar em aprovado); particionamento do motivo | os mesmos de R10 e `acaoForaDaOrdemERecusada` | contado em cada teste |
@@ -503,8 +565,8 @@ Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118; 
 | R1 (valor obrigatório, fatia 2) | Particionamento do valor: ausente | `valorInvalidoERecusado` (ausente), `valorAusenteNosDoisTipos` | 1, 2 |
 | R12 (abertura) | Particionamento e valor-limite: 0,01, 2 casas aceitos; 0, negativo, 3 casas, ausente, nulo recusados com 400 e `campos` = `valor`; 400 antes de 404 e de 409 | `valorValidoAbreProcesso`, `valorInvalidoERecusado`, `valorInvalidoVemAntesDeCotaInexistente`, `valorAusenteVemAntesDeCotaInexistente`, `valorInvalidoVemAntesDeCotaIndisponivel` | 5, 9, 1, 1, 1 |
 | R12 (alteração) | Particionamento do valor nas duas vias; 400 antes de 404 e de 409 | `alteracaoComValorValidoEAceita`, `alteracaoComValorInvalidoERecusada`, `valorInvalidoNaAlteracaoVemAntesDe404E409` | 6, 8, 2 |
-| R13 (abertura) | Modelo de crédito: igual ao disponível aceito, um centavo acima recusado (409, nada criado, cota livre); crédito esgotado; só o pago consome | `creditoDisponivelConsideraSoOsPagos`, `valorIgualAoCreditoDisponivelEAceito`, `valorUmCentavoAcimaDoCreditoERecusado`, `exemploDoCasoDeUsoCreditoRestante`, `cotaNovaTemOCreditoInteiroDisponivel`, `creditoEsgotadoRecusaQualquerValor`, `processoDeOutraCotaNaoReduzCredito`, `pagamentoNaoConcluidoNaoConsomeCredito`, `creditoSoDiminuiNoPagamento` | 22, 11, 12, 1, 1, 1, 1, 1, 1 |
-| R13 (alteração) | Valor-limite: igual ao disponível aceito, um centavo acima recusado (409), em alterar e propor; a proposta pendente não consome crédito | `valorIgualAoCreditoDisponivelNaAlteracaoEAceito`, `valorUmCentavoAcimaDoCreditoNaAlteracaoERecusado`, `exemploDoCasoDeUsoDeCreditoNaAlteracao`, `propostaPendenteNaoConsomeCredito`, `alteracoesAteOPagamentoConsomemOCreditoDoValorFinal` | 8, 8, 1, 1, 4 |
+| R13 (abertura) | Modelo de crédito: igual ao disponível aceito, um centavo acima recusado (409, nada criado, cota livre); crédito esgotado; só o pago consome | `creditoDisponivelConsideraSoOsPagos`, `valorIgualAoCreditoDisponivelEAceito`, `valorUmCentavoAcimaDoCreditoERecusado`, `exemploDoCasoDeUsoCreditoRestante`, `cotaNovaTemOCreditoInteiroDisponivel`, `creditoEsgotadoRecusaQualquerValor`, `processoDeOutraCotaNaoReduzCredito`, `pagamentoNaoConcluidoNaoConsomeCredito`, `creditoSoDiminuiNoPagamento` | 26, 6, 7, 1, 1, 1, 1, 1, 1 (valor-limite com amostra de cenários, fatia 5) |
+| R13 (alteração) | Valor-limite: igual ao disponível aceito, um centavo acima recusado (409), em alterar e propor; a proposta pendente não consome crédito | `valorIgualAoCreditoDisponivelNaAlteracaoEAceito`, `valorUmCentavoAcimaDoCreditoNaAlteracaoERecusado`, `exemploDoCasoDeUsoDeCreditoNaAlteracao`, `propostaPendenteNaoConsomeCredito`, `alteracoesAteOPagamentoConsomemOCreditoDoValorFinal` | 6, 6, 1, 1, 4 (amostra de cenários, fatia 5) |
 | R14 | Tabela de decisão: cancelado e reprovado não consomem e liberam a cota (e o R6 já testado) | cenários de `creditoDisponivelConsideraSoOsPagos`, `valorIgualAoCreditoDisponivelEAceito`, `cancelarLiberaCotaECredito`, `reprovarLiberaCotaECredito` | contado em cada teste, 1, 1 |
 | Contrato: `valor` na listagem e `creditoDisponivel` na cota | Cobertura de terminais | `listagemMostraOValor`, `listagemMostraOValorDeCadaProcesso`, `escolhaBaseAbreProcesso`, `creditoDisponivelConsideraSoOsPagos` | 2, 1, 1, 22 |
 | R15 (abertura) | Particionamento e valor-limite da soma (um centavo abaixo e acima; 1, 2, 3, 10 e 100 favorecidos; parte de 0,01); rateio com centavos; documento repetido; tabela de decisão | `favorecidosValidosAbremProcesso`, `exemploDoCasoDeUsoNosDoisTipos`, `favorecidosQueFeremARegraSaoRecusados`, `tabelaDeDecisaoDosFavorecidos`, `recusaDeFavorecidosNosDoisTipos` | 19, 2, 19, 6, 2 |
@@ -518,10 +580,19 @@ Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118; 
 | R17, R18 | | pendente: fatia 7 | |
 | R19 (parte: motivo ou observação de cada ação aceita no histórico; recusada não entra) | Efeito observável pelo histórico: `de`, `para`, `acao`, `quando` em ordem, `observacao` | `fluxoChegaASituacaoFinal`, `motivoValidoFicaNoHistorico`, `observacaoFicaNoHistorico`, `acaoForaDaOrdemERecusada` (histórico não muda), `motivoAusenteERecusado`, `corpoAusenteEmAcaoComMotivo`, `motivoInvalidoERecusado` | contado em cada teste |
 | R19 (valores anterior e novo nas alterações e propostas; nulos nas demais; recusada não entra) | Efeito observável pelo histórico | `fluxoChegaASituacaoFinal`, `fluxoComAlteracaoChegaASituacaoFinal`, `proporDiscordarProporConcordar`, `proporSemLimiteDeVezes`, `alterarVariasVezesEmAberto`, `recusaEmAguardandoConcordanciaPreservaAProposta`, `valorUmCentavoAcimaDoCreditoNaAlteracaoERecusado` | contado em cada teste |
-| R19 (autor da ação; tentativas e resultados da rotina) | | pendente: fatia 7 (autor); fatia 5 (rotina) | |
-| R20, R21, R22, R31 | | pendente: fatia 5 | |
+| R19 (autor da ação) | | pendente: fatia 7 (o autor "sistema" das entradas da rotina também) | |
+| R19 (parte: tentativas e resultados da rotina no histórico, em ordem, com o motivo da recusa; tentativa descrita; recusada não entra) | Efeito observável pelo histórico | `fluxoChegaASituacaoFinal`, `respostaDaTesourariaTemOEfeitoDoModelo`, `indisponivelPorAlgumasTentativasDepoisConfirma`, `confirmacaoSemProtocoloNaoEAplicadaEDepoisConfirma`, `recusaSemMotivoNaoEAplicadaEDepoisRecusaComMotivo`, `recusaVoltaAAprovadoENovaSolicitacaoTemIdentificacaoNova` | contado em cada teste |
+| R20 (a rotina pede com a identificação, confirma com protocolo e vai a pago; só ela tira o processo de pagamento solicitado; só olha pagamento solicitado) | Máquina de estados; tabela de decisão; efeito pela consulta, pelo histórico, pela cota e pelo que a tesouraria recebeu | `fluxoChegaASituacaoFinal`, `respostaDaTesourariaTemOEfeitoDoModelo`, `indisponivelPorAlgumasTentativasDepoisConfirma`, `rotinaSoOlhaProcessosEmPagamentoSolicitado`, `listagemAcompanhaARotina`, `listagemFiltraPorSituacoesNovas`, `cancelarEDevolverEmPagamentoSolicitadoSaoRecusados`, `solicitacoesSimultaneasDePagamentoValemUmaSo` | 61, 9, 2, 1, 1, 4, 2, 1 |
+| R20 (valor e partes enviados são os vigentes; identificação não vazia; `processId`) | Cobertura de terminais do contrato da tesouraria; vigência | `pedidoTemOsDadosVigentesDepoisDeAlterarEmAberto`, `pedidoTemOsDadosVigentesDepoisDeConcordarComAProposta` | 1, 1 |
+| R20, R13 (crédito só consumido em PAGO; pagamento solicitado e aprovado não consomem) | Tabela de decisão do crédito | `creditoSoDiminuiNoPagamento`, `pagamentoNaoConcluidoNaoConsomeCredito`, `creditoDisponivelConsideraSoOsPagos` (cenário em pagamento solicitado), `respostaDaTesourariaTemOEfeitoDoModelo` | 1, 1, 26, 9 |
+| R6 (cota indisponível em pagamento solicitado; livre em pago; aprovado depois da recusa indisponível) | Tabela de decisão da cota | `cotaComProcessoEmAndamentoNaoAbreOutro` (inclui pagamento solicitado), `cotaComProcessoFinalizadoAbreOutro`, `respostaDaTesourariaTemOEfeitoDoModelo`, `recusaVoltaAAprovadoENovaSolicitacaoTemIdentificacaoNova` | 13, 6, 9, 2 |
+| R21 (recusa volta a aprovado, motivo no histórico; nova solicitação com identificação nova; sem limite de vezes) | Sequência; tabela de decisão | `recusaVoltaAAprovadoENovaSolicitacaoTemIdentificacaoNova`, `respostaDaTesourariaTemOEfeitoDoModelo` (recusou), `duasCotasEmPagamentoSolicitadoCadaUmaComSeuResultado` | 2, 2, 1 |
+| R22 (mesma identificação nas novas tentativas; sem limite; cada tentativa no histórico; identificações diferentes entre processos) | Sequência; journal da tesouraria | `indisponivelPorAlgumasTentativasDepoisConfirma`, `semRespostaDepoisJaProcessouValeComoConfirmacao`, `respostaDaTesourariaTemOEfeitoDoModelo` (indisponível, demorou, incoerentes), `duasSolicitacoesPendentesTemIdentificacoesDiferentes`, `solicitacoesSimultaneasDePagamentoValemUmaSo` | 2, 1, 4, 1, 1 |
+| R31 (confirmação sem protocolo e recusa sem motivo não são aplicadas; fato no histórico; nova tentativa; "já fiz, protocolo X" vale como confirmação) | Tabela de decisão; sequência | `respostaDaTesourariaTemOEfeitoDoModelo` (as duas incoerentes e já processou), `confirmacaoSemProtocoloNaoEAplicadaEDepoisConfirma`, `recusaSemMotivoNaoEAplicadaEDepoisRecusaComMotivo`, `semRespostaDepoisJaProcessouValeComoConfirmacao` | 3, 1, 1, 1 |
+| R31 (protocolo diferente do informado antes para a mesma solicitação) | | não observável por fora (dúvida F5-1): sem teste | |
 | R23 (com D18) | Máquina de estados: devolver de aprovado e de aguardando vistoria; particionamento do motivo | `fluxoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada`, `motivoAusenteERecusado`, `motivoValidoFicaNoHistorico` | contado em cada teste |
 | R23 (devolver de aguardando alçada) | | pendente: fatia 6 | |
+| R23 (devolver em pagamento solicitado é recusado) | Máquina de estados: ação inválida | `acaoForaDaOrdemERecusada`, `cancelarEDevolverEmPagamentoSolicitadoSaoRecusados` | contado, 2 |
 | R24 (cliente altera em aberto; continua aberto; vale na hora; recusada deixa os anteriores) | Máquina de estados; particionamento; valor-limite | `alterarVariasVezesEmAberto`, `exemploDoCasoDeUsoDeAlteracaoEmAberto`, `alteracaoComFavorecidosValidosEAceita`, `fluxoComAlteracaoChegaASituacaoFinal`, `acaoForaDaOrdemERecusada` (alterar fora de aberto: 409) | 2, 1, 6, 6, contado |
 | R25 (backoffice propõe em análise, com motivo; vai a aguardando concordância; vigentes não mudam; fora de análise, 409) | Máquina de estados; particionamento do motivo; vigência | `exemploDoCasoDeUsoDePropostaEmAnalise`, `propostaMostraOsNovosDadosEOsVigentesSeguemOsAnteriores`, `propostaPendenteNaoConsomeCredito`, `listagemAcompanhaARespostaDoCliente`, `listagemFiltraPorSituacoesNovas`, `favorecidosPermanecemEmCadaSituacao`, `creditoDisponivelConsideraSoOsPagos`, `motivoAusenteNaPropostaVemAntesDe404E409`, `motivoAusenteERecusado`, `motivoInvalidoERecusado`, `motivoValidoFicaNoHistorico` | 1, 2, 1, 1, 2, 2, 2, 1, 2, 6, 6 |
 | R26 (concordar: a alteração vale, volta a em análise) | Máquina de estados; vigência | `proporDiscordarProporConcordar`, `proporSemLimiteDeVezes`, `alteracoesAteOPagamentoConsomemOCreditoDoValorFinal`, `observacaoOpcionalAceitaObjetoVazio`, `observacaoFicaNoHistorico`, `respostaRepetidaERecusada` | 2, 2, 4, 2, 4, 4 |
@@ -530,7 +601,7 @@ Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118; 
 | Contrato: `alteracao-proposta` | Cobertura de terminais | `propostaDeProcessoInexistente`, `naoHaPropostaForaDeAguardandoConcordancia`, `propostaSomeDepoisDaResposta`, `propostaMostraOsNovosDadosEOsVigentesSeguemOsAnteriores` | 1, 15, 6, 2 |
 | Contrato: ações novas e consulta de ações | Cobertura de terminais; suposição de erro | `acoesDeAlteracaoPorSituacao`, `jsonMalformadoNaAcao`, `corpoQueNaoEJsonNaAcao`, `corpoAusenteEmAcaoComMotivo`, `acaoEmProcessoInexistente` | 2, 4, 4, 2, 4 |
 | R30 | implantação | sem teste de aceitação | |
-| Contrato: consulta de ações | Cobertura de terminais; máquina de estados | `acoesAceitasNaSituacao` | 15 |
+| Contrato: consulta de ações | Cobertura de terminais; máquina de estados | `acoesAceitasNaSituacao` | 19 |
 | Contrato: listagem com `estado` novo | Cobertura de terminais | `listagemFiltraPorSituacoesNovas`, `listagemFiltraPorTipoESituacao`, `listagemPaginada` | 2, 1, 1 |
 | Contrato: 400 por JSON malformado e 415 por tipo de conteúdo | Suposição de erro, em toda ação com corpo | `jsonMalformadoNaAcao`, `corpoQueNaoEJsonNaAcao` | 8, 8 |
 
@@ -592,3 +663,20 @@ Casos da fatia 1: 290; casos novos da fatia 2: 75; casos novos da fatia 3: 118; 
 | F4-9: o motivo da proposta aparece também em `observacao` do histórico e na consulta da proposta; quem o vê, e em que canal, é da fatia 7 | Conferidos o histórico e a consulta, sem papel |
 | F4-10: papéis (só o cliente da cota altera, concorda e discorda; só o backoffice propõe; cliente não cancela) | Pendente: fatia 7 (R18) |
 | F4-11: `alterar` e `propor-alteracao` com `valor` ou parte em número com zeros à direita, notação científica ou texto (mesma dúvida de D2-3 e F3-10) | Não testado |
+
+### Dúvidas abertas da fatia 5 (nenhuma virou asserção)
+
+| Dúvida | Efeito no teste |
+|---|---|
+| F5-1: protocolo diferente do informado antes para a mesma solicitação (R31). A tesouraria só informa o protocolo quando confirma ou diz que já fez: depois do primeiro, o segundo diferente não tem como ser observado por fora (o processo já está em PAGO e a rotina não pergunta mais) | Não testado; registrado como não observável |
+| F5-2: tentativa em que o circuito de proteção está aberto e a tesouraria nem é chamada: entra no histórico como `TENTAR_PAGAMENTO`? O caso de uso diz "cada tentativa vai ao histórico" | Os testes esperam "ao menos N" entradas e, quando precisam de N pedidos recebidos pela tesouraria, esperam por eles à parte; nunca comparam um número com o outro. Observado: com a tesouraria fora do ar (503), o circuito deixa passar um único pedido de prova a cada reabertura, sempre do primeiro processo da rodada; com mais de um processo pendente, nem toda tentativa chega a ela. Por isso os casos com dois ou mais processos pendentes usam resposta incoerente (R31), e não erro, quando contam pedidos recebidos |
+| F5-3: protocolo ou motivo em branco (só espaços, vazio) na resposta da tesouraria é incoerente como o ausente? E `ALREADY_PROCESSED` sem protocolo? E status desconhecido, corpo que não é JSON, 4xx ou 200 sem corpo? O caso de uso só lista "confirmação sem protocolo" e "recusa sem motivo" | Não testado: só as duas incoerências do caso de uso, com o campo ausente |
+| F5-4: "sem resposta" é a demora acima de 2 segundos (contrato de quem coordena, não do caso de uso). O limite exato não é testado | Testados 1 segundo (aplicada) e 3 segundos (sem resposta) |
+| F5-5: o que a pessoa informa em `observacao` ao solicitar pagamento vai ao histórico (como nas demais ações com observação) e o limite é de 500 caracteres? (mesma dúvida da fatia 1 para observação vazia, só espaços ou acima de 500) | Testadas só observação curta e de 500 caracteres |
+| F5-6: o detalhe do processo mostra "o motivo da última recusa da tesouraria" (seção Consultas); o contrato não tem consulta de detalhe, e o motivo é conferido no histórico (`RECUSAR_PAGAMENTO`) | Só o histórico é conferido |
+| F5-7: depois da recusa da tesouraria, o motivo continua visível quando o processo é solicitado de novo e confirmado? | Não testado |
+| F5-8: o intervalo padrão de 5 minutos (R20) e a configuração do intervalo não são testados: o ambiente de teste fixa 1 segundo | Sem teste do valor padrão |
+| F5-9: duas execuções da rotina ao mesmo tempo sobre o mesmo processo (seção Recusas): "um único pedido efetivo à tesouraria e uma única mudança de situação". Sem endpoint para disparar a rotina, a concorrência não é provocável por fora | Testado o equivalente observável: solicitações de pessoa simultâneas (uma vale, uma só identificação chega à tesouraria) |
+| F5-10: R7 diz que nada é enviado à tesouraria ao solicitar. Entre solicitar e a primeira rodada da rotina não dá para provar a ausência de pedido | Prova-se só que solicitar responde 200 com a tesouraria fora do ar e que a rotina não pede por processos fora de pagamento solicitado |
+| F5-11: quando a rotina aplica a recusa e a tesouraria já tinha recebido a ordem de uma tentativa anterior sem resposta (dois pedidos, uma só identificação), há algo a fazer além de aplicar a resposta? | Não testado |
+| F5-12: o autor das entradas da rotina ("sistema") e o do pedido de solicitar (papéis) | Pendente: fatia 7 |

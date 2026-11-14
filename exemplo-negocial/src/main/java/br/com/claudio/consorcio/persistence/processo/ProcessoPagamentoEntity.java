@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 /**
  * Mapeamento da tabela processo_pagamento. Uma única entidade para todos os tipos:
@@ -32,6 +33,9 @@ public class ProcessoPagamentoEntity {
 
     @Column(name = "protocolo_pagamento")
     private String protocoloPagamento;
+
+    @Column(name = "identificacao_solicitacao")
+    private UUID identificacaoSolicitacao;
 
     @Version
     private long versao;
@@ -82,6 +86,14 @@ public class ProcessoPagamentoEntity {
 
     public void setProtocoloPagamento(String protocoloPagamento) {
         this.protocoloPagamento = protocoloPagamento;
+    }
+
+    public UUID getIdentificacaoSolicitacao() {
+        return identificacaoSolicitacao;
+    }
+
+    public void setIdentificacaoSolicitacao(UUID identificacaoSolicitacao) {
+        this.identificacaoSolicitacao = identificacaoSolicitacao;
     }
 
     public long getVersao() {

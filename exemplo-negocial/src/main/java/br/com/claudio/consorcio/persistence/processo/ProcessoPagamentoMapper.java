@@ -4,6 +4,7 @@ import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.processo.AlteracaoProposta;
 import br.com.claudio.consorcio.domain.processo.Documento;
 import br.com.claudio.consorcio.domain.processo.Favorecido;
+import br.com.claudio.consorcio.domain.processo.IdentificacaoSolicitacao;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
@@ -29,6 +30,8 @@ final class ProcessoPagamentoMapper {
                     TipoProcesso.valueOf(entity.getTipo()), Dinheiro.de(entity.getValor()),
                     favorecidosParaDominio(favorecidos),
                     EstadoProcesso.valueOf(entity.getEstado()), entity.getProtocoloPagamento(), proposta,
+                    entity.getIdentificacaoSolicitacao() == null ? null
+                            : new IdentificacaoSolicitacao(entity.getIdentificacaoSolicitacao()),
                     entity.getVersao());
         } catch (IllegalArgumentException e) {
             throw new IllegalStateException("Valor desconhecido no banco: " + e.getMessage(), e);
@@ -116,6 +119,7 @@ final class ProcessoPagamentoMapper {
         entity.setValor(processo.valor().valor());
         entity.setEstado(processo.estado().name());
         entity.setProtocoloPagamento(processo.protocoloPagamento());
+        entity.setIdentificacaoSolicitacao(processo.identificacaoSolicitacao().map(IdentificacaoSolicitacao::valor).orElse(null));
         entity.setVersao(processo.versao());
         return entity;
     }

@@ -60,6 +60,9 @@ interface ProcessoPagamentoDataRepository {
     @Query("delete from ProcessoPropostaEntity a where a.processoId = :processoId")
     void removerProposta(Long processoId);
 
+    @Query("select p.id from ProcessoPagamentoEntity p where p.estado = :estado order by p.id")
+    List<Long> idsPorEstado(String estado);
+
     @Query("select count(p) from ProcessoPagamentoEntity p where p.cotaId = :cotaId")
     long contarPorCota(Long cotaId);
 

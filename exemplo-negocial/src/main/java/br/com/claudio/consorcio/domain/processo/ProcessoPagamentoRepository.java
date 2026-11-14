@@ -1,6 +1,7 @@
 package br.com.claudio.consorcio.domain.processo;
 
 import br.com.claudio.consorcio.domain.Dinheiro;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -16,6 +17,9 @@ public interface ProcessoPagamentoRepository {
 
     /** Busca o processo e o mantém bloqueado até o fim da transação, para ações que não podem correr em paralelo. */
     Optional<ProcessoPagamento> buscarPorIdComBloqueio(Long id);
+
+    /** Ids dos processos que esperam a rotina de pagamento (Pagamento solicitado), do mais antigo ao mais novo. */
+    List<Long> idsEmPagamentoSolicitado();
 
     boolean existePorCota(Long cotaId);
 

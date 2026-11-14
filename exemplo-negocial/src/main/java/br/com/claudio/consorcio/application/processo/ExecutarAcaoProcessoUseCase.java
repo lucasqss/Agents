@@ -12,7 +12,7 @@ import java.time.Instant;
 /**
  * Padrão: Service Layer [PoEAA]. Aplica ao processo uma ação que só muda o estado, registra-a no
  * histórico e devolve o novo estado.
- * Ação com efeito fora do processo (ex.: pagar, que chama a tesouraria) tem o seu próprio use case.
+ * Ação com dado próprio (ex.: solicitar pagamento, que traz a identificação da solicitação) tem o seu próprio use case.
  */
 @ApplicationScoped
 public class ExecutarAcaoProcessoUseCase {

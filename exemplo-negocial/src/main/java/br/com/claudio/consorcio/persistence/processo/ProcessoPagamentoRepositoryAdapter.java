@@ -129,6 +129,11 @@ public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepo
     }
 
     @Override
+    public List<Long> idsEmPagamentoSolicitado() {
+        return dados.idsPorEstado(EstadoProcesso.PAGAMENTO_SOLICITADO.name());
+    }
+
+    @Override
     public boolean existePorCota(Long cotaId) {
         return dados.contarPorCota(cotaId) > 0;
     }

@@ -16,7 +16,10 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import org.hamcrest.Matcher;
 
 /**
@@ -244,6 +247,69 @@ public final class ApiAceitacao {
         String corpo = given().when().get("/processos/%d/historico".formatted(processo)).then().statusCode(200)
                 .extract().asString();
         return comoBigDecimal(corpo).getList("$");
+    }
+
+    // ---- Fatia 5: pagamento como saga (R7, R20 a R22, R31) ----
+
+    /** Ação do histórico para cada tentativa da rotina sem resultado aplicado (indisponível, sem resposta, incoerente). */
+    public static final String TENTAR_PAGAMENTO = "TENTAR_PAGAMENTO";
+
+    /** Tempo máximo que um teste espera pelo efeito da rotina, que roda sozinha, por tempo. */
+    private static final Duration ESPERA_MAXIMA = Duration.ofSeconds(30);
+
+    private static final Duration INTERVALO_DA_CONSULTA = Duration.ofMillis(100);
+
+    /**
+     * Consulta em laço até a condição valer, ou falha depois de {@link #ESPERA_MAXIMA} dizendo o que faltou e o
+     * último valor visto. A espera é só pela consulta: nenhuma asserção depende de um tempo fixo.
+     */
+    public static <T> T aguardar(String descricao, Supplier<T> consulta, Predicate<? super T> condicao) {
+        long limite = System.nanoTime() + ESPERA_MAXIMA.toNanos();
+        T ultimo = consulta.get();
+        while (!condicao.test(ultimo)) {
+            if (System.nanoTime() > limite) {
+                throw new AssertionError("Passaram %d segundos sem que %s. Último valor visto: %s"
+                        .formatted(ESPERA_MAXIMA.toSeconds(), descricao, ultimo));
+            }
+            try {
+                Thread.sleep(INTERVALO_DA_CONSULTA.toMillis());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError("Espera interrompida: " + descricao, e);
+            }
+            ultimo = consulta.get();
+        }
+        return ultimo;
+    }
+
+    /**
+     * Espera o processo chegar à situação, olhando a última entrada do histórico (consulta barata por processo,
+     * que também acompanha as entradas da rotina). Processo sem histórico está aberto.
+     */
+    public static void aguardarSituacao(long processo, String situacao) {
+        aguardar("o processo %d chegasse a %s".formatted(processo, situacao),
+                () -> situacaoPeloHistorico(processo), situacao::equals);
+    }
+
+    private static String situacaoPeloHistorico(long processo) {
+        List<Map<String, Object>> historico = consultarHistorico(processo);
+        return historico.isEmpty() ? "ABERTO" : (String) historico.getLast().get("para");
+    }
+
+    /** Histórico sem as entradas de tentativa da rotina, que se repetem a cada intervalo e não têm número certo. */
+    public static List<Map<String, Object>> consultarHistoricoSemTentativas(long processo) {
+        return consultarHistorico(processo).stream()
+                .filter(item -> !TENTAR_PAGAMENTO.equals(item.get("acao"))).toList();
+    }
+
+    public static long quantidadeDeTentativas(long processo) {
+        return consultarHistorico(processo).stream().filter(item -> TENTAR_PAGAMENTO.equals(item.get("acao"))).count();
+    }
+
+    /** Espera a rotina registrar ao menos {@code minimo} tentativas sem resultado aplicado. */
+    public static void aguardarTentativas(long processo, int minimo) {
+        aguardar("o histórico do processo %d tivesse %d tentativas da rotina".formatted(processo, minimo),
+                () -> quantidadeDeTentativas(processo), quantidade -> quantidade >= minimo);
     }
 
     // ---- Fatia 4: alteração de valor e favorecidos (R24 a R28) ----

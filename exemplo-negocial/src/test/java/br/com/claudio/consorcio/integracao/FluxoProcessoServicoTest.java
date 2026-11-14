@@ -8,12 +8,17 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.startsWith;
 
+import br.com.claudio.consorcio.application.processo.ExecutarRotinaDePagamentoUseCase;
 import io.quarkus.test.junit.QuarkusTest;
+import jakarta.inject.Inject;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
 class FluxoProcessoServicoTest {
+
+    @Inject
+    ExecutarRotinaDePagamentoUseCase rotina;
 
     @Test
     void fluxoCompletoSemVistoria() {
@@ -27,7 +32,12 @@ class FluxoProcessoServicoTest {
         acao(processo, "iniciar-analise").statusCode(200).body("estado", equalTo("EM_ANALISE"));
         acao(processo, "concluir-vistoria").statusCode(409);
         acao(processo, "concluir-analise").statusCode(200).body("estado", equalTo("APROVADO"));
-        acao(processo, "pagar").statusCode(200).body("estado", equalTo("PAGO"));
+        Api.solicitarPagamento(processo).statusCode(200).body("estado", equalTo("PAGAMENTO_SOLICITADO"));
+        given().when().get("/cotas/" + cota).then().statusCode(200)
+                .body("processoAtualEstado", equalTo("PAGAMENTO_SOLICITADO"));
+
+        // Só a rotina agendada tira o processo dali.
+        rotina.executar();
 
         given().when().get("/cotas/" + cota).then().statusCode(200)
                 .body("processoAtualEstado", equalTo("PAGO"))
@@ -55,7 +65,7 @@ class FluxoProcessoServicoTest {
 
         given().when().delete("/clientes/" + cliente).then().statusCode(409);
         given().when().delete("/cotas/" + cota).then().statusCode(409);
-        acao(999_999_999L, "pagar").statusCode(404);
+        Api.solicitarPagamento(999_999_999L).statusCode(404);
     }
 
     @Test

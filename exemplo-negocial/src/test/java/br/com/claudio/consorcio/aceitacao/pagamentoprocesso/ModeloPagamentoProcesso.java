@@ -13,12 +13,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.stream.Stream;
+import org.junit.jupiter.params.provider.Arguments;
 
 /**
  * Padrão: Máquina de estados como modelo de teste [Ammann e Offutt].
  * Escrita a partir das regras 2 a 6, 10, 11 e 23 do caso de uso (fatia 1), 12 a 14 (fatia 2, valor e crédito),
- * 15 e 29 (fatia 3, favorecidos) e 24 a 28 (fatia 4, alteração com concordância do cliente);
+ * 15 e 29 (fatia 3, favorecidos), 24 a 28 (fatia 4, alteração com concordância do cliente) e 7, 8, 20 a 22 e 31
+ * (fatia 5, pagamento como saga: solicitar só grava e uma rotina agendada fala com a tesouraria);
  * nada aqui vem do código da aplicação.
+ *
+ * <p>"Rotina: tesouraria confirmou" e "rotina: tesouraria recusou" são transições do modelo, não ações de pessoa:
+ * só existem em PAGAMENTO_SOLICITADO e nunca entram nas ações aceitas, recusadas ou consultadas.
  */
 final class ModeloPagamentoProcesso {
 
@@ -29,6 +34,7 @@ final class ModeloPagamentoProcesso {
     static final String PENDENTE_DOCUMENTO = "PENDENTE_DOCUMENTO";
     static final String REPROVADO = "REPROVADO";
     static final String APROVADO = "APROVADO";
+    static final String PAGAMENTO_SOLICITADO = "PAGAMENTO_SOLICITADO";
     static final String PAGO = "PAGO";
     static final String CANCELADO = "CANCELADO";
 
@@ -39,6 +45,8 @@ final class ModeloPagamentoProcesso {
     static final String DEVOLVER_PARA_ANALISE = "devolver-para-analise";
     static final String CONCLUIR_ANALISE = "concluir-analise";
     static final String CONCLUIR_VISTORIA = "concluir-vistoria";
+    static final String SOLICITAR_PAGAMENTO = "solicitar-pagamento";
+    /** O endpoint antigo, que deixou de existir na fatia 5: só serve para provar que responde 404. */
     static final String PAGAR = "pagar";
     static final String CANCELAR = "cancelar";
     static final String ALTERAR = "alterar";
@@ -49,12 +57,28 @@ final class ModeloPagamentoProcesso {
     static final String SERVICO = "SERVICO";
     static final String IMOBILIARIO = "IMOBILIARIO";
 
+    /** Resultados que a rotina aplica quando a tesouraria responde (R20, R21): transições do modelo, não pedidos. */
+    static final String ROTINA_CONFIRMOU = "rotina:tesouraria-confirmou";
+    static final String ROTINA_RECUSOU = "rotina:tesouraria-recusou";
+
+    /** Protocolo e motivo que a tesouraria devolve nos exemplos do caso de uso (R20, R21). */
+    static final String PROTOCOLO_DA_TESOURARIA = "778899";
+    static final String MOTIVO_DA_TESOURARIA = "conta inválida";
+
+    /** Ações de pessoa (as treze do quadro situação × ação). */
     private static final List<String> ACOES = List.of(INICIAR_ANALISE, SOLICITAR_DOCUMENTO, RECEBER_DOCUMENTO,
-            REPROVAR, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, DEVOLVER_PARA_ANALISE, PAGAR, CANCELAR,
+            REPROVAR, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, DEVOLVER_PARA_ANALISE, SOLICITAR_PAGAMENTO, CANCELAR,
             ALTERAR, PROPOR_ALTERACAO, CONCORDAR, DISCORDAR);
 
+    private static final Set<String> ACOES_DA_ROTINA = Set.of(ROTINA_CONFIRMOU, ROTINA_RECUSOU);
+
+    /** Ações de pessoa e da rotina: o que percorre o grafo de caminhos. */
+    private static final List<String> TODAS_AS_ACOES = Stream.concat(ACOES.stream(),
+            Stream.of(ROTINA_CONFIRMOU, ROTINA_RECUSOU)).toList();
+
     private static final List<String> SITUACOES = List.of(ABERTO, EM_ANALISE, PENDENTE_DOCUMENTO,
-            AGUARDANDO_VISTORIA, AGUARDANDO_CONCORDANCIA, APROVADO, PAGO, REPROVADO, CANCELADO);
+            AGUARDANDO_VISTORIA, AGUARDANDO_CONCORDANCIA, APROVADO, PAGAMENTO_SOLICITADO, PAGO, REPROVADO,
+            CANCELADO);
 
     /** Ações cujo corpo é obrigatório e traz o motivo (R4, R10, R11, R23, R25, R27). */
     private static final Set<String> ACOES_COM_MOTIVO =
@@ -65,7 +89,8 @@ final class ModeloPagamentoProcesso {
 
     /** Ações cujo corpo é opcional e pode trazer uma observação. */
     private static final Set<String> ACOES_COM_OBSERVACAO =
-            Set.of(INICIAR_ANALISE, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, RECEBER_DOCUMENTO, CONCORDAR);
+            Set.of(INICIAR_ANALISE, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, RECEBER_DOCUMENTO, CONCORDAR,
+                    SOLICITAR_PAGAMENTO);
 
     private static final Map<String, Map<String, Map<String, String>>> TRANSICOES = Map.of(
             SERVICO, Map.of(
@@ -76,7 +101,9 @@ final class ModeloPagamentoProcesso {
                     PENDENTE_DOCUMENTO, Map.of(RECEBER_DOCUMENTO, EM_ANALISE, CANCELAR, CANCELADO),
                     AGUARDANDO_CONCORDANCIA, Map.of(CONCORDAR, EM_ANALISE, DISCORDAR, EM_ANALISE,
                             CANCELAR, CANCELADO),
-                    APROVADO, Map.of(PAGAR, PAGO, DEVOLVER_PARA_ANALISE, EM_ANALISE, CANCELAR, CANCELADO),
+                    APROVADO, Map.of(SOLICITAR_PAGAMENTO, PAGAMENTO_SOLICITADO, DEVOLVER_PARA_ANALISE, EM_ANALISE,
+                            CANCELAR, CANCELADO),
+                    PAGAMENTO_SOLICITADO, Map.of(ROTINA_CONFIRMOU, PAGO, ROTINA_RECUSOU, APROVADO),
                     PAGO, Map.of(),
                     REPROVADO, Map.of(),
                     CANCELADO, Map.of()),
@@ -90,7 +117,9 @@ final class ModeloPagamentoProcesso {
                             CANCELAR, CANCELADO),
                     AGUARDANDO_VISTORIA, Map.of(CONCLUIR_VISTORIA, APROVADO, DEVOLVER_PARA_ANALISE, EM_ANALISE,
                             CANCELAR, CANCELADO),
-                    APROVADO, Map.of(PAGAR, PAGO, DEVOLVER_PARA_ANALISE, EM_ANALISE, CANCELAR, CANCELADO),
+                    APROVADO, Map.of(SOLICITAR_PAGAMENTO, PAGAMENTO_SOLICITADO, DEVOLVER_PARA_ANALISE, EM_ANALISE,
+                            CANCELAR, CANCELADO),
+                    PAGAMENTO_SOLICITADO, Map.of(ROTINA_CONFIRMOU, PAGO, ROTINA_RECUSOU, APROVADO),
                     PAGO, Map.of(),
                     REPROVADO, Map.of(),
                     CANCELADO, Map.of()));
@@ -148,12 +177,22 @@ final class ModeloPagamentoProcesso {
      * com "_" no lugar de "-". As ações novas seguem o mesmo padrão.
      */
     static String nomeNoHistorico(String acao) {
-        return acao.toUpperCase().replace('-', '_');
+        return switch (acao) {
+            case ROTINA_CONFIRMOU -> "CONFIRMAR_PAGAMENTO";
+            case ROTINA_RECUSOU -> "RECUSAR_PAGAMENTO";
+            default -> acao.toUpperCase().replace('-', '_');
+        };
+    }
+
+    static boolean ehDaRotina(String acao) {
+        return ACOES_DA_ROTINA.contains(acao);
     }
 
     /** Ações aceitas na situação, pelo modelo. */
     static Set<String> acoesAceitas(String tipo, String situacao) {
-        return proximas(tipo, situacao).keySet();
+        Set<String> aceitas = new java.util.LinkedHashSet<>(proximas(tipo, situacao).keySet());
+        aceitas.removeAll(ACOES_DA_ROTINA);
+        return aceitas;
     }
 
     /** Todas as transições do modelo cuja ação é de motivo obrigatório. */
@@ -742,6 +781,74 @@ final class ModeloPagamentoProcesso {
         return favorecidosRecusadosPorFormato().filter(caso -> nomes.contains(caso.nome()));
     }
 
+    // ---- Pagamento como saga (fatia 5: R7, R8, R20, R21, R22, R31) ----
+
+    /**
+     * Tabela de decisão da resposta da tesouraria à rotina: o que cada resposta faz com o processo em pagamento
+     * solicitado. {@code acaoDoResultado} é a entrada que a rotina põe no histórico quando APLICA a resposta
+     * (nula quando nada é aplicado e só se registra a tentativa).
+     */
+    enum Resposta {
+        CONFIRMOU("confirma com protocolo", PAGO, "CONFIRMAR_PAGAMENTO"),
+        JA_PROCESSOU("diz que já fez a ordem e informa o protocolo (vale como confirmação)", PAGO,
+                "CONFIRMAR_PAGAMENTO"),
+        RECUSOU("recusa com motivo", APROVADO, "RECUSAR_PAGAMENTO"),
+        INDISPONIVEL("está indisponível (erro do servidor)", PAGAMENTO_SOLICITADO, null),
+        DEMOROU("demora mais de 2 segundos para responder", PAGAMENTO_SOLICITADO, null),
+        CONFIRMACAO_SEM_PROTOCOLO("confirma sem protocolo (incoerente, R31)", PAGAMENTO_SOLICITADO, null),
+        RECUSA_SEM_MOTIVO("recusa sem motivo (incoerente, R31)", PAGAMENTO_SOLICITADO, null);
+
+        final String descricao;
+        final String situacaoDepois;
+        final String acaoDoResultado;
+
+        Resposta(String descricao, String situacaoDepois, String acaoDoResultado) {
+            this.descricao = descricao;
+            this.situacaoDepois = situacaoDepois;
+            this.acaoDoResultado = acaoDoResultado;
+        }
+
+        /** A resposta tem efeito: o processo sai de pagamento solicitado. */
+        boolean aplicada() {
+            return acaoDoResultado != null;
+        }
+
+        /** Só o processo PAGO tem protocolo e consome crédito (R13, R20). */
+        boolean paga() {
+            return PAGO.equals(situacaoDepois);
+        }
+
+        /** Protocolo esperado no processo e no histórico. */
+        String protocolo() {
+            return paga() ? PROTOCOLO_DA_TESOURARIA : null;
+        }
+
+        @Override
+        public String toString() {
+            return "a tesouraria " + descricao;
+        }
+    }
+
+    /** Cada resposta no serviço, e as duas que decidem o destino também no imobiliário. */
+    static Stream<Arguments> respostasPorTipo() {
+        return Stream.concat(
+                java.util.Arrays.stream(Resposta.values()).map(r -> Arguments.of(r, SERVICO)),
+                Stream.of(Resposta.CONFIRMOU, Resposta.RECUSOU).map(r -> Arguments.of(r, IMOBILIARIO)));
+    }
+
+    /**
+     * Cenários com a cota livre que bastam para o valor-limite do crédito: o limite (R13) não depende do tipo nem
+     * de quantos processos foram pagos, e cada processo pago custa a espera da rotina. Ficam: sem processo, um pago,
+     * dois pagos, um cancelado, um reprovado, o crédito com centavos e o crédito esgotado.
+     */
+    static Stream<CenarioCredito> cenariosComCotaLivreAmostrados() {
+        List<String> amostra = List.of("cota sem processo", "pago 100000 (serviço)",
+                "dois pagos somam: 100000 e 50000", "cancelado 100000 não consome (serviço)",
+                "reprovado 100000 não consome (serviço)", "crédito com centavos: pago 500,25 de 1000,50",
+                "crédito esgotado: pago todo o crédito");
+        return cenariosComCotaLivre().filter(c -> amostra.contains(c.nome()));
+    }
+
     private static Stream<Base> transicoes(Set<String> acoes) {
         return tipos().flatMap(tipo -> SITUACOES.stream().flatMap(situacao -> ACOES.stream()
                 .filter(acoes::contains)
@@ -866,7 +973,7 @@ final class ModeloPagamentoProcesso {
     private static List<Caminho> percorrer(String tipo, String situacao, List<Passo> passos, Set<String> usadas) {
         List<Caminho> caminhos = new ArrayList<>();
         caminhos.add(new Caminho(tipo, passos));
-        for (String acao : ACOES) {
+        for (String acao : TODAS_AS_ACOES) {
             String transicao = situacao + "/" + acao;
             if (usadas.contains(transicao)) {
                 continue;

@@ -9,13 +9,18 @@ import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
+import br.com.claudio.consorcio.application.processo.ExecutarRotinaDePagamentoUseCase;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
 class HistoricoERetornoDeEtapaTest {
+
+    @Inject
+    ExecutarRotinaDePagamentoUseCase rotina;
 
     @Test
     void imobiliarioDevolveDaVistoriaEDeAprovadoERegistraTudoNoHistorico() {
@@ -31,26 +36,31 @@ class HistoricoERetornoDeEtapaTest {
                 .statusCode(200).body("estado", equalTo("EM_ANALISE"));
         acao(processo, "concluir-analise").statusCode(200);
         acao(processo, "concluir-vistoria").statusCode(200).body("estado", equalTo("APROVADO"));
-        acoes(processo).body("acoes", contains("devolver-para-analise", "pagar", "cancelar"));
+        acoes(processo).body("acoes", contains("devolver-para-analise", "solicitar-pagamento", "cancelar"));
 
         Api.acaoComMotivo(processo, "devolver-para-analise", "Documento divergente").statusCode(200)
                 .body("estado", equalTo("EM_ANALISE"));
         acao(processo, "concluir-analise").statusCode(200);
         acao(processo, "concluir-vistoria").statusCode(200);
-        acao(processo, "pagar").statusCode(200).body("estado", equalTo("PAGO"));
+        Api.solicitarPagamento(processo).statusCode(200).body("estado", equalTo("PAGAMENTO_SOLICITADO"));
+        acoes(processo).body("acoes", empty());
+        rotina.executar();
         acoes(processo).body("acoes", empty());
 
         historico(processo)
                 .body("acao", contains("INICIAR_ANALISE", "CONCLUIR_ANALISE", "DEVOLVER_PARA_ANALISE",
                         "CONCLUIR_ANALISE", "CONCLUIR_VISTORIA", "DEVOLVER_PARA_ANALISE", "CONCLUIR_ANALISE",
-                        "CONCLUIR_VISTORIA", "PAGAR"))
+                        "CONCLUIR_VISTORIA", "SOLICITAR_PAGAMENTO", "CONFIRMAR_PAGAMENTO"))
                 .body("[0].de", equalTo("ABERTO"))
                 .body("[0].para", equalTo("EM_ANALISE"))
                 .body("[0].observacao", nullValue())
                 .body("[2].de", equalTo("AGUARDANDO_VISTORIA"))
                 .body("[2].para", equalTo("EM_ANALISE"))
                 .body("[2].observacao", equalTo("Matrícula ilegível"))
-                .body("[8].para", equalTo("PAGO"))
+                .body("[8].de", equalTo("APROVADO"))
+                .body("[8].para", equalTo("PAGAMENTO_SOLICITADO"))
+                .body("[9].de", equalTo("PAGAMENTO_SOLICITADO"))
+                .body("[9].para", equalTo("PAGO"))
                 .body("quando", everyItem(notNullValue()));
     }
 
@@ -105,7 +115,7 @@ class HistoricoERetornoDeEtapaTest {
     @Test
     void acaoRecusadaNaoEntraNoHistorico() {
         long processo = Api.criarProcesso(Api.criarCota(Api.criarCliente("João")), "SERVICO");
-        acao(processo, "pagar").statusCode(409);
+        Api.solicitarPagamento(processo).statusCode(409);
         Api.acaoComMotivo(processo, "cancelar", "x".repeat(501)).statusCode(400);
         acao(processo, "cancelar").statusCode(400);
 

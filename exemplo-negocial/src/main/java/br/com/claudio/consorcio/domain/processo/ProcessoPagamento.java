@@ -28,12 +28,13 @@ public final class ProcessoPagamento {
     private EstadoProcesso estado;
     private String protocoloPagamento;
     private AlteracaoProposta proposta;
+    private IdentificacaoSolicitacao identificacaoSolicitacao;
     private final long versao;
     private final List<Transicao> novasTransicoes = new ArrayList<>();
 
     private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
             List<Favorecido> favorecidos, EstadoProcesso estado, String protocoloPagamento,
-            AlteracaoProposta proposta, long versao) {
+            AlteracaoProposta proposta, IdentificacaoSolicitacao identificacaoSolicitacao, long versao) {
         if (cotaId == null) {
             throw new DominioException("Processo precisa de uma cota");
         }
@@ -55,9 +56,14 @@ public final class ProcessoPagamento {
         if ((estado == EstadoProcesso.AGUARDANDO_CONCORDANCIA) != (proposta != null)) {
             throw new DominioException("Processo tem alteração proposta se, e somente se, aguarda a concordância");
         }
+        if ((estado == EstadoProcesso.PAGAMENTO_SOLICITADO) != (identificacaoSolicitacao != null)) {
+            throw new DominioException(
+                    "Processo tem identificação da solicitação de pagamento se, e somente se, está com o pagamento solicitado");
+        }
         this.estado = estado;
         this.protocoloPagamento = protocoloPagamento;
         this.proposta = proposta;
+        this.identificacaoSolicitacao = identificacaoSolicitacao;
         this.versao = versao;
     }
 
@@ -66,14 +72,18 @@ public final class ProcessoPagamento {
      * dividido entre os favorecidos (R15, R29): ao menos um, partes maiores que zero somando o valor, sem documento repetido.
      */
     public static ProcessoPagamento novo(TipoProcesso tipo, Long cotaId, Dinheiro valor, List<Favorecido> favorecidos) {
-        return new ProcessoPagamento(null, cotaId, tipo, valor, favorecidos, EstadoProcesso.ABERTO, null, null, 0);
+        return new ProcessoPagamento(null, cotaId, tipo, valor, favorecidos, EstadoProcesso.ABERTO, null, null, null, 0);
     }
 
-    /** Recria um processo já gravado, no estado em que ele estava; a alteração proposta existe só em Aguardando concordância. */
+    /**
+     * Recria um processo já gravado, no estado em que ele estava; a alteração proposta existe só em Aguardando
+     * concordância, e a identificação da solicitação só em Pagamento solicitado.
+     */
     public static ProcessoPagamento reconstituir(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
             List<Favorecido> favorecidos, EstadoProcesso estado, String protocoloPagamento,
-            AlteracaoProposta proposta, long versao) {
-        return new ProcessoPagamento(id, cotaId, tipo, valor, favorecidos, estado, protocoloPagamento, proposta, versao);
+            AlteracaoProposta proposta, IdentificacaoSolicitacao identificacaoSolicitacao, long versao) {
+        return new ProcessoPagamento(id, cotaId, tipo, valor, favorecidos, estado, protocoloPagamento, proposta,
+                identificacaoSolicitacao, versao);
     }
 
     /**
@@ -83,10 +93,7 @@ public final class ProcessoPagamento {
      * Concordar torna vigente a alteração proposta; discordar e cancelar a descartam.
      */
     public void executar(AcaoProcesso acao, Instant quando, String observacao) {
-        EstadoProcesso destino = tipo.fluxo().proximo(estado, acao);
-        if (destino == EstadoProcesso.PAGO) {
-            throw new DominioException("Processo só fica pago com o protocolo da tesouraria");
-        }
+        tipo.fluxo().proximo(estado, acao);
         if (acao.comMetodoProprio()) {
             throw new DominioException("Para " + acao.descricao() + " um processo é preciso informar os dados da ação");
         }
@@ -124,13 +131,79 @@ public final class ProcessoPagamento {
         proposta = nova;
     }
 
-    /** Paga o processo e guarda o protocolo emitido pela tesouraria, numa operação só. */
-    public void pagar(String protocolo, Instant quando) {
+    /**
+     * Solicita o pagamento (R7): só leva o processo a Pagamento solicitado e guarda a identificação desta solicitação,
+     * que a rotina repete em todas as tentativas (R22). Nada é enviado à tesouraria aqui.
+     */
+    public void solicitarPagamento(IdentificacaoSolicitacao identificacao, Instant quando, String observacao) {
+        if (identificacao == null) {
+            throw new DominioException("Identificação da solicitação de pagamento é obrigatória");
+        }
+        transitar(AcaoProcesso.SOLICITAR_PAGAMENTO, quando, observacao, null, null);
+        identificacaoSolicitacao = identificacao;
+    }
+
+    /**
+     * Aplica o resultado da tesouraria, só se o processo ainda espera o pagamento daquela solicitação: outra execução da
+     * rotina pode ter aplicado o resultado antes (nada muda, devolve falso). Confirmado leva a Pago (R20); recusado volta a
+     * Aprovado com o motivo (R21); sem resposta ou incoerente continua em Pagamento solicitado e a tentativa vai ao
+     * histórico (R22, R31).
+     */
+    public boolean aplicarResultado(IdentificacaoSolicitacao identificacao, ResultadoPagamento resultado, Instant quando) {
+        if (!aguardaResultadoDe(identificacao)) {
+            return false;
+        }
+        switch (resultado) {
+            case ResultadoPagamento.Confirmado confirmado -> confirmarPagamento(confirmado.protocolo(), quando);
+            case ResultadoPagamento.Recusado recusado -> recusarPagamento(recusado.motivo(), quando);
+            case ResultadoPagamento.SemResposta semResposta ->
+                    registrarTentativaSemResultado(semResposta.descricao(), quando);
+            case ResultadoPagamento.Incoerente incoerente ->
+                    registrarTentativaSemResultado(incoerente.descricao(), quando);
+        }
+        return true;
+    }
+
+    /** O processo está em Pagamento solicitado, esperando a rotina, e é desta solicitação. */
+    public boolean aguardaResultadoDe(IdentificacaoSolicitacao identificacao) {
+        return estado == EstadoProcesso.PAGAMENTO_SOLICITADO && identificacaoSolicitacao.equals(identificacao);
+    }
+
+    /** A tesouraria confirmou: paga o processo e guarda o protocolo, numa operação só, e descarta a identificação. */
+    public void confirmarPagamento(String protocolo, Instant quando) {
         if (protocolo == null || protocolo.isBlank()) {
             throw new DominioException("Protocolo de pagamento é obrigatório");
         }
-        transitar(AcaoProcesso.PAGAR, quando, null, null, null);
-        protocoloPagamento = protocolo;
+        transitar(AcaoProcesso.CONFIRMAR_PAGAMENTO, quando, "Protocolo " + protocolo.strip(), null, null);
+        protocoloPagamento = protocolo.strip();
+        identificacaoSolicitacao = null;
+    }
+
+    /** A tesouraria recusou: volta a Aprovado, com o motivo no histórico; a identificação é descartada (R21). */
+    public void recusarPagamento(String motivo, Instant quando) {
+        exigirTexto(AcaoProcesso.RECUSAR_PAGAMENTO, motivo);
+        transitar(AcaoProcesso.RECUSAR_PAGAMENTO, quando, limitar(motivo), null, null);
+        identificacaoSolicitacao = null;
+    }
+
+    /** Tentativa sem resultado aplicado (sem resposta ou resposta incoerente): continua esperando, com o fato no histórico. */
+    public void registrarTentativaSemResultado(String observacao, Instant quando) {
+        exigirTexto(AcaoProcesso.TENTAR_PAGAMENTO, observacao);
+        transitar(AcaoProcesso.TENTAR_PAGAMENTO, quando, limitar(observacao), null, null);
+    }
+
+    private static void exigirTexto(AcaoProcesso acao, String texto) {
+        if (acao.exigeMotivo() && (texto == null || texto.isBlank())) {
+            throw new DominioException("Motivo é obrigatório para " + acao.descricao() + " um processo");
+        }
+    }
+
+    /** O que a tesouraria diz pode passar do tamanho do histórico: guarda o começo, sem recusar o resultado. */
+    private static String limitar(String texto) {
+        String limpo = texto.strip();
+        return limpo.length() <= Transicao.TAMANHO_MAXIMO_DA_OBSERVACAO
+                ? limpo
+                : limpo.substring(0, Transicao.TAMANHO_MAXIMO_DA_OBSERVACAO - 3) + "...";
     }
 
     /** Valor do processo e favorecidos: valor maior que zero e divisão exata entre os favorecidos (R12, R15, R29). */
@@ -224,6 +297,11 @@ public final class ProcessoPagamento {
 
     public String protocoloPagamento() {
         return protocoloPagamento;
+    }
+
+    /** Identificação da solicitação em andamento; só existe em Pagamento solicitado. */
+    public Optional<IdentificacaoSolicitacao> identificacaoSolicitacao() {
+        return Optional.ofNullable(identificacaoSolicitacao);
     }
 
     /** Versão gravada quando o processo foi lido; a gravação falha se outra operação já a mudou. */

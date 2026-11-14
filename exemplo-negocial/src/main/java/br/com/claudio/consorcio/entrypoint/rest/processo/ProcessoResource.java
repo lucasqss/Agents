@@ -4,8 +4,8 @@ import br.com.claudio.consorcio.application.processo.AlterarProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.CriarProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.DadosFavorecido;
 import br.com.claudio.consorcio.application.processo.ExecutarAcaoProcessoUseCase;
-import br.com.claudio.consorcio.application.processo.PagarProcessoUseCase;
 import br.com.claudio.consorcio.application.processo.ProporAlteracaoProcessoUseCase;
+import br.com.claudio.consorcio.application.processo.SolicitarPagamentoProcessoUseCase;
 import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
@@ -93,15 +93,15 @@ public class ProcessoResource {
 
     private final CriarProcessoUseCase criar;
     private final ExecutarAcaoProcessoUseCase executarAcao;
-    private final PagarProcessoUseCase pagar;
+    private final SolicitarPagamentoProcessoUseCase solicitarPagamento;
     private final AlterarProcessoUseCase alterar;
     private final ProporAlteracaoProcessoUseCase proporAlteracao;
 
     public ProcessoResource(CriarProcessoUseCase criar, ExecutarAcaoProcessoUseCase executarAcao,
-            PagarProcessoUseCase pagar, AlterarProcessoUseCase alterar, ProporAlteracaoProcessoUseCase proporAlteracao) {
+            SolicitarPagamentoProcessoUseCase solicitarPagamento, AlterarProcessoUseCase alterar, ProporAlteracaoProcessoUseCase proporAlteracao) {
         this.criar = criar;
         this.executarAcao = executarAcao;
-        this.pagar = pagar;
+        this.solicitarPagamento = solicitarPagamento;
         this.alterar = alterar;
         this.proporAlteracao = proporAlteracao;
     }
@@ -142,10 +142,12 @@ public class ProcessoResource {
         return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.DEVOLVER_PARA_ANALISE, corpo.motivo()));
     }
 
+    /** Só grava Pagamento solicitado: a rotina agendada é que fala com a tesouraria (R7, ADR 002). */
     @POST
-    @Path("/{id}/pagar")
-    public EstadoAtual pagar(Long id) {
-        return EstadoAtual.de(pagar.executar(id));
+    @Path("/{id}/solicitar-pagamento")
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual solicitarPagamento(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
+        return EstadoAtual.de(solicitarPagamento.executar(id, Observacao.texto(corpo)));
     }
 
     @POST
