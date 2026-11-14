@@ -5,6 +5,8 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 
+import br.com.claudio.consorcio.aceitacao.IdentidadeTeste.Pessoa;
+import io.restassured.specification.RequestSpecification;
 import io.restassured.path.json.config.JsonPathConfig;
 import io.restassured.path.json.config.JsonPathConfig.NumberReturnType;
 import io.restassured.http.ContentType;
@@ -17,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -25,12 +28,109 @@ import org.hamcrest.Matcher;
 /**
  * Padrão: Test Utility Method [xUnit Test Patterns].
  * Fala com a aplicação somente por HTTP, usando os caminhos e campos do contrato publicado.
+ *
+ * <p>Identidade (fatia 7, R18): cada chamada leva, por padrão, um token com o papel certo para a ação (quadro "Quem
+ * pode executar cada ação"): cadastros e consultas, backoffice "ana"; reprovar e devolver para análise, "carla"
+ * (backoffice e aprovador, porque o papel certo depende da situação, que o auxiliar não consulta); aprovar na
+ * alçada, aprovador "bruno" (pessoa diferente de quem concluiu a análise, R17); solicitar pagamento, tesouraria
+ * "tereza"; abrir, alterar, concordar e discordar, o cliente dono da cota. O auxiliar conhece o dono porque foi ele
+ * quem criou a cota. As variantes {@code ...Como} recebem o cabeçalho {@code Authorization} (ou
+ * {@link IdentidadeTeste#SEM_TOKEN}) para os testes de papéis.
  */
 public final class ApiAceitacao {
 
     private static final AtomicLong SEQUENCIA = new AtomicLong(System.nanoTime() % 1_000_000_000L);
 
     private ApiAceitacao() {
+    }
+
+    // ---- Identidade (fatia 7: R17, R18, R19) ----
+
+    /** Cliente de um cadastro que não é de nenhuma cota conhecida: serve a pedidos sobre cota ou processo inexistente. */
+    private static final Pessoa CLIENTE_SEM_COTA = Pessoa.cliente(987_654_321L);
+
+    private static final Map<Long, Pessoa> CLIENTE_DA_COTA = new ConcurrentHashMap<>();
+    private static final Map<Long, Long> COTA_DO_PROCESSO = new ConcurrentHashMap<>();
+
+    /** O cliente dono da cota criada por {@link #novaCota()}. */
+    public static Pessoa clienteDaCota(long cota) {
+        Pessoa cliente = CLIENTE_DA_COTA.get(cota);
+        return cliente != null ? cliente : CLIENTE_SEM_COTA;
+    }
+
+    /** O cliente dono da cota do processo; para processo desconhecido, um cliente sem cota. */
+    public static Pessoa clienteDoProcesso(long processo) {
+        Long cota = COTA_DO_PROCESSO.get(processo);
+        if (cota == null) {
+            cota = cotaDoProcessoPelaListagem(processo);
+        }
+        return cota == null ? CLIENTE_SEM_COTA : clienteDaCota(cota);
+    }
+
+    private static Long cotaDoProcessoPelaListagem(long processo) {
+        try {
+            long cota = numero(consultarProcesso(processo), "cotaId");
+            COTA_DO_PROCESSO.put(processo, cota);
+            return cota;
+        } catch (AssertionError | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** Papel certo, por padrão, para a ação de pessoa sobre o processo (quadro de papéis do caso de uso). */
+    public static String autorizacaoPadraoDaAcao(long processo, String acao) {
+        return switch (acao) {
+            case "alterar", "concordar", "discordar" -> clienteDoProcesso(processo).autorizacao();
+            case "aprovar-na-alcada" -> IdentidadeTeste.BRUNO.autorizacao();
+            case "reprovar", "devolver-para-analise" -> IdentidadeTeste.CARLA.autorizacao();
+            case "solicitar-pagamento", "pagar" -> IdentidadeTeste.TEREZA.autorizacao();
+            default -> IdentidadeTeste.ANA.autorizacao();
+        };
+    }
+
+    private static String autorizacaoDeConsulta() {
+        return IdentidadeTeste.ANA.autorizacao();
+    }
+
+    /** Pedido com o cabeçalho de identidade dado; {@link IdentidadeTeste#SEM_TOKEN} não envia cabeçalho nenhum. */
+    public static RequestSpecification requisicao(String autorizacao) {
+        RequestSpecification pedido = given();
+        return autorizacao == null ? pedido : pedido.header("Authorization", autorizacao);
+    }
+
+    /** Pedido de consulta com o token padrão (backoffice). */
+    public static RequestSpecification requisicaoDeConsulta() {
+        return requisicao(autorizacaoDeConsulta());
+    }
+
+    /** Pedido com o token de um cliente qualquer (sem cota), para os pedidos de abertura que não dependem do dono. */
+    public static RequestSpecification requisicaoDeCliente() {
+        return requisicao(CLIENTE_SEM_COTA.autorizacao());
+    }
+
+    /** Dono da cota citada no corpo do pedido de abertura; sem cota conhecida, um cliente sem cota. */
+    private static String autorizacaoPadraoDaAbertura(Object corpo) {
+        Object cota = null;
+        try {
+            if (corpo instanceof Map<?, ?> mapa) {
+                cota = mapa.get("cotaId");
+            } else if (corpo instanceof CharSequence texto) {
+                cota = new JsonPath(texto.toString()).get("cotaId");
+            }
+        } catch (RuntimeException e) {
+            // corpo malformado: o teste quer a recusa de formato, de qualquer cliente
+        }
+        return (cota instanceof Number numero ? clienteDaCota(numero.longValue()) : CLIENTE_SEM_COTA).autorizacao();
+    }
+
+    private static Long cotaDoCorpo(Object corpo) {
+        try {
+            Object cota = corpo instanceof Map<?, ?> mapa ? mapa.get("cotaId")
+                    : new JsonPath(corpo.toString()).get("cotaId");
+            return cota instanceof Number numero ? numero.longValue() : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /** Só para as pré-condições de cadastro de cliente e cota, cujo código exato de sucesso ainda não foi definido. */
@@ -51,8 +151,10 @@ public final class ApiAceitacao {
     public static long novaCota(BigDecimal credito) {
         long cliente = enviar("/clientes", Map.of("nome", "Cliente de Aceitação", "cpf", "%011d".formatted(unico())))
                 .statusCode(sucesso()).extract().jsonPath().getLong("id");
-        return enviar("/cotas", Map.of("numero", "COTA-" + unico(), "valorCredito", credito, "clienteId", cliente))
+        long cota = enviar("/cotas", Map.of("numero", "COTA-" + unico(), "valorCredito", credito, "clienteId", cliente))
                 .statusCode(sucesso()).extract().jsonPath().getLong("id");
+        CLIENTE_DA_COTA.put(cota, Pessoa.cliente(cliente));
+        return cota;
     }
 
     public static long abrirProcesso(long cota, String tipo) {
@@ -80,6 +182,12 @@ public final class ApiAceitacao {
     /** {@code favorecidos}: lista de {@link #favorecido}, {@link #AUSENTE} (omite o campo) ou null (JSON null). */
     public static ValidatableResponse tentarAbrirProcesso(long cota, String tipo, BigDecimal valor, Object favorecidos) {
         return enviar("/processos", corpoAbertura(cota, tipo, valor, favorecidos));
+    }
+
+    /** Pedido de abertura com a identidade dada (valor padrão), sem conferir o resultado. */
+    public static ValidatableResponse tentarAbrirProcessoComo(String autorizacao, long cota, String tipo) {
+        return enviarComo(autorizacao, "/processos",
+                corpoAbertura(cota, tipo, VALOR_PADRAO, favorecidoUnico(VALOR_PADRAO)));
     }
 
     /** Marca um campo que NÃO deve ser enviado (diferente de null, que vai como JSON null). */
@@ -117,7 +225,7 @@ public final class ApiAceitacao {
 
     /** GET /processos/{id}/favorecidos sem conferir o resultado. */
     public static ValidatableResponse tentarConsultarFavorecidos(long processo) {
-        return given().when().get("/processos/%d/favorecidos".formatted(processo)).then();
+        return requisicaoDeConsulta().when().get("/processos/%d/favorecidos".formatted(processo)).then();
     }
 
     /** Favorecidos do processo, na ordem devolvida; {@code valor} fica como BigDecimal quando o JSON permite. */
@@ -190,7 +298,8 @@ public final class ApiAceitacao {
 
     /** Crédito disponível informado pela consulta da cota (R13), lido sem perder casas decimais. */
     public static BigDecimal consultarCreditoDisponivel(long cota) {
-        String corpo = given().when().get("/cotas/%d".formatted(cota)).then().statusCode(200).extract().asString();
+        String corpo = requisicaoDeConsulta().when().get("/cotas/%d".formatted(cota)).then().statusCode(200)
+                .extract().asString();
         Object valor = comoBigDecimal(corpo).get("creditoDisponivel");
         if (valor == null) {
             throw new AssertionError("A consulta da cota %d não informa creditoDisponivel: %s".formatted(cota, corpo));
@@ -207,12 +316,45 @@ public final class ApiAceitacao {
         return new BigDecimal(valor.toString());
     }
 
+    /**
+     * POST com o token padrão do caminho: abrir processo, o cliente dono da cota citada no corpo; cadastros de
+     * cliente e de cota, o backoffice.
+     */
     public static ValidatableResponse enviar(String caminho, Object corpo) {
-        return given().contentType(ContentType.JSON).body(corpo).when().post(caminho).then();
+        String autorizacao = "/processos".equals(caminho) ? autorizacaoPadraoDaAbertura(corpo)
+                : IdentidadeTeste.ANA.autorizacao();
+        return enviarComo(autorizacao, caminho, corpo);
+    }
+
+    /** POST com a identidade dada. Um processo aberto (201) fica conhecido, para o auxiliar achar o dono da cota. */
+    public static ValidatableResponse enviarComo(String autorizacao, String caminho, Object corpo) {
+        ValidatableResponse resposta = requisicao(autorizacao).contentType(ContentType.JSON).body(corpo)
+                .when().post(caminho).then();
+        if ("/processos".equals(caminho) && resposta.extract().statusCode() == 201) {
+            Long cota = cotaDoCorpo(corpo);
+            if (cota != null) {
+                COTA_DO_PROCESSO.put(resposta.extract().jsonPath().getLong("id"), cota);
+            }
+        }
+        return resposta;
+    }
+
+    /** GET com a identidade dada. */
+    public static ValidatableResponse consultarComo(String autorizacao, String caminho) {
+        return requisicao(autorizacao).when().get(caminho).then();
     }
 
     public static ValidatableResponse executar(long processo, String acao) {
-        return given().when().post("/processos/%d/%s".formatted(processo, acao)).then();
+        return executarComo(autorizacaoPadraoDaAcao(processo, acao), processo, acao, null);
+    }
+
+    /** A ação com a identidade dada; {@code corpo} nulo envia o pedido sem corpo (objeto ou texto JSON, se houver). */
+    public static ValidatableResponse executarComo(String autorizacao, long processo, String acao, Object corpo) {
+        RequestSpecification pedido = requisicao(autorizacao);
+        if (corpo != null) {
+            pedido = pedido.contentType(ContentType.JSON).body(corpo);
+        }
+        return pedido.when().post("/processos/%d/%s".formatted(processo, acao)).then();
     }
 
     /** Ação cujo corpo é obrigatório e traz o motivo: {"motivo": "..."} . */
@@ -227,24 +369,24 @@ public final class ApiAceitacao {
 
     /** Corpo JSON como objeto (serializado) ou como texto cru, para poder enviar JSON malformado. */
     public static ValidatableResponse executarComCorpo(long processo, String acao, Object corpo) {
-        return given().contentType(ContentType.JSON).body(corpo)
-                .when().post("/processos/%d/%s".formatted(processo, acao)).then();
+        return executarComo(autorizacaoPadraoDaAcao(processo, acao), processo, acao, corpo);
     }
 
     /** Corpo com conteúdo e tipo escolhido pelo teste (ex.: text/plain). */
     public static ValidatableResponse executarComConteudo(long processo, String acao, String tipo, String corpo) {
-        return given().contentType(tipo).body(corpo)
+        return requisicao(autorizacaoPadraoDaAcao(processo, acao)).contentType(tipo).body(corpo)
                 .when().post("/processos/%d/%s".formatted(processo, acao)).then();
     }
 
     public static List<String> consultarAcoes(long processo) {
-        return given().when().get("/processos/%d/acoes".formatted(processo)).then().statusCode(200)
+        return requisicaoDeConsulta().when().get("/processos/%d/acoes".formatted(processo)).then().statusCode(200)
                 .extract().jsonPath().getList("acoes");
     }
 
     /** Histórico em ordem; os números (valorAnterior, valorNovo) ficam como BigDecimal, sem ponto flutuante. */
     public static List<Map<String, Object>> consultarHistorico(long processo) {
-        String corpo = given().when().get("/processos/%d/historico".formatted(processo)).then().statusCode(200)
+        String corpo = requisicaoDeConsulta().when().get("/processos/%d/historico".formatted(processo)).then()
+                .statusCode(200)
                 .extract().asString();
         return comoBigDecimal(corpo).getList("$");
     }
@@ -348,7 +490,7 @@ public final class ApiAceitacao {
 
     /** GET /processos/{id}/alteracao-proposta sem conferir o resultado. */
     public static ValidatableResponse tentarConsultarProposta(long processo) {
-        return given().when().get("/processos/%d/alteracao-proposta".formatted(processo)).then();
+        return requisicaoDeConsulta().when().get("/processos/%d/alteracao-proposta".formatted(processo)).then();
     }
 
     /** Proposta pendente (200); números lidos sem perder casas decimais. */
@@ -367,7 +509,7 @@ public final class ApiAceitacao {
     public static List<Map<String, Object>> listarProcessosPorSituacao(String situacao) {
         List<Map<String, Object>> todos = new ArrayList<>();
         for (int pagina = 1;; pagina++) {
-            List<Map<String, Object>> itens = given().queryParam("estado", situacao)
+            List<Map<String, Object>> itens = requisicaoDeConsulta().queryParam("estado", situacao)
                     .queryParam("pagina", pagina).queryParam("tamanho", 100)
                     .when().get("/processos").then().statusCode(200).extract().jsonPath().getList("itens");
             if (itens.isEmpty()) {
@@ -392,7 +534,7 @@ public final class ApiAceitacao {
     private static List<Map<String, Object>> listarProcessos() {
         List<Map<String, Object>> todos = new ArrayList<>();
         for (int pagina = 1;; pagina++) {
-            String corpo = given().queryParam("pagina", pagina).queryParam("tamanho", 100)
+            String corpo = requisicaoDeConsulta().queryParam("pagina", pagina).queryParam("tamanho", 100)
                     .when().get("/processos").then().statusCode(200).extract().asString();
             JsonPath resposta = comoBigDecimal(corpo);
             List<Map<String, Object>> itens = resposta.getList("itens");

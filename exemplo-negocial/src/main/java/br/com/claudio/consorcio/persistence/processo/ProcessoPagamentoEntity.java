@@ -37,6 +37,9 @@ public class ProcessoPagamentoEntity {
     @Column(name = "identificacao_solicitacao")
     private UUID identificacaoSolicitacao;
 
+    @Column(name = "autor_ultima_conclusao_analise")
+    private String autorUltimaConclusaoAnalise;
+
     @Version
     private long versao;
 
@@ -46,6 +49,14 @@ public class ProcessoPagamentoEntity {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getAutorUltimaConclusaoAnalise() {
+        return autorUltimaConclusaoAnalise;
+    }
+
+    public void setAutorUltimaConclusaoAnalise(String autorUltimaConclusaoAnalise) {
+        this.autorUltimaConclusaoAnalise = autorUltimaConclusaoAnalise;
     }
 
     public Long getCotaId() {

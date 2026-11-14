@@ -28,6 +28,11 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/app
       DB_USER: app
       DB_PASSWORD: app
+      # Identidade (ADR 003): aqui a chave pública é a de DESENVOLVIMENTO (tokens de scripts/token-dev.sh). Em produção,
+      # a do provedor de identidade, e o emissor dele em MP_JWT_VERIFY_ISSUER.
+      MP_JWT_VERIFY_PUBLICKEY_LOCATION: /chaves/publica-desenvolvimento.pem
+    volumes:
+      - ./src/main/resources/jwt:/chaves:ro
     ports:
       - "8080:8080"
     depends_on:

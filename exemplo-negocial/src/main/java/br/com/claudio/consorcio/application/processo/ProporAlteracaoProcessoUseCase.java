@@ -4,6 +4,7 @@ import br.com.claudio.consorcio.application.NaoEncontradoException;
 import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.cota.Cota;
 import br.com.claudio.consorcio.domain.cota.CotaRepository;
+import br.com.claudio.consorcio.domain.processo.Autor;
 import br.com.claudio.consorcio.domain.processo.Favorecido;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
@@ -32,14 +33,14 @@ public class ProporAlteracaoProcessoUseCase {
     }
 
     @Transactional
-    public EstadoProcesso executar(Long id, BigDecimal valor, List<DadosFavorecido> favorecidos, String motivo) {
+    public EstadoProcesso executar(Long id, Autor autor, BigDecimal valor, List<DadosFavorecido> favorecidos, String motivo) {
         Dinheiro novoValor = Dinheiro.de(valor);
         List<Favorecido> novosFavorecidos = favorecidos.stream().map(DadosFavorecido::paraFavorecido).toList();
         Long cotaId = processos.buscarPorId(id).orElseThrow(() -> new NaoEncontradoException("Processo", id)).cotaId();
         Cota cota = cotas.buscarPorIdComBloqueio(cotaId).orElseThrow(() -> new NaoEncontradoException("Cota", cotaId));
         ProcessoPagamento processo = processos.buscarPorIdComBloqueio(id)
                 .orElseThrow(() -> new NaoEncontradoException("Processo", id));
-        processo.proporAlteracao(novoValor, novosFavorecidos, motivo, Instant.now());
+        processo.proporAlteracao(autor, novoValor, novosFavorecidos, motivo, Instant.now());
         cota.exigirCreditoPara(novoValor, processos.somarValorPagoPorCota(cotaId));
         return processos.salvar(processo).estado();
     }

@@ -1,5 +1,6 @@
 package br.com.claudio.consorcio.domain.processo;
 
+import static br.com.claudio.consorcio.domain.processo.AutoresDeTeste.*;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.ALTERAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CANCELAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCORDAR;
@@ -52,13 +53,13 @@ class AlteracaoDoProcessoTest {
 
     private static ProcessoPagamento emAnalise() {
         ProcessoPagamento processo = aberto(TipoProcesso.SERVICO);
-        processo.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
+        processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
         return processo;
     }
 
     private static ProcessoPagamento aguardando() {
         ProcessoPagamento processo = emAnalise();
-        processo.proporAlteracao(NOVO_VALOR, NOVOS, "valor errado", AGORA);
+        processo.proporAlteracao(ANA, NOVO_VALOR, NOVOS, "valor errado", AGORA);
         return processo;
     }
 
@@ -74,7 +75,7 @@ class AlteracaoDoProcessoTest {
         void trocaValorEFavorecidosEContinuaAberto(TipoProcesso tipo) {
             ProcessoPagamento processo = aberto(tipo);
 
-            processo.alterar(NOVO_VALOR, NOVOS, AGORA);
+            processo.alterar(CLIENTE, NOVO_VALOR, NOVOS, AGORA);
 
             assertEquals(ABERTO, processo.estado());
             assertEquals(NOVO_VALOR, processo.valor());
@@ -86,7 +87,7 @@ class AlteracaoDoProcessoTest {
         void historicoTrazOValorAnteriorEONovo() {
             ProcessoPagamento processo = aberto(TipoProcesso.SERVICO);
 
-            processo.alterar(NOVO_VALOR, NOVOS, AGORA);
+            processo.alterar(CLIENTE, NOVO_VALOR, NOVOS, AGORA);
 
             Transicao transicao = ultima(processo);
             assertEquals(ALTERAR, transicao.acao());
@@ -100,8 +101,8 @@ class AlteracaoDoProcessoTest {
         void podeAlterarVariasVezes() {
             ProcessoPagamento processo = aberto(TipoProcesso.SERVICO);
 
-            processo.alterar(NOVO_VALOR, NOVOS, AGORA);
-            processo.alterar(VALOR, VIGENTES, AGORA);
+            processo.alterar(CLIENTE, NOVO_VALOR, NOVOS, AGORA);
+            processo.alterar(CLIENTE, VALOR, VIGENTES, AGORA);
 
             assertEquals(VALOR, processo.valor());
             assertEquals(VIGENTES, processo.favorecidos());
@@ -113,7 +114,7 @@ class AlteracaoDoProcessoTest {
         void mesmoValorEFavorecidosSaoAceitos() {
             ProcessoPagamento processo = aberto(TipoProcesso.SERVICO);
 
-            processo.alterar(VALOR, VIGENTES, AGORA);
+            processo.alterar(CLIENTE, VALOR, VIGENTES, AGORA);
 
             assertEquals(1, processo.novasTransicoes().size());
         }
@@ -122,15 +123,15 @@ class AlteracaoDoProcessoTest {
         void usaAsMesmasInvariantesDaAbertura() {
             ProcessoPagamento processo = aberto(TipoProcesso.SERVICO);
 
-            assertThrows(DominioException.class, () -> processo.alterar(null, NOVOS, AGORA));
-            assertThrows(DominioException.class, () -> processo.alterar(Dinheiro.ZERO, NOVOS, AGORA));
-            assertThrows(DominioException.class, () -> processo.alterar(NOVO_VALOR, null, AGORA));
-            assertThrows(DominioException.class, () -> processo.alterar(NOVO_VALOR, List.of(), AGORA));
-            assertThrows(DominioException.class, () -> processo.alterar(NOVO_VALOR, favorecidos("98765432100", Dinheiro.de("24999.99")), AGORA));
-            assertThrows(DominioException.class, () -> processo.alterar(NOVO_VALOR, favorecidos("98765432100", Dinheiro.de("25000.01")), AGORA));
+            assertThrows(DominioException.class, () -> processo.alterar(CLIENTE, null, NOVOS, AGORA));
+            assertThrows(DominioException.class, () -> processo.alterar(CLIENTE, Dinheiro.ZERO, NOVOS, AGORA));
+            assertThrows(DominioException.class, () -> processo.alterar(CLIENTE, NOVO_VALOR, null, AGORA));
+            assertThrows(DominioException.class, () -> processo.alterar(CLIENTE, NOVO_VALOR, List.of(), AGORA));
+            assertThrows(DominioException.class, () -> processo.alterar(CLIENTE, NOVO_VALOR, favorecidos("98765432100", Dinheiro.de("24999.99")), AGORA));
+            assertThrows(DominioException.class, () -> processo.alterar(CLIENTE, NOVO_VALOR, favorecidos("98765432100", Dinheiro.de("25000.01")), AGORA));
             Favorecido a = new Favorecido("A", Documento.de("98765432100"), "vendedor", Dinheiro.de("12500.00"));
             Favorecido b = new Favorecido("B", Documento.de("98765432100"), "cartório", Dinheiro.de("12500.00"));
-            assertThrows(DominioException.class, () -> processo.alterar(NOVO_VALOR, List.of(a, b), AGORA));
+            assertThrows(DominioException.class, () -> processo.alterar(CLIENTE, NOVO_VALOR, List.of(a, b), AGORA));
         }
 
         @Test
@@ -138,7 +139,7 @@ class AlteracaoDoProcessoTest {
             ProcessoPagamento processo = aberto(TipoProcesso.SERVICO);
 
             assertThrows(DominioException.class,
-                    () -> processo.alterar(NOVO_VALOR, favorecidos("98765432100", Dinheiro.de("1.00")), AGORA));
+                    () -> processo.alterar(CLIENTE, NOVO_VALOR, favorecidos("98765432100", Dinheiro.de("1.00")), AGORA));
 
             assertEquals(VALOR, processo.valor());
             assertEquals(VIGENTES, processo.favorecidos());
@@ -149,7 +150,7 @@ class AlteracaoDoProcessoTest {
         void soValeEmAberto() {
             ProcessoPagamento processo = emAnalise();
 
-            assertThrows(TransicaoInvalidaException.class, () -> processo.alterar(NOVO_VALOR, NOVOS, AGORA));
+            assertThrows(TransicaoInvalidaException.class, () -> processo.alterar(CLIENTE, NOVO_VALOR, NOVOS, AGORA));
 
             assertEquals(VALOR, processo.valor());
             assertEquals(EM_ANALISE, processo.estado());
@@ -159,7 +160,7 @@ class AlteracaoDoProcessoTest {
         void dadoInvalidoVemAntesDoEstado() {
             ProcessoPagamento processo = emAnalise();
 
-            assertThrows(DominioException.class, () -> processo.alterar(NOVO_VALOR, List.of(), AGORA));
+            assertThrows(DominioException.class, () -> processo.alterar(CLIENTE, NOVO_VALOR, List.of(), AGORA));
         }
     }
 
@@ -170,9 +171,9 @@ class AlteracaoDoProcessoTest {
         @EnumSource(TipoProcesso.class)
         void guardaAPropostaSemTocarNosVigentes(TipoProcesso tipo) {
             ProcessoPagamento processo = aberto(tipo);
-            processo.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
 
-            processo.proporAlteracao(NOVO_VALOR, NOVOS, "valor errado", AGORA);
+            processo.proporAlteracao(ANA, NOVO_VALOR, NOVOS, "valor errado", AGORA);
 
             assertEquals(AGUARDANDO_CONCORDANCIA, processo.estado());
             assertEquals(VALOR, processo.valor());
@@ -201,9 +202,9 @@ class AlteracaoDoProcessoTest {
         void motivoEObrigatorio() {
             ProcessoPagamento processo = emAnalise();
 
-            assertThrows(DominioException.class, () -> processo.proporAlteracao(NOVO_VALOR, NOVOS, null, AGORA));
-            assertThrows(DominioException.class, () -> processo.proporAlteracao(NOVO_VALOR, NOVOS, "   ", AGORA));
-            assertThrows(DominioException.class, () -> processo.proporAlteracao(NOVO_VALOR, NOVOS, "x".repeat(501), AGORA));
+            assertThrows(DominioException.class, () -> processo.proporAlteracao(ANA, NOVO_VALOR, NOVOS, null, AGORA));
+            assertThrows(DominioException.class, () -> processo.proporAlteracao(ANA, NOVO_VALOR, NOVOS, "   ", AGORA));
+            assertThrows(DominioException.class, () -> processo.proporAlteracao(ANA, NOVO_VALOR, NOVOS, "x".repeat(501), AGORA));
 
             assertEquals(EM_ANALISE, processo.estado());
             assertTrue(processo.propostaPendente().isEmpty());
@@ -213,12 +214,12 @@ class AlteracaoDoProcessoTest {
         void propostaTemAsMesmasInvariantesDoConjunto() {
             ProcessoPagamento processo = emAnalise();
 
-            assertThrows(DominioException.class, () -> processo.proporAlteracao(Dinheiro.ZERO, NOVOS, "m", AGORA));
-            assertThrows(DominioException.class, () -> processo.proporAlteracao(NOVO_VALOR, List.of(), "m", AGORA));
+            assertThrows(DominioException.class, () -> processo.proporAlteracao(ANA, Dinheiro.ZERO, NOVOS, "m", AGORA));
+            assertThrows(DominioException.class, () -> processo.proporAlteracao(ANA, NOVO_VALOR, List.of(), "m", AGORA));
             assertThrows(DominioException.class,
-                    () -> processo.proporAlteracao(NOVO_VALOR, favorecidos("98765432100", Dinheiro.de("24999.99")), "m", AGORA));
+                    () -> processo.proporAlteracao(ANA, NOVO_VALOR, favorecidos("98765432100", Dinheiro.de("24999.99")), "m", AGORA));
             Favorecido a = new Favorecido("A", Documento.de("98765432100"), "vendedor", Dinheiro.de("12500.00"));
-            assertThrows(DominioException.class, () -> processo.proporAlteracao(NOVO_VALOR, List.of(a, a), "m", AGORA));
+            assertThrows(DominioException.class, () -> processo.proporAlteracao(ANA, NOVO_VALOR, List.of(a, a), "m", AGORA));
 
             assertEquals(EM_ANALISE, processo.estado());
             assertEquals(1, processo.novasTransicoes().size(), "só a transição de iniciar a análise");
@@ -228,7 +229,7 @@ class AlteracaoDoProcessoTest {
         void propostaPodeRepetirODocumentoDeUmVigente() {
             ProcessoPagamento processo = emAnalise();
 
-            processo.proporAlteracao(NOVO_VALOR, favorecidos("12345678901", NOVO_VALOR), "mesmo favorecido", AGORA);
+            processo.proporAlteracao(ANA, NOVO_VALOR, favorecidos("12345678901", NOVO_VALOR), "mesmo favorecido", AGORA);
 
             assertEquals(AGUARDANDO_CONCORDANCIA, processo.estado());
         }
@@ -237,7 +238,7 @@ class AlteracaoDoProcessoTest {
         void soValeEmAnalise() {
             ProcessoPagamento processo = aberto(TipoProcesso.SERVICO);
 
-            assertThrows(TransicaoInvalidaException.class, () -> processo.proporAlteracao(NOVO_VALOR, NOVOS, "m", AGORA));
+            assertThrows(TransicaoInvalidaException.class, () -> processo.proporAlteracao(ANA, NOVO_VALOR, NOVOS, "m", AGORA));
             assertTrue(processo.propostaPendente().isEmpty());
         }
 
@@ -245,7 +246,7 @@ class AlteracaoDoProcessoTest {
         void naoPodeProporDuasVezesSeguidas() {
             ProcessoPagamento processo = aguardando();
 
-            assertThrows(TransicaoInvalidaException.class, () -> processo.proporAlteracao(VALOR, VIGENTES, "outra", AGORA));
+            assertThrows(TransicaoInvalidaException.class, () -> processo.proporAlteracao(ANA, VALOR, VIGENTES, "outra", AGORA));
             assertEquals(NOVO_VALOR, processo.propostaPendente().orElseThrow().valor());
         }
     }
@@ -257,7 +258,7 @@ class AlteracaoDoProcessoTest {
         void concordarTornaAPropostaVigenteEElaSome() {
             ProcessoPagamento processo = aguardando();
 
-            processo.executar(CONCORDAR, AGORA, null, ALCADA);
+            processo.executar(quemFaz(CONCORDAR), CONCORDAR, AGORA, null, ALCADA);
 
             assertEquals(EM_ANALISE, processo.estado());
             assertEquals(NOVO_VALOR, processo.valor());
@@ -273,7 +274,7 @@ class AlteracaoDoProcessoTest {
         void concordarGuardaAObservacaoOpcional() {
             ProcessoPagamento processo = aguardando();
 
-            processo.executar(CONCORDAR, AGORA, "de acordo", ALCADA);
+            processo.executar(quemFaz(CONCORDAR), CONCORDAR, AGORA, "de acordo", ALCADA);
 
             assertEquals("de acordo", ultima(processo).observacao());
         }
@@ -282,7 +283,7 @@ class AlteracaoDoProcessoTest {
         void discordarDescartaAPropostaEMantemOsVigentes() {
             ProcessoPagamento processo = aguardando();
 
-            processo.executar(DISCORDAR, AGORA, "valor errado", ALCADA);
+            processo.executar(quemFaz(DISCORDAR), DISCORDAR, AGORA, "valor errado", ALCADA);
 
             assertEquals(EM_ANALISE, processo.estado());
             assertEquals(VALOR, processo.valor());
@@ -298,8 +299,8 @@ class AlteracaoDoProcessoTest {
         void discordarExigeMotivoENadaMuda() {
             ProcessoPagamento processo = aguardando();
 
-            assertThrows(DominioException.class, () -> processo.executar(DISCORDAR, AGORA, null, ALCADA));
-            assertThrows(DominioException.class, () -> processo.executar(DISCORDAR, AGORA, "  ", ALCADA));
+            assertThrows(DominioException.class, () -> processo.executar(quemFaz(DISCORDAR), DISCORDAR, AGORA, null, ALCADA));
+            assertThrows(DominioException.class, () -> processo.executar(quemFaz(DISCORDAR), DISCORDAR, AGORA, "  ", ALCADA));
 
             assertEquals(AGUARDANDO_CONCORDANCIA, processo.estado());
             assertTrue(processo.propostaPendente().isPresent());
@@ -309,7 +310,7 @@ class AlteracaoDoProcessoTest {
         void cancelarDescartaAPropostaEMantemOsVigentes() {
             ProcessoPagamento processo = aguardando();
 
-            processo.executar(CANCELAR, AGORA, "desistência", ALCADA);
+            processo.executar(quemFaz(CANCELAR), CANCELAR, AGORA, "desistência", ALCADA);
 
             assertEquals(CANCELADO, processo.estado());
             assertEquals(VALOR, processo.valor());
@@ -320,9 +321,9 @@ class AlteracaoDoProcessoTest {
         @Test
         void podeProporDeNovoDepoisDeDiscordarOuConcordar() {
             ProcessoPagamento processo = aguardando();
-            processo.executar(DISCORDAR, AGORA, "não", ALCADA);
-            processo.proporAlteracao(Dinheiro.de("20000.00"), favorecidos("11111111111", Dinheiro.de("20000.00")), "outra", AGORA);
-            processo.executar(CONCORDAR, AGORA, null, ALCADA);
+            processo.executar(quemFaz(DISCORDAR), DISCORDAR, AGORA, "não", ALCADA);
+            processo.proporAlteracao(ANA, Dinheiro.de("20000.00"), favorecidos("11111111111", Dinheiro.de("20000.00")), "outra", AGORA);
+            processo.executar(quemFaz(CONCORDAR), CONCORDAR, AGORA, null, ALCADA);
 
             assertEquals(Dinheiro.de("20000.00"), processo.valor());
             assertEquals(5, processo.novasTransicoes().size(), "iniciar, propor, discordar, propor, concordar");
@@ -332,8 +333,8 @@ class AlteracaoDoProcessoTest {
         void respostaForaDeAguardandoERecusada() {
             ProcessoPagamento processo = emAnalise();
 
-            assertThrows(TransicaoInvalidaException.class, () -> processo.executar(CONCORDAR, AGORA, null, ALCADA));
-            assertThrows(TransicaoInvalidaException.class, () -> processo.executar(DISCORDAR, AGORA, "m", ALCADA));
+            assertThrows(TransicaoInvalidaException.class, () -> processo.executar(quemFaz(CONCORDAR), CONCORDAR, AGORA, null, ALCADA));
+            assertThrows(TransicaoInvalidaException.class, () -> processo.executar(quemFaz(DISCORDAR), DISCORDAR, AGORA, "m", ALCADA));
         }
     }
 
@@ -349,7 +350,7 @@ class AlteracaoDoProcessoTest {
             if (vale) {
                 assertTrue(processo.acoesDisponiveis().contains(acao));
             } else {
-                assertThrows(TransicaoInvalidaException.class, () -> processo.executar(acao, AGORA, "motivo", ALCADA));
+                assertThrows(TransicaoInvalidaException.class, () -> processo.executar(quemFaz(acao), acao, AGORA, "motivo", ALCADA));
                 assertEquals(AGUARDANDO_CONCORDANCIA, processo.estado());
                 assertEquals(NOVO_VALOR, processo.propostaPendente().orElseThrow().valor());
             }
@@ -373,9 +374,9 @@ class AlteracaoDoProcessoTest {
         @Test
         void executarGenericoRecusaAlterarEProporAlteracao() {
             ProcessoPagamento aberto = aberto(TipoProcesso.SERVICO);
-            assertThrows(DominioException.class, () -> aberto.executar(ALTERAR, AGORA, null, ALCADA));
+            assertThrows(DominioException.class, () -> aberto.executar(quemFaz(ALTERAR), ALTERAR, AGORA, null, ALCADA));
             ProcessoPagamento emAnalise = emAnalise();
-            assertThrows(DominioException.class, () -> emAnalise.executar(PROPOR_ALTERACAO, AGORA, "motivo", ALCADA));
+            assertThrows(DominioException.class, () -> emAnalise.executar(quemFaz(PROPOR_ALTERACAO), PROPOR_ALTERACAO, AGORA, "motivo", ALCADA));
 
             assertEquals(ABERTO, aberto.estado());
             assertEquals(EM_ANALISE, emAnalise.estado());
@@ -389,7 +390,7 @@ class AlteracaoDoProcessoTest {
         private final AlteracaoProposta proposta = new AlteracaoProposta(NOVO_VALOR, NOVOS, "motivo");
 
         private ProcessoPagamento reconstituir(EstadoProcesso estado, AlteracaoProposta comProposta) {
-            return ProcessoPagamento.reconstituir(1L, 1L, TipoProcesso.SERVICO, VALOR, VIGENTES, estado, null, comProposta, null, 2);
+            return ProcessoPagamento.reconstituir(1L, 1L, TipoProcesso.SERVICO, VALOR, VIGENTES, estado, null, comProposta, null, null, 2);
         }
 
         @Test
@@ -416,9 +417,9 @@ class AlteracaoDoProcessoTest {
         void propostaPendenteSempreSegueOEstado() {
             ProcessoPagamento processo = emAnalise();
             assertFalse(processo.propostaPendente().isPresent());
-            processo.proporAlteracao(NOVO_VALOR, NOVOS, "m", AGORA);
+            processo.proporAlteracao(ANA, NOVO_VALOR, NOVOS, "m", AGORA);
             assertTrue(processo.propostaPendente().isPresent());
-            processo.executar(DISCORDAR, AGORA, "m", ALCADA);
+            processo.executar(quemFaz(DISCORDAR), DISCORDAR, AGORA, "m", ALCADA);
             assertFalse(processo.propostaPendente().isPresent());
         }
 
@@ -436,10 +437,10 @@ class AlteracaoDoProcessoTest {
         @Test
         void valoresSoVemJuntosEMotivoNaoSeMistura() {
             assertThrows(DominioException.class,
-                    () -> new Transicao(ABERTO, ABERTO, ALTERAR, AGORA, null, VALOR, null));
+                    () -> new Transicao(ABERTO, ABERTO, ALTERAR, AGORA, usuarioDe(ALTERAR), null, VALOR, null));
             assertThrows(DominioException.class,
-                    () -> new Transicao(ABERTO, ABERTO, ALTERAR, AGORA, null, null, VALOR));
-            Transicao semValores = new Transicao(ABERTO, EM_ANALISE, INICIAR_ANALISE, AGORA, null);
+                    () -> new Transicao(ABERTO, ABERTO, ALTERAR, AGORA, usuarioDe(ALTERAR), null, null, VALOR));
+            Transicao semValores = new Transicao(ABERTO, EM_ANALISE, INICIAR_ANALISE, AGORA, usuarioDe(INICIAR_ANALISE), null);
             assertNull(semValores.valorAnterior());
             assertNull(semValores.valorNovo());
         }

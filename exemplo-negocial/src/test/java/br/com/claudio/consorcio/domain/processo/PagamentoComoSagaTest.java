@@ -1,5 +1,6 @@
 package br.com.claudio.consorcio.domain.processo;
 
+import static br.com.claudio.consorcio.domain.processo.AutoresDeTeste.*;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CANCELAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONFIRMAR_PAGAMENTO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.RECUSAR_PAGAMENTO;
@@ -41,17 +42,17 @@ class PagamentoComoSagaTest {
     private static ProcessoPagamento aprovado(TipoProcesso tipo) {
         ProcessoPagamento processo = ProcessoPagamento.novo(tipo, 1L, VALOR, List.of(
                 new Favorecido("Favorecido", Documento.de("12345678901"), "vendedor", VALOR)));
-        processo.executar(AcaoProcesso.INICIAR_ANALISE, AGORA, null, ALCADA);
-        processo.executar(AcaoProcesso.CONCLUIR_ANALISE, AGORA, null, ALCADA);
+        processo.executar(quemFaz(AcaoProcesso.INICIAR_ANALISE), AcaoProcesso.INICIAR_ANALISE, AGORA, null, ALCADA);
+        processo.executar(quemFaz(AcaoProcesso.CONCLUIR_ANALISE), AcaoProcesso.CONCLUIR_ANALISE, AGORA, null, ALCADA);
         if (tipo == TipoProcesso.IMOBILIARIO) {
-            processo.executar(AcaoProcesso.CONCLUIR_VISTORIA, AGORA, null, ALCADA);
+            processo.executar(quemFaz(AcaoProcesso.CONCLUIR_VISTORIA), AcaoProcesso.CONCLUIR_VISTORIA, AGORA, null, ALCADA);
         }
         return processo;
     }
 
     private static ProcessoPagamento solicitado(TipoProcesso tipo) {
         ProcessoPagamento processo = aprovado(tipo);
-        processo.solicitarPagamento(PRIMEIRA, AGORA, null);
+        processo.solicitarPagamento(TEREZA, PRIMEIRA, AGORA, null);
         return processo;
     }
 
@@ -62,25 +63,25 @@ class PagamentoComoSagaTest {
     void solicitarSoLevaAPagamentoSolicitadoEGuardaAIdentificacao(TipoProcesso tipo) {
         ProcessoPagamento processo = aprovado(tipo);
 
-        processo.solicitarPagamento(PRIMEIRA, AGORA, "pedido do cliente");
+        processo.solicitarPagamento(TEREZA, PRIMEIRA, AGORA, "pedido do cliente");
 
         assertEquals(PAGAMENTO_SOLICITADO, processo.estado());
         assertEquals(PRIMEIRA, processo.identificacaoSolicitacao().orElseThrow());
         assertNull(processo.protocoloPagamento());
         assertTrue(processo.ativo());
-        assertEquals(new Transicao(APROVADO, PAGAMENTO_SOLICITADO, SOLICITAR_PAGAMENTO, AGORA, "pedido do cliente"),
+        assertEquals(new Transicao(APROVADO, PAGAMENTO_SOLICITADO, SOLICITAR_PAGAMENTO, AGORA, usuarioDe(SOLICITAR_PAGAMENTO), "pedido do cliente"),
                 processo.novasTransicoes().getLast());
     }
 
     @Test
     void solicitarExigeIdentificacaoEAprovado() {
         ProcessoPagamento processo = aprovado(TipoProcesso.SERVICO);
-        assertThrows(DominioException.class, () -> processo.solicitarPagamento(null, AGORA, null));
+        assertThrows(DominioException.class, () -> processo.solicitarPagamento(TEREZA, null, AGORA, null));
         assertEquals(APROVADO, processo.estado());
 
         ProcessoPagamento aberto = ProcessoPagamento.novo(TipoProcesso.SERVICO, 1L, VALOR, List.of(
                 new Favorecido("Favorecido", Documento.de("12345678901"), "vendedor", VALOR)));
-        assertThrows(TransicaoInvalidaException.class, () -> aberto.solicitarPagamento(PRIMEIRA, AGORA, null));
+        assertThrows(TransicaoInvalidaException.class, () -> aberto.solicitarPagamento(TEREZA, PRIMEIRA, AGORA, null));
         assertTrue(aberto.identificacaoSolicitacao().isEmpty());
     }
 
@@ -88,7 +89,7 @@ class PagamentoComoSagaTest {
     void solicitarDuasVezesERecusado() {
         ProcessoPagamento processo = solicitado(TipoProcesso.SERVICO);
 
-        assertThrows(TransicaoInvalidaException.class, () -> processo.solicitarPagamento(SEGUNDA, AGORA, null));
+        assertThrows(TransicaoInvalidaException.class, () -> processo.solicitarPagamento(TEREZA, SEGUNDA, AGORA, null));
         assertEquals(PRIMEIRA, processo.identificacaoSolicitacao().orElseThrow());
     }
 
@@ -106,7 +107,7 @@ class PagamentoComoSagaTest {
     void nenhumaAcaoDePessoaValeEmPagamentoSolicitado(AcaoProcesso acao) {
         ProcessoPagamento processo = solicitado(TipoProcesso.SERVICO);
 
-        assertThrows(DominioException.class, () -> processo.executar(acao, AGORA, "motivo", ALCADA), acao.name());
+        assertThrows(DominioException.class, () -> processo.executar(quemFaz(acao), acao, AGORA, "motivo", ALCADA), acao.name());
 
         assertEquals(PAGAMENTO_SOLICITADO, processo.estado());
         assertTrue(processo.acoesDisponiveis().isEmpty());
@@ -168,7 +169,7 @@ class PagamentoComoSagaTest {
         assertEquals(APROVADO, processo.estado());
         assertTrue(processo.identificacaoSolicitacao().isEmpty());
         assertNull(processo.protocoloPagamento());
-        assertEquals(new Transicao(PAGAMENTO_SOLICITADO, APROVADO, RECUSAR_PAGAMENTO, AGORA, "conta inválida"),
+        assertEquals(new Transicao(PAGAMENTO_SOLICITADO, APROVADO, RECUSAR_PAGAMENTO, AGORA, usuarioDe(RECUSAR_PAGAMENTO), "conta inválida"),
                 processo.novasTransicoes().getLast());
         assertTrue(processo.acoesDisponiveis().contains(SOLICITAR_PAGAMENTO));
     }
@@ -200,7 +201,7 @@ class PagamentoComoSagaTest {
         ProcessoPagamento processo = solicitado(TipoProcesso.SERVICO);
         processo.recusarPagamento("conta inválida", AGORA);
 
-        processo.solicitarPagamento(SEGUNDA, AGORA.plusSeconds(60), null);
+        processo.solicitarPagamento(TEREZA, SEGUNDA, AGORA.plusSeconds(60), null);
 
         assertEquals(PAGAMENTO_SOLICITADO, processo.estado());
         assertEquals(SEGUNDA, processo.identificacaoSolicitacao().orElseThrow());
@@ -320,7 +321,7 @@ class PagamentoComoSagaTest {
     void resultadoDeOutraSolicitacaoNaoEAplicado() {
         ProcessoPagamento processo = solicitado(TipoProcesso.SERVICO);
         processo.recusarPagamento("conta inválida", AGORA);
-        processo.solicitarPagamento(SEGUNDA, AGORA, null);
+        processo.solicitarPagamento(TEREZA, SEGUNDA, AGORA, null);
         int transicoes = processo.novasTransicoes().size();
 
         assertFalse(processo.aplicarResultado(PRIMEIRA, ResultadoPagamento.confirmado("778899"), AGORA));
@@ -336,12 +337,12 @@ class PagamentoComoSagaTest {
     void reconstituirExigeIdentificacaoSeESomenteSeEmPagamentoSolicitado() {
         List<Favorecido> favorecidos = List.of(new Favorecido("F", Documento.de("12345678901"), "vendedor", VALOR));
         assertThrows(DominioException.class, () -> ProcessoPagamento.reconstituir(1L, 1L, TipoProcesso.SERVICO, VALOR,
-                favorecidos, PAGAMENTO_SOLICITADO, null, null, null, 0));
+                favorecidos, PAGAMENTO_SOLICITADO, null, null, null, null, 0));
         assertThrows(DominioException.class, () -> ProcessoPagamento.reconstituir(1L, 1L, TipoProcesso.SERVICO, VALOR,
-                favorecidos, APROVADO, null, null, PRIMEIRA, 0));
+                favorecidos, APROVADO, null, null, PRIMEIRA, null, 0));
 
         ProcessoPagamento lido = ProcessoPagamento.reconstituir(1L, 1L, TipoProcesso.SERVICO, VALOR, favorecidos,
-                PAGAMENTO_SOLICITADO, null, null, PRIMEIRA, 4);
+                PAGAMENTO_SOLICITADO, null, null, PRIMEIRA, null, 4);
         assertEquals(PRIMEIRA, lido.identificacaoSolicitacao().orElseThrow());
         assertTrue(lido.novasTransicoes().isEmpty());
     }
@@ -351,7 +352,7 @@ class PagamentoComoSagaTest {
         List<Favorecido> favorecidos = List.of(new Favorecido("F", Documento.de("12345678901"), "vendedor", VALOR));
 
         ProcessoPagamento antigo = ProcessoPagamento.reconstituir(1L, 1L, TipoProcesso.SERVICO, VALOR, favorecidos, PAGO,
-                "TES-1", null, null, 3);
+                "TES-1", null, null, null, 3);
 
         assertEquals(PAGO, antigo.estado());
         assertEquals("TES-1", antigo.protocoloPagamento());

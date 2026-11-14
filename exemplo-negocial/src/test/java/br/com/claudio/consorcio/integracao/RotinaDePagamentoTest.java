@@ -1,7 +1,7 @@
 package br.com.claudio.consorcio.integracao;
 
 import static br.com.claudio.consorcio.integracao.Api.historico;
-import static io.restassured.RestAssured.given;
+import static br.com.claudio.consorcio.integracao.Api.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;

@@ -142,6 +142,7 @@ Convenção de cada regra: `.as("ABC-001: TÍTULO EM CAIXA ALTA").because("por q
 | `TEC-009` | `RegrasTecnologia` | @TRANSACTIONAL EM MÉTODO SÓ NO USE CASE | o use case (Service Layer) define a fronteira da transação. **Corrija:** tire a anotação daqui e coloque no método do *UseCase que chama este código |
 | `TEC-010` | `RegrasTecnologia` | @TRANSACTIONAL EM CLASSE SÓ NO USE CASE | o use case (Service Layer) define a fronteira da transação. **Corrija:** tire a anotação da classe e coloque no *UseCase |
 | `TEC-011` | `RegrasTecnologia` | CLASSE DE DEPENDÊNCIA DE OUTRO SISTEMA SÓ EM GATEWAY E ENTRYPOINT | o contrato de outro sistema muda sem nos avisar; application e domain usam só tipos nossos. **Corrija:** ao consumir, o *Gateway devolve tipo simples ou record próprio de gateway/<sistema>; ao prover, o entrypoint converte a classe externa no DadosX do use case. Em ACL, o use case leva a classe externa até o *Translator, que a converte |
+| `TEC-012` | `RegrasTecnologia` | TIPOS E ANOTAÇÕES DE SEGURANÇA SÓ NO ENTRYPOINT | quem é a pessoa e que papel ela tem vêm do token, e isso é detalhe de entrada; o domínio e o use case recebem um dado puro (Autor) e decidem com ele. **Corrija:** use @RolesAllowed/@Authenticated e JsonWebToken só no entrypoint, monte o Autor ali e entregue-o ao use case; a permissão por situação vai na tabela do fluxo, no domínio |
 | `NOM-001` | `RegrasNomes` | *USECASE FICA EM APPLICATION | o sufixo diz a camada. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
 | `NOM-002` | `RegrasNomes` | *RESOURCE FICA EM ENTRYPOINT | o sufixo diz a camada. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
 | `NOM-003` | `RegrasNomes` | *ASSEMBLER FICA EM ENTRYPOINT | montar a resposta do canal é papel do entrypoint. **Corrija:** mova a classe para a pasta certa ou troque o sufixo do nome |
@@ -195,7 +196,15 @@ Discordar: AGUARDANDO_CONCORDANCIA → EM_ANALISE (a proposta é descartada; mot
 Qualquer estado não final → CANCELADO, exceto PAGAMENTO_SOLICITADO (exceção declarada na tabela: só a rotina tira o processo dali) (em AGUARDANDO_CONCORDANCIA só valem concordar, discordar e cancelar)
 ```
 
-**Alçada e transição condicional na tabela.** A linha que leva a APROVADO ao concluir a análise (serviço) e a vistoria (imobiliário) tem dois destinos, escolhidos por uma condição declarada na própria tabela: `.transicaoCondicional(EM_ANALISE, CONCLUIR_ANALISE, CondicaoDaTransicao.VALOR_PASSA_DA_ALCADA, AGUARDANDO_ALCADA, APROVADO)`. A condição recebe um `ContextoDaTransicao(valor, alcada)`; a raiz só entrega o valor vigente e a alçada, e não há `if (valor > alcada)` na entidade, no caso de uso nem no entrypoint. `acoesDisponiveis` continua saindo da tabela. O imobiliário troca só as linhas em que difere (concluir análise → AGUARDANDO_VISTORIA, sem condição; concluir vistoria, condicional). A alçada é a configuração `processo.alcada` (padrão `50000.00`, no `application.properties`): `ExecutarAcaoProcessoUseCase` a lê por `@ConfigProperty` e a passa ao domínio como `Dinheiro`. Valor igual à alçada vai a APROVADO; a decisão usa o valor vigente de cada conclusão. Fora desta entrega: quem aprova não pode ser quem concluiu a análise, papéis e autor no histórico.
+**Alçada e transição condicional na tabela.** A linha que leva a APROVADO ao concluir a análise (serviço) e a vistoria (imobiliário) tem dois destinos, escolhidos por uma condição declarada na própria tabela: `.transicaoCondicional(EM_ANALISE, CONCLUIR_ANALISE, CondicaoDaTransicao.VALOR_PASSA_DA_ALCADA, AGUARDANDO_ALCADA, APROVADO)`. A condição recebe um `ContextoDaTransicao(valor, alcada)`; a raiz só entrega o valor vigente e a alçada, e não há `if (valor > alcada)` na entidade, no caso de uso nem no entrypoint. `acoesDisponiveis` continua saindo da tabela. O imobiliário troca só as linhas em que difere (concluir análise → AGUARDANDO_VISTORIA, sem condição; concluir vistoria, condicional). A alçada é a configuração `processo.alcada` (padrão `50000.00`, no `application.properties`): `ExecutarAcaoProcessoUseCase` a lê por `@ConfigProperty` e a passa ao domínio como `Dinheiro`. Valor igual à alçada vai a APROVADO; a decisão usa o valor vigente de cada conclusão. Quem aprova na alçada não pode ser quem concluiu a análise (R17): ver "Autoria e papéis".
+
+**Autoria e papéis** (ADR [003](docs/adr/ADR_003_identidade_por_jwt.md)). Todo pedido, menos `/q/*`, leva `Authorization: Bearer <token JWT>`, verificado pela aplicação (`quarkus-smallrye-jwt`): `sub` é o usuário, `groups` os papéis (`cliente`, `backoffice`, `aprovador`, `tesouraria`) e `clienteId` o cadastro do cliente. A segurança só existe no `entrypoint` (`TEC-012`): `@RolesAllowed` em cada endpoint é a primeira barreira, e `AutorDoToken` monta o `Autor` (usuário, `Papel`s, `clienteId`), dado puro que os casos de uso entregam ao domínio.
+
+- **Papel por linha da tabela.** `.transicao(de, ação, para, Papel...)` declara quem pode pedir cada linha; reprovar e devolver para análise mudam de papel conforme a situação, e a raiz confere o `Autor` contra a linha (`PermissaoNegadaException`, 403). Ações da rotina não têm papel e gravam o autor `"sistema"`.
+- **Cliente da cota (R18).** Abrir, alterar, concordar e discordar: o `clienteId` do autor precisa ser o da cota (`Cota.exigirDoCliente`, 403).
+- **R17.** A raiz guarda o usuário da última conclusão de análise (`autor_ultima_conclusao_analise`); a linha `AGUARDANDO_ALCADA` + `APROVAR_NA_ALCADA` é marcada `exigindoOutraPessoaQueConcluiuAAnalise`.
+- **R19.** `Transicao.autor` e `GET /processos/{id}/historico` com `autor` (migration `V9`; linhas antigas, `desconhecido`).
+- **Ordem das recusas:** 401, 403 de papel (anotação), 400 de formato, 404, 403 de dono, de R17 e de papel por situação, 409.
 
 Pago, reprovado e cancelado são finais: não aceitam nenhuma ação e liberam a cota para um novo processo.
 
@@ -221,7 +230,7 @@ Pago, reprovado e cancelado são finais: não aceitam nenhuma ação e liberam a
 | `POST /processos/{id}/discordar` | obrigatório `{"motivo"}` | só em AGUARDANDO_CONCORDANCIA; `200 {"estado": "EM_ANALISE"}` |
 | `GET /processos/{id}/alteracao-proposta` | | `200 {"valor", "favorecidos", "motivo"}` enquanto aguarda; `404` sem proposta |
 
-400 de formato (antes de 404 e 409), 400 de regra (soma, documento repetido), 404 e 409 (situação, crédito). Nesta fatia qualquer chamador pode chamar qualquer endpoint: papéis, alçada e autor no histórico ficam para outra fatia.
+400 de formato (antes de 404 e 409), 400 de regra (soma, documento repetido), 404 e 409 (situação, crédito). Quem pode chamar cada endpoint está em "Autoria e papéis" e na tabela de endpoints.
 
 Transições inválidas lançam `TransicaoInvalidaException` (HTTP 409). Cada cota tem no máximo um processo em andamento. No banco, `processo_pagamento` guarda `tipo` e `estado` em texto, e `processo_transicao` guarda o histórico: uma linha por mudança de estado, com a ação, a data e a observação. O mapper reconstrói o tipo e o estado pelo código gravado (`TipoProcesso.valueOf`, `EstadoProcesso.valueOf`), sem herança JPA. A coluna `versao` impede que duas operações simultâneas gravem por cima uma da outra.
 
@@ -264,13 +273,13 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 
 | Tipo | Método e caminho | Descrição |
 |---|---|---|
-| Escrita | `POST /clientes`, `PUT/DELETE /clientes/{id}` | CRUD de cliente (CPF único) |
-| Escrita | `POST /cotas`, `PUT/DELETE /cotas/{id}` | CRUD de cota |
-| Escrita | `POST /processos` `{cotaId, tipo, valor, favorecidos: [{nome, documento, papel, valor}]}` | Cria processo (`IMOBILIARIO` ou `SERVICO`) com o valor (número maior que zero, até 2 casas, até o crédito disponível da cota), dividido entre ao menos um favorecido (partes somando o valor) |
-| Escrita | `POST /processos/{id}/iniciar-analise` · `concluir-analise` · `concluir-vistoria` · `aprovar-na-alcada` · `receber-documento` | Transições (`aprovar-na-alcada` só em AGUARDANDO_ALCADA; concluir análise ou vistoria responde APROVADO ou AGUARDANDO_ALCADA conforme `processo.alcada`); corpo opcional `{"observacao": "..."}` (até 500 caracteres) |
-| Escrita | `POST /processos/{id}/solicitar-documento` · `reprovar` · `devolver-para-analise` · `cancelar` | Transições; corpo obrigatório `{"motivo": "..."}` (não vazio, até 500 caracteres), gravado no histórico |
-| Escrita | `POST /processos/{id}/solicitar-pagamento` | Só leva APROVADO a PAGAMENTO_SOLICITADO (corpo opcional `{"observacao"}`); a rotina fala com a Tesouraria. Não existe endpoint para disparar a rotina nem para a Tesouraria avisar |
-| Leitura | `GET /clientes` | Clientes com a quantidade de cotas |
+| Escrita (`backoffice`) | `POST /clientes`, `PUT/DELETE /clientes/{id}` | CRUD de cliente (CPF único) |
+| Escrita (`backoffice`) | `POST /cotas`, `PUT/DELETE /cotas/{id}` | CRUD de cota |
+| Escrita (`cliente`, dono da cota) | `POST /processos` `{cotaId, tipo, valor, favorecidos: [{nome, documento, papel, valor}]}` | Cria processo (`IMOBILIARIO` ou `SERVICO`) com o valor (número maior que zero, até 2 casas, até o crédito disponível da cota), dividido entre ao menos um favorecido (partes somando o valor) |
+| Escrita (`backoffice`; `aprovar-na-alcada`: `aprovador`, outra pessoa que a da conclusão da análise) | `POST /processos/{id}/iniciar-analise` · `concluir-analise` · `concluir-vistoria` · `aprovar-na-alcada` · `receber-documento` | Transições (`aprovar-na-alcada` só em AGUARDANDO_ALCADA; concluir análise ou vistoria responde APROVADO ou AGUARDANDO_ALCADA conforme `processo.alcada`); corpo opcional `{"observacao": "..."}` (até 500 caracteres) |
+| Escrita (`solicitar-documento`: `backoffice`; `reprovar` e `devolver-para-analise`: `backoffice` ou `aprovador`, conforme a situação; `cancelar`: `backoffice` ou `aprovador`) | `POST /processos/{id}/solicitar-documento` · `reprovar` · `devolver-para-analise` · `cancelar` | Transições; corpo obrigatório `{"motivo": "..."}` (não vazio, até 500 caracteres), gravado no histórico |
+| Escrita (`tesouraria`) | `POST /processos/{id}/solicitar-pagamento` | Só leva APROVADO a PAGAMENTO_SOLICITADO (corpo opcional `{"observacao"}`); a rotina fala com a Tesouraria. Não existe endpoint para disparar a rotina nem para a Tesouraria avisar |
+| Leitura (qualquer papel) | `GET /clientes` | Clientes com a quantidade de cotas |
 | Leitura | `GET /cotas/{id}` | Cota com o nome do cliente, o processo atual e o `creditoDisponivel` |
 | Canal web | `GET /web/v1/cotas/{id}` | Cota no padrão web, com o processo atual |
 | Canal mobile | `GET /mobile/v1/cotas/{id}` · `GET /mobile/v1/clientes` | Card da cota; clientes com o total de cotas somado |
@@ -279,13 +288,15 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 | Leitura | `GET /processos/{id}/acoes` · `GET /processos/{id}/historico` | Ações que o processo aceita no estado atual; histórico das transições |
 | Leitura | `GET /processos/{id}/favorecidos` | Favorecidos `[{nome, documento, papel, valor}]` na ordem informada; 404 se o processo não existe |
 
+Papéis: `POST /processos/{id}/alterar`, `concordar` e `discordar` são do `cliente` (dono da cota); `propor-alteracao`, do `backoffice`. As consultas (`GET`) e os canais (`/web`, `/mobile`, `/taa`) aceitam qualquer papel autenticado; `/q/openapi` e o Swagger UI são abertos. Sem token, token inválido, expirado ou de outro emissor: 401; token sem o papel da ação, cliente que não é o dono da cota ou aprovação de quem concluiu a análise: 403. Ambos saem no formato de erro abaixo.
+
 Validação em duas camadas: o **formato** da entrada (obrigatório, tamanho, faixa) é checado com Bean Validation nos requests do entrypoint (`ClienteRequest`, `CotaRequest`), antes do use case, e as restrições aparecem no OpenAPI; a **regra de negócio** continua no domínio, que vale para qualquer chamador. Todo erro sai no mesmo formato, e `campos` só vem preenchido em erro de formato:
 
 ```json
 { "mensagem": "Dados inválidos", "campos": [ { "campo": "cpf", "erro": "não deve estar em branco" } ] }
 ```
 
-Erros: 400 para entrada fora do formato ou violação de regra de domínio, 404 para recurso inexistente, 409 para conflito ou transição inválida, 503 para sistema externo indisponível. Excluir cliente com cotas, ou cota com processos, retorna 409.
+Erros: 401 e 403 de identidade (acima), 400 para entrada fora do formato ou violação de regra de domínio, 404 para recurso inexistente, 409 para conflito ou transição inválida, 503 para sistema externo indisponível. Excluir cliente com cotas, ou cota com processos, retorna 409.
 
 ## Como rodar
 
@@ -297,6 +308,16 @@ Requisitos: JDK 25 (`sdk env install` com SDKMAN) e Docker. O Dev Services sobe 
 ./mvnw verify                 # o anterior + empacotamento + testes de integração (*IT)
 docker compose up --build     # app empacotada + PostgreSQL (rode ./mvnw package antes)
 ```
+
+**Token de desenvolvimento.** Em `quarkus:dev` a aplicação confia na chave pública de `src/main/resources/jwt/publica-desenvolvimento.pem`, e `scripts/token-dev.sh` assina um token com o par privado (`docs/dev/privada-desenvolvimento.pem`, só para desenvolvimento):
+
+```bash
+TOKEN=$(scripts/token-dev.sh ana backoffice)                 # usuário e papéis (separados por vírgula)
+curl -H "Authorization: Bearer $TOKEN" localhost:8080/processos
+scripts/token-dev.sh maria cliente 12                        # cliente: o terceiro argumento é o clienteId do cadastro
+```
+
+Em produção, o provedor de identidade emite os tokens e a aplicação recebe a chave pública e o emissor dele: `MP_JWT_VERIFY_PUBLICKEY_LOCATION` (obrigatória; arquivo ou URL) e `MP_JWT_VERIFY_ISSUER` (padrão `https://exemplo-negocial`). As chaves de `src/test/resources/aceitacao/chaves/` são de teste e não valem fora dos testes. Decisão e alternativas: [ADR 003](docs/adr/ADR_003_identidade_por_jwt.md).
 
 A alçada de aprovação é `processo.alcada` (padrão `50000.00`); em produção pode ser trocada por `PROCESSO_ALCADA`. Em produção, informe o banco com `DB_URL`, `DB_USER` e `DB_PASSWORD`, e a tesouraria com `TESOURARIA_URL`. A rotina de pagamento roda a cada `pagamento.rotina.intervalo` (padrão `5m`; `off` desliga). Em `quarkus:dev`, sem uma tesouraria em `http://localhost:8089`, os processos ficam em PAGAMENTO_SOLICITADO e cada rodada registra uma tentativa no histórico. Nos testes de integração o agendamento está desligado (`%test.pagamento.rotina.intervalo=off`) e o caso de uso é chamado direto; nos de aceitação o intervalo é de 1 s.
 

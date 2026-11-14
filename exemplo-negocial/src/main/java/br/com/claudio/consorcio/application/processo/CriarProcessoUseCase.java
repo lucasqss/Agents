@@ -5,6 +5,7 @@ import br.com.claudio.consorcio.application.NaoEncontradoException;
 import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.cota.Cota;
 import br.com.claudio.consorcio.domain.cota.CotaRepository;
+import br.com.claudio.consorcio.domain.processo.Autor;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
@@ -13,7 +14,11 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 
-/** Padrão: Service Layer [PoEAA]. Cria um processo novo, dividido entre os favorecidos, para uma cota sem processo em andamento e com crédito para o valor. */
+/**
+ * Padrão: Service Layer [PoEAA]. Cria um processo novo, dividido entre os favorecidos, para uma cota sem processo em
+ * andamento e com crédito para o valor. Só o cliente da cota abre (R18): o cliente do {@link Autor} é conferido com o
+ * dado da cota, depois do 404 da cota e antes do 409 de processo em andamento.
+ */
 @ApplicationScoped
 public class CriarProcessoUseCase {
 
@@ -26,7 +31,7 @@ public class CriarProcessoUseCase {
     }
 
     @Transactional
-    public Long executar(Long cotaId, TipoProcesso tipo, BigDecimal valor, List<DadosFavorecido> favorecidos) {
+    public Long executar(Long cotaId, Autor autor, TipoProcesso tipo, BigDecimal valor, List<DadosFavorecido> favorecidos) {
         // As regras dos favorecidos (R15, R29) são conferidas ao montar o agregado, antes de buscar a cota.
         ProcessoPagamento processo = ProcessoPagamento.novo(tipo, cotaId, Dinheiro.de(valor), favorecidos.stream()
                 .map(DadosFavorecido::paraFavorecido)
@@ -34,6 +39,7 @@ public class CriarProcessoUseCase {
         // O bloqueio coloca em fila as aberturas da mesma cota; sem ele, duas passariam juntas pelas verificações abaixo,
         // inclusive a do crédito, cuja soma dos pagos é lida dentro desta mesma transação.
         Cota cota = cotas.buscarPorIdComBloqueio(cotaId).orElseThrow(() -> new NaoEncontradoException("Cota", cotaId));
+        cota.exigirDoCliente(autor.clienteId());
         if (processos.existeAtivoPorCota(cotaId)) {
             throw new ConflitoException("Cota " + cotaId + " já possui um processo em andamento");
         }

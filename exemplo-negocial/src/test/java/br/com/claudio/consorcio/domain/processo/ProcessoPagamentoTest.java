@@ -1,5 +1,6 @@
 package br.com.claudio.consorcio.domain.processo;
 
+import static br.com.claudio.consorcio.domain.processo.AutoresDeTeste.*;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.ALTERAR;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.APROVAR_NA_ALCADA;
 import static br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso.CONCORDAR;
@@ -57,7 +58,7 @@ class ProcessoPagamentoTest {
 
     /** Leva o aprovado a pago: solicita e a rotina confirma. */
     private static void pagar(ProcessoPagamento processo) {
-        processo.solicitarPagamento(IDENTIFICACAO, AGORA, null);
+        processo.solicitarPagamento(TEREZA, IDENTIFICACAO, AGORA, null);
         processo.confirmarPagamento("PROT-1", AGORA);
     }
 
@@ -108,13 +109,13 @@ class ProcessoPagamentoTest {
 
         @Test
         void fluxoCompletoPassaPelaVistoria() {
-            processo.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
             assertEquals(EM_ANALISE, processo.estado());
 
-            processo.executar(CONCLUIR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, null, ALCADA);
             assertEquals(AGUARDANDO_VISTORIA, processo.estado());
 
-            processo.executar(CONCLUIR_VISTORIA, AGORA, null, ALCADA);
+            processo.executar(quemFaz(CONCLUIR_VISTORIA), CONCLUIR_VISTORIA, AGORA, null, ALCADA);
             assertEquals(APROVADO, processo.estado());
 
             pagar(processo);
@@ -124,17 +125,17 @@ class ProcessoPagamentoTest {
 
         @Test
         void naoPodePagarSemVistoria() {
-            processo.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
-            processo.executar(CONCLUIR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, null, ALCADA);
 
             invalida(processo, SOLICITAR_PAGAMENTO);
         }
 
         @Test
         void podeCancelarAguardandoVistoria() {
-            processo.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
-            processo.executar(CONCLUIR_ANALISE, AGORA, null, ALCADA);
-            processo.executar(CANCELAR, AGORA, "desistência", ALCADA);
+            processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(CANCELAR), CANCELAR, AGORA, "desistência", ALCADA);
 
             assertEquals(CANCELADO, processo.estado());
         }
@@ -147,8 +148,8 @@ class ProcessoPagamentoTest {
 
         @Test
         void fluxoCompletoVaiDiretoParaAprovado() {
-            processo.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
-            processo.executar(CONCLUIR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, null, ALCADA);
             assertEquals(APROVADO, processo.estado());
 
             pagar(processo);
@@ -157,10 +158,10 @@ class ProcessoPagamentoTest {
 
         @Test
         void naoTemEtapaDeVistoria() {
-            processo.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
             invalida(processo, CONCLUIR_VISTORIA);
 
-            processo.executar(CONCLUIR_ANALISE, AGORA, null, ALCADA);
+            processo.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, null, ALCADA);
             invalida(processo, CONCLUIR_VISTORIA);
         }
     }
@@ -174,7 +175,7 @@ class ProcessoPagamentoTest {
         invalida(processo, CONCLUIR_VISTORIA);
         invalida(processo, SOLICITAR_PAGAMENTO);
 
-        processo.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
+        processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
         invalida(processo, INICIAR_ANALISE);
         invalida(processo, SOLICITAR_PAGAMENTO);
         assertEquals(EM_ANALISE, processo.estado(), "ação recusada não muda o estado");
@@ -184,11 +185,11 @@ class ProcessoPagamentoTest {
     @EnumSource(TipoProcesso.class)
     void cancelaEmEstadosNaoFinais(TipoProcesso tipo) {
         ProcessoPagamento aberto = ProcessoPagamento.novo(tipo, COTA, VALOR, favorecidoUnico(VALOR));
-        aberto.executar(CANCELAR, AGORA, "desistência", ALCADA);
+        aberto.executar(quemFaz(CANCELAR), CANCELAR, AGORA, "desistência", ALCADA);
         assertEquals(CANCELADO, aberto.estado());
 
         ProcessoPagamento aprovado = aprovado(tipo);
-        aprovado.executar(CANCELAR, AGORA, "desistência", ALCADA);
+        aprovado.executar(quemFaz(CANCELAR), CANCELAR, AGORA, "desistência", ALCADA);
         assertEquals(CANCELADO, aprovado.estado());
     }
 
@@ -203,7 +204,7 @@ class ProcessoPagamentoTest {
         }
 
         ProcessoPagamento cancelado = ProcessoPagamento.novo(tipo, COTA, VALOR, favorecidoUnico(VALOR));
-        cancelado.executar(CANCELAR, AGORA, "desistência", ALCADA);
+        cancelado.executar(quemFaz(CANCELAR), CANCELAR, AGORA, "desistência", ALCADA);
         assertFalse(cancelado.ativo());
         for (AcaoProcesso acao : AcaoProcesso.values()) {
             invalida(cancelado, acao);
@@ -216,8 +217,8 @@ class ProcessoPagamentoTest {
         assertEquals(Set.of(INICIAR_ANALISE, ALTERAR, CANCELAR), servico.acoesDisponiveis());
 
         ProcessoPagamento imobiliario = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA, VALOR, favorecidoUnico(VALOR));
-        imobiliario.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
-        imobiliario.executar(CONCLUIR_ANALISE, AGORA, null, ALCADA);
+        imobiliario.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
+        imobiliario.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, null, ALCADA);
         assertEquals(Set.of(CONCLUIR_VISTORIA, DEVOLVER_PARA_ANALISE, CANCELAR), imobiliario.acoesDisponiveis());
     }
 
@@ -225,7 +226,7 @@ class ProcessoPagamentoTest {
     void pagarPassaPelaSolicitacaoEPelaConfirmacaoDaRotina() {
         ProcessoPagamento processo = aprovado(TipoProcesso.SERVICO);
 
-        processo.solicitarPagamento(IDENTIFICACAO, AGORA, null);
+        processo.solicitarPagamento(TEREZA, IDENTIFICACAO, AGORA, null);
         assertEquals(PAGAMENTO_SOLICITADO, processo.estado());
         assertNull(processo.protocoloPagamento());
 
@@ -237,9 +238,9 @@ class ProcessoPagamentoTest {
     @Test
     void naoFicaPagoPeloExecutarGenerico() {
         ProcessoPagamento processo = aprovado(TipoProcesso.SERVICO);
-        processo.solicitarPagamento(IDENTIFICACAO, AGORA, null);
+        processo.solicitarPagamento(TEREZA, IDENTIFICACAO, AGORA, null);
 
-        assertThrows(DominioException.class, () -> processo.executar(CONFIRMAR_PAGAMENTO, AGORA, null, ALCADA));
+        assertThrows(DominioException.class, () -> processo.executar(quemFaz(CONFIRMAR_PAGAMENTO), CONFIRMAR_PAGAMENTO, AGORA, null, ALCADA));
         assertEquals(PAGAMENTO_SOLICITADO, processo.estado());
         assertNull(processo.protocoloPagamento());
     }
@@ -257,11 +258,11 @@ class ProcessoPagamentoTest {
     @Test
     void reconstituirExigeProtocoloSeESomenteSePago() {
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), APROVADO, "PROT-1", null, null, 0));
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), APROVADO, "PROT-1", null, null, null, 0));
         assertThrows(DominioException.class,
-                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, null, null, null, 0));
+                () -> ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, null, null, null, null, 0));
 
-        ProcessoPagamento pago = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, "PROT-1", null, null, 3);
+        ProcessoPagamento pago = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), PAGO, "PROT-1", null, null, null, 3);
         assertEquals("PROT-1", pago.protocoloPagamento());
         assertEquals(3, pago.versao());
     }
@@ -270,7 +271,7 @@ class ProcessoPagamentoTest {
     void aprovadoPodeSerDevolvidoParaAnaliseEmQualquerTipo() {
         for (TipoProcesso tipo : TipoProcesso.values()) {
             ProcessoPagamento processo = aprovado(tipo);
-            processo.executar(DEVOLVER_PARA_ANALISE, AGORA, "Falta documento", ALCADA);
+            processo.executar(quemFaz(DEVOLVER_PARA_ANALISE), DEVOLVER_PARA_ANALISE, AGORA, "Falta documento", ALCADA);
             assertEquals(EM_ANALISE, processo.estado(), tipo.name());
         }
     }
@@ -278,13 +279,13 @@ class ProcessoPagamentoTest {
     @Test
     void soOImobiliarioDevolveDaVistoria() {
         ProcessoPagamento imobiliario = ProcessoPagamento.novo(TipoProcesso.IMOBILIARIO, COTA, VALOR, favorecidoUnico(VALOR));
-        imobiliario.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
-        imobiliario.executar(CONCLUIR_ANALISE, AGORA, null, ALCADA);
-        imobiliario.executar(DEVOLVER_PARA_ANALISE, AGORA, "documento divergente", ALCADA);
+        imobiliario.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
+        imobiliario.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, null, ALCADA);
+        imobiliario.executar(quemFaz(DEVOLVER_PARA_ANALISE), DEVOLVER_PARA_ANALISE, AGORA, "documento divergente", ALCADA);
         assertEquals(EM_ANALISE, imobiliario.estado());
 
         ProcessoPagamento servico = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
-        servico.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
+        servico.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
         invalida(servico, DEVOLVER_PARA_ANALISE);
     }
 
@@ -293,15 +294,15 @@ class ProcessoPagamentoTest {
         ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
         assertTrue(processo.novasTransicoes().isEmpty());
 
-        processo.executar(INICIAR_ANALISE, AGORA, "  Documentos recebidos  ", ALCADA);
+        processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, "  Documentos recebidos  ", ALCADA);
         invalida(processo, SOLICITAR_PAGAMENTO);
-        processo.executar(CONCLUIR_ANALISE, AGORA, " ", ALCADA);
-        processo.solicitarPagamento(IDENTIFICACAO, AGORA.plusSeconds(60), null);
+        processo.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, " ", ALCADA);
+        processo.solicitarPagamento(TEREZA, IDENTIFICACAO, AGORA.plusSeconds(60), null);
 
         assertEquals(List.of(
-                new Transicao(ABERTO, EM_ANALISE, INICIAR_ANALISE, AGORA, "Documentos recebidos"),
-                new Transicao(EM_ANALISE, APROVADO, CONCLUIR_ANALISE, AGORA, null),
-                new Transicao(APROVADO, PAGAMENTO_SOLICITADO, SOLICITAR_PAGAMENTO, AGORA.plusSeconds(60), null)),
+                new Transicao(ABERTO, EM_ANALISE, INICIAR_ANALISE, AGORA, usuarioDe(INICIAR_ANALISE), "Documentos recebidos"),
+                new Transicao(EM_ANALISE, APROVADO, CONCLUIR_ANALISE, AGORA, usuarioDe(CONCLUIR_ANALISE), null),
+                new Transicao(APROVADO, PAGAMENTO_SOLICITADO, SOLICITAR_PAGAMENTO, AGORA.plusSeconds(60), usuarioDe(SOLICITAR_PAGAMENTO), null)),
                 processo.novasTransicoes());
     }
 
@@ -309,15 +310,15 @@ class ProcessoPagamentoTest {
     void transicaoExigeDataELimitaAObservacao() {
         ProcessoPagamento processo = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
 
-        assertThrows(DominioException.class, () -> processo.executar(INICIAR_ANALISE, null, null, ALCADA));
-        assertThrows(DominioException.class, () -> processo.executar(INICIAR_ANALISE, AGORA, "x".repeat(501), ALCADA));
+        assertThrows(DominioException.class, () -> processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, null, null, ALCADA));
+        assertThrows(DominioException.class, () -> processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, "x".repeat(501), ALCADA));
         assertEquals(ABERTO, processo.estado());
         assertTrue(processo.novasTransicoes().isEmpty());
     }
 
     @Test
     void processoReconstituidoNaoTrazTransicoesAntigas() {
-        ProcessoPagamento lido = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), EM_ANALISE, null, null, null, 1);
+        ProcessoPagamento lido = ProcessoPagamento.reconstituir(1L, COTA, TipoProcesso.SERVICO, VALOR, favorecidoUnico(VALOR), EM_ANALISE, null, null, null, null, 1);
         assertTrue(lido.novasTransicoes().isEmpty());
     }
 
@@ -326,15 +327,15 @@ class ProcessoPagamentoTest {
     void solicitarDocumentoLevaAPendenteEReceberVoltaParaAnalise(TipoProcesso tipo) {
         ProcessoPagamento processo = emAnalise(tipo);
 
-        processo.executar(SOLICITAR_DOCUMENTO, AGORA, "certidão vencida", ALCADA);
+        processo.executar(quemFaz(SOLICITAR_DOCUMENTO), SOLICITAR_DOCUMENTO, AGORA, "certidão vencida", ALCADA);
         assertEquals(PENDENTE_DOCUMENTO, processo.estado());
         assertEquals(Set.of(RECEBER_DOCUMENTO, CANCELAR), processo.acoesDisponiveis());
 
-        processo.executar(RECEBER_DOCUMENTO, AGORA, null, ALCADA);
+        processo.executar(quemFaz(RECEBER_DOCUMENTO), RECEBER_DOCUMENTO, AGORA, null, ALCADA);
         assertEquals(EM_ANALISE, processo.estado());
         assertEquals(List.of(
-                new Transicao(EM_ANALISE, PENDENTE_DOCUMENTO, SOLICITAR_DOCUMENTO, AGORA, "certidão vencida"),
-                new Transicao(PENDENTE_DOCUMENTO, EM_ANALISE, RECEBER_DOCUMENTO, AGORA, null)),
+                new Transicao(EM_ANALISE, PENDENTE_DOCUMENTO, SOLICITAR_DOCUMENTO, AGORA, usuarioDe(SOLICITAR_DOCUMENTO), "certidão vencida"),
+                new Transicao(PENDENTE_DOCUMENTO, EM_ANALISE, RECEBER_DOCUMENTO, AGORA, usuarioDe(RECEBER_DOCUMENTO), null)),
                 processo.novasTransicoes().subList(1, 3));
     }
 
@@ -343,7 +344,7 @@ class ProcessoPagamentoTest {
     void reprovarSoValeEmAnaliseELevaAEstadoFinal(TipoProcesso tipo) {
         ProcessoPagamento processo = emAnalise(tipo);
 
-        processo.executar(REPROVAR, AGORA, "favorecido divergente", ALCADA);
+        processo.executar(quemFaz(REPROVAR), REPROVAR, AGORA, "favorecido divergente", ALCADA);
 
         assertEquals(REPROVADO, processo.estado());
         assertFalse(processo.ativo());
@@ -365,7 +366,7 @@ class ProcessoPagamentoTest {
             EstadoProcesso antes = processo.estado();
             int transicoes = processo.novasTransicoes().size();
 
-            assertThrows(DominioException.class, () -> processo.executar(acao, AGORA, motivo, ALCADA));
+            assertThrows(DominioException.class, () -> processo.executar(quemFaz(acao), acao, AGORA, motivo, ALCADA));
 
             assertEquals(antes, processo.estado(), "recusa não muda o estado");
             assertEquals(transicoes, processo.novasTransicoes().size(), "recusa não entra no histórico");
@@ -385,7 +386,7 @@ class ProcessoPagamentoTest {
     void motivoFicaNoHistoricoSemOsEspacosDasPontas() {
         ProcessoPagamento processo = emAnalise(TipoProcesso.SERVICO);
 
-        processo.executar(CANCELAR, AGORA, "  desistência da cota  ", ALCADA);
+        processo.executar(quemFaz(CANCELAR), CANCELAR, AGORA, "  desistência da cota  ", ALCADA);
 
         assertEquals("desistência da cota", processo.novasTransicoes().getLast().observacao());
     }
@@ -394,8 +395,8 @@ class ProcessoPagamentoTest {
     void motivoComMaisDe500CaracteresERecusado() {
         ProcessoPagamento processo = emAnalise(TipoProcesso.SERVICO);
 
-        assertThrows(DominioException.class, () -> processo.executar(CANCELAR, AGORA, "x".repeat(501), ALCADA));
-        processo.executar(CANCELAR, AGORA, "x".repeat(500), ALCADA);
+        assertThrows(DominioException.class, () -> processo.executar(quemFaz(CANCELAR), CANCELAR, AGORA, "x".repeat(501), ALCADA));
+        processo.executar(quemFaz(CANCELAR), CANCELAR, AGORA, "x".repeat(500), ALCADA);
         assertEquals(CANCELADO, processo.estado());
     }
 
@@ -403,12 +404,12 @@ class ProcessoPagamentoTest {
     void acaoForaDeOrdemContinuaSendoTransicaoInvalidaMesmoSemMotivo() {
         ProcessoPagamento aberto = ProcessoPagamento.novo(TipoProcesso.SERVICO, COTA, VALOR, favorecidoUnico(VALOR));
 
-        assertThrows(TransicaoInvalidaException.class, () -> aberto.executar(REPROVAR, AGORA, null, ALCADA));
+        assertThrows(TransicaoInvalidaException.class, () -> aberto.executar(quemFaz(REPROVAR), REPROVAR, AGORA, null, ALCADA));
     }
 
     private static ProcessoPagamento emAnalise(TipoProcesso tipo) {
         ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA, VALOR, favorecidoUnico(VALOR));
-        processo.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
+        processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
         return processo;
     }
 
@@ -418,15 +419,15 @@ class ProcessoPagamentoTest {
     }
 
     private static void invalida(ProcessoPagamento processo, AcaoProcesso acao) {
-        assertThrows(TransicaoInvalidaException.class, () -> processo.executar(acao, AGORA, null, ALCADA));
+        assertThrows(TransicaoInvalidaException.class, () -> processo.executar(quemFaz(acao), acao, AGORA, null, ALCADA));
     }
 
     private static ProcessoPagamento aprovado(TipoProcesso tipo) {
         ProcessoPagamento processo = ProcessoPagamento.novo(tipo, COTA, VALOR, favorecidoUnico(VALOR));
-        processo.executar(INICIAR_ANALISE, AGORA, null, ALCADA);
-        processo.executar(CONCLUIR_ANALISE, AGORA, null, ALCADA);
+        processo.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, ALCADA);
+        processo.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, null, ALCADA);
         if (processo.acoesDisponiveis().contains(CONCLUIR_VISTORIA)) {
-            processo.executar(CONCLUIR_VISTORIA, AGORA, null, ALCADA);
+            processo.executar(quemFaz(CONCLUIR_VISTORIA), CONCLUIR_VISTORIA, AGORA, null, ALCADA);
         }
         return processo;
     }
@@ -437,7 +438,7 @@ class ProcessoPagamentoTest {
 
     private static void ate(ProcessoPagamento processo, AcaoProcesso... acoes) {
         for (AcaoProcesso acao : acoes) {
-            processo.executar(acao, AGORA, null, ALCADA);
+            processo.executar(quemFaz(acao), acao, AGORA, null, ALCADA);
         }
     }
 
@@ -454,8 +455,8 @@ class ProcessoPagamentoTest {
         assertEquals(CONCLUIR_ANALISE, acima.novasTransicoes().getLast().acao());
 
         ProcessoPagamento outraAlcada = processoDe(TipoProcesso.SERVICO, Dinheiro.de("50000.01"));
-        outraAlcada.executar(INICIAR_ANALISE, AGORA, null, Dinheiro.de("60000.00"));
-        outraAlcada.executar(CONCLUIR_ANALISE, AGORA, null, Dinheiro.de("60000.00"));
+        outraAlcada.executar(quemFaz(INICIAR_ANALISE), INICIAR_ANALISE, AGORA, null, Dinheiro.de("60000.00"));
+        outraAlcada.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, null, Dinheiro.de("60000.00"));
         assertEquals(APROVADO, outraAlcada.estado());
     }
 
@@ -492,32 +493,32 @@ class ProcessoPagamentoTest {
     @Test
     void aguardandoAlcadaReprovaDevolveECancelaComMotivo() {
         ProcessoPagamento reprovado = emAguardandoAlcada(TipoProcesso.SERVICO, "80000.00");
-        reprovado.executar(REPROVAR, AGORA, "fora da política", ALCADA);
+        reprovado.executar(quemFaz(REPROVAR), REPROVAR, AGORA, "fora da política", ALCADA);
         assertEquals(REPROVADO, reprovado.estado());
         assertEquals("fora da política", reprovado.novasTransicoes().getLast().observacao());
 
         ProcessoPagamento devolvido = emAguardandoAlcada(TipoProcesso.IMOBILIARIO, "80000.00");
-        devolvido.executar(DEVOLVER_PARA_ANALISE, AGORA, "rever", ALCADA);
+        devolvido.executar(quemFaz(DEVOLVER_PARA_ANALISE), DEVOLVER_PARA_ANALISE, AGORA, "rever", ALCADA);
         assertEquals(EM_ANALISE, devolvido.estado());
 
         ProcessoPagamento cancelado = emAguardandoAlcada(TipoProcesso.SERVICO, "80000.00");
-        cancelado.executar(CANCELAR, AGORA, "desistência", ALCADA);
+        cancelado.executar(quemFaz(CANCELAR), CANCELAR, AGORA, "desistência", ALCADA);
         assertEquals(CANCELADO, cancelado.estado());
 
         assertThrows(DominioException.class,
-                () -> emAguardandoAlcada(TipoProcesso.SERVICO, "80000.00").executar(REPROVAR, AGORA, " ", ALCADA));
+                () -> emAguardandoAlcada(TipoProcesso.SERVICO, "80000.00").executar(quemFaz(REPROVAR), REPROVAR, AGORA, " ", ALCADA));
     }
 
     @Test
     void decideComOValorVigenteDepoisDeAlterar() {
         ProcessoPagamento processo = processoDe(TipoProcesso.SERVICO, Dinheiro.de("30000.00"));
-        processo.alterar(Dinheiro.de("70000.00"), favorecidoUnico(Dinheiro.de("70000.00")), AGORA);
+        processo.alterar(CLIENTE, Dinheiro.de("70000.00"), favorecidoUnico(Dinheiro.de("70000.00")), AGORA);
         ate(processo, INICIAR_ANALISE, CONCLUIR_ANALISE);
 
         assertEquals(AGUARDANDO_ALCADA, processo.estado());
 
         ProcessoPagamento reduzido = processoDe(TipoProcesso.SERVICO, Dinheiro.de("70000.00"));
-        reduzido.alterar(Dinheiro.de("50000.00"), favorecidoUnico(Dinheiro.de("50000.00")), AGORA);
+        reduzido.alterar(CLIENTE, Dinheiro.de("50000.00"), favorecidoUnico(Dinheiro.de("50000.00")), AGORA);
         ate(reduzido, INICIAR_ANALISE, CONCLUIR_ANALISE);
 
         assertEquals(APROVADO, reduzido.estado());
@@ -527,16 +528,16 @@ class ProcessoPagamentoTest {
     void decideComOValorVigenteDepoisDeConcordarEnaoComOProposto() {
         ProcessoPagamento processo = processoDe(TipoProcesso.SERVICO, Dinheiro.de("30000.00"));
         ate(processo, INICIAR_ANALISE);
-        processo.proporAlteracao(Dinheiro.de("90000.00"), favorecidoUnico(Dinheiro.de("90000.00")), "ajuste", AGORA);
+        processo.proporAlteracao(ANA, Dinheiro.de("90000.00"), favorecidoUnico(Dinheiro.de("90000.00")), "ajuste", AGORA);
         // proposta pendente: o vigente continua 30.000,00; discordar volta e conclui aprovado
-        processo.executar(DISCORDAR, AGORA, "não", ALCADA);
+        processo.executar(quemFaz(DISCORDAR), DISCORDAR, AGORA, "não", ALCADA);
         ate(processo, CONCLUIR_ANALISE);
         assertEquals(APROVADO, processo.estado());
 
         ProcessoPagamento concordado = processoDe(TipoProcesso.SERVICO, Dinheiro.de("30000.00"));
         ate(concordado, INICIAR_ANALISE);
-        concordado.proporAlteracao(Dinheiro.de("90000.00"), favorecidoUnico(Dinheiro.de("90000.00")), "ajuste", AGORA);
-        concordado.executar(CONCORDAR, AGORA, null, ALCADA);
+        concordado.proporAlteracao(ANA, Dinheiro.de("90000.00"), favorecidoUnico(Dinheiro.de("90000.00")), "ajuste", AGORA);
+        concordado.executar(quemFaz(CONCORDAR), CONCORDAR, AGORA, null, ALCADA);
         ate(concordado, CONCLUIR_ANALISE);
         assertEquals(AGUARDANDO_ALCADA, concordado.estado());
     }
@@ -544,7 +545,7 @@ class ProcessoPagamentoTest {
     @Test
     void decideDeNovoDepoisDeDevolverParaAAnalise() {
         ProcessoPagamento processo = emAguardandoAlcada(TipoProcesso.IMOBILIARIO, "80000.00");
-        processo.executar(DEVOLVER_PARA_ANALISE, AGORA, "rever", ALCADA);
+        processo.executar(quemFaz(DEVOLVER_PARA_ANALISE), DEVOLVER_PARA_ANALISE, AGORA, "rever", ALCADA);
         ate(processo, CONCLUIR_ANALISE);
         assertEquals(AGUARDANDO_VISTORIA, processo.estado());
         ate(processo, CONCLUIR_VISTORIA);
@@ -554,9 +555,9 @@ class ProcessoPagamentoTest {
     @Test
     void decideDeNovoComOValorAlteradoDepoisDeDevolverDeAguardandoAlcada() {
         ProcessoPagamento processo = emAguardandoAlcada(TipoProcesso.SERVICO, "80000.00");
-        processo.executar(DEVOLVER_PARA_ANALISE, AGORA, "rever", ALCADA);
-        processo.proporAlteracao(Dinheiro.de("40000.00"), favorecidoUnico(Dinheiro.de("40000.00")), "reduzir", AGORA);
-        processo.executar(CONCORDAR, AGORA, null, ALCADA);
+        processo.executar(quemFaz(DEVOLVER_PARA_ANALISE), DEVOLVER_PARA_ANALISE, AGORA, "rever", ALCADA);
+        processo.proporAlteracao(ANA, Dinheiro.de("40000.00"), favorecidoUnico(Dinheiro.de("40000.00")), "reduzir", AGORA);
+        processo.executar(quemFaz(CONCORDAR), CONCORDAR, AGORA, null, ALCADA);
         ate(processo, CONCLUIR_ANALISE);
 
         assertEquals(APROVADO, processo.estado());
@@ -567,7 +568,7 @@ class ProcessoPagamentoTest {
         ProcessoPagamento processo = processoDe(TipoProcesso.SERVICO, VALOR);
         ate(processo, INICIAR_ANALISE);
 
-        assertThrows(IllegalStateException.class, () -> processo.executar(CONCLUIR_ANALISE, AGORA, null, null));
+        assertThrows(IllegalStateException.class, () -> processo.executar(quemFaz(CONCLUIR_ANALISE), CONCLUIR_ANALISE, AGORA, null, null));
         assertEquals(EM_ANALISE, processo.estado());
     }
 

@@ -103,4 +103,18 @@ final class RegrasTecnologia {
                     + " Corrija: ao consumir, o *Gateway devolve tipo simples ou record próprio de gateway/<sistema>;"
                     + " ao prover, o entrypoint converte a classe externa no DadosX do use case."
                     + " Em ACL, o use case leva a classe externa até o *Translator, que a converte");
+
+    @ArchTest
+    static final ArchRule tec012SegurancaSoNoEntrypoint = ArchRuleDefinition.noClasses()
+            .that().resideOutsideOfPackage(Raiz.emQualquer("entrypoint"))
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "jakarta.annotation.security..",
+                    "io.quarkus.security..",
+                    "org.eclipse.microprofile.jwt..",
+                    "io.smallrye.jwt..")
+            .as("TEC-012: TIPOS E ANOTAÇÕES DE SEGURANÇA SÓ NO ENTRYPOINT")
+            .because("quem é a pessoa e que papel ela tem vêm do token, e isso é detalhe de entrada; o domínio e o use case"
+                    + " recebem um dado puro (Autor) e decidem com ele."
+                    + " Corrija: use @RolesAllowed/@Authenticated e JsonWebToken só no entrypoint, monte o Autor ali e"
+                    + " entregue-o ao use case; a permissão por situação vai na tabela do fluxo, no domínio");
 }

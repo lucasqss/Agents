@@ -2,6 +2,7 @@ package br.com.claudio.consorcio.domain.cota;
 
 import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.DominioException;
+import br.com.claudio.consorcio.domain.PermissaoNegadaException;
 
 public class Cota {
 
@@ -49,6 +50,16 @@ public class Cota {
         if (valor.maiorQue(disponivel)) {
             throw new CreditoInsuficienteException("Valor " + valor.valor().toPlainString()
                     + " acima do crédito disponível da cota: " + disponivel.valor().toPlainString());
+        }
+    }
+
+    /**
+     * Só o cliente da cota age por ela (R18): recusa quem não é o cliente dono. A comparação é pelo cadastro do cliente,
+     * nunca pelo nome do usuário; {@code clienteId} nulo (pessoa sem cadastro de cliente) é recusado.
+     */
+    public void exigirDoCliente(Long clienteId) {
+        if (clienteId == null || !clienteId.equals(this.clienteId)) {
+            throw new PermissaoNegadaException("Só o cliente da cota " + numero + " pode agir por ela");
         }
     }
 

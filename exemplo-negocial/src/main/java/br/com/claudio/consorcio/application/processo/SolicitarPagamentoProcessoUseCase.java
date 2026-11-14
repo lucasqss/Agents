@@ -1,6 +1,7 @@
 package br.com.claudio.consorcio.application.processo;
 
 import br.com.claudio.consorcio.application.NaoEncontradoException;
+import br.com.claudio.consorcio.domain.processo.Autor;
 import br.com.claudio.consorcio.domain.processo.IdentificacaoSolicitacao;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
@@ -26,10 +27,10 @@ public class SolicitarPagamentoProcessoUseCase {
     }
 
     @Transactional
-    public EstadoProcesso executar(Long id, String observacao) {
+    public EstadoProcesso executar(Long id, Autor autor, String observacao) {
         ProcessoPagamento processo = processos.buscarPorId(id)
                 .orElseThrow(() -> new NaoEncontradoException("Processo", id));
-        processo.solicitarPagamento(new IdentificacaoSolicitacao(UUID.randomUUID()), Instant.now(), observacao);
+        processo.solicitarPagamento(autor, new IdentificacaoSolicitacao(UUID.randomUUID()), Instant.now(), observacao);
         return processos.salvar(processo).estado();
     }
 }

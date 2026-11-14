@@ -26,7 +26,7 @@ public interface ProcessoQueryRepository {
 
     @Query("""
             select new br.com.claudio.consorcio.persistence.processo.ProcessoTransicaoResumo(
-                t.estadoOrigem, t.estadoDestino, t.acao, t.ocorridoEm, t.observacao, t.valorAnterior, t.valorNovo)
+                t.estadoOrigem, t.estadoDestino, t.acao, t.ocorridoEm, t.autor, t.observacao, t.valorAnterior, t.valorNovo)
             from ProcessoTransicaoEntity t
             where t.processoId = :processoId
             order by t.id

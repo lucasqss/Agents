@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.DominioException;
+import br.com.claudio.consorcio.domain.PermissaoNegadaException;
 import br.com.claudio.consorcio.domain.cliente.Cliente;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -39,5 +40,14 @@ class ClienteCotaTest {
     void cotaExigeNumeroECliente() {
         assertThrows(DominioException.class, () -> Cota.nova(" ", Dinheiro.de("10"), 1L));
         assertThrows(DominioException.class, () -> Cota.nova("001", Dinheiro.de("10"), null));
+    }
+
+    @Test
+    void soOClienteDaCotaAgePorEla() {
+        Cota cota = Cota.nova("001", Dinheiro.de("1000"), 7L);
+
+        cota.exigirDoCliente(7L);
+        assertThrows(PermissaoNegadaException.class, () -> cota.exigirDoCliente(8L));
+        assertThrows(PermissaoNegadaException.class, () -> cota.exigirDoCliente(null));
     }
 }

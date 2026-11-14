@@ -4,10 +4,14 @@ import br.com.claudio.consorcio.application.ConflitoException;
 import br.com.claudio.consorcio.application.NaoEncontradoException;
 import br.com.claudio.consorcio.domain.AlteracaoConcorrenteException;
 import br.com.claudio.consorcio.domain.DominioException;
+import br.com.claudio.consorcio.domain.PermissaoNegadaException;
 import br.com.claudio.consorcio.domain.cota.CreditoInsuficienteException;
 import br.com.claudio.consorcio.domain.processo.fluxo.TransicaoInvalidaException;
 import br.com.claudio.consorcio.gateway.SistemaExternoIndisponivelException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import io.quarkus.security.AuthenticationFailedException;
+import io.quarkus.security.ForbiddenException;
+import io.quarkus.security.UnauthorizedException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ElementKind;
@@ -32,6 +36,38 @@ public class ExceptionMappers {
     @ServerExceptionMapper
     public Response creditoInsuficiente(CreditoInsuficienteException e) {
         return erro(Response.Status.CONFLICT, e);
+    }
+
+    /** R17 e R18: a pessoa está identificada, mas não pode esta ação (papel da linha, dono da cota, segunda pessoa). */
+    @ServerExceptionMapper
+    public Response permissaoNegada(PermissaoNegadaException e) {
+        return erro(Response.Status.FORBIDDEN, e);
+    }
+
+    /** Sem token, com token inválido, expirado ou de outro emissor: 401, no formato único de erro (ADR 003). */
+    @ServerExceptionMapper
+    public Response naoAutenticado(AuthenticationFailedException e) {
+        return naoIdentificado();
+    }
+
+    @ServerExceptionMapper
+    public Response naoIdentificado(UnauthorizedException e) {
+        return naoIdentificado();
+    }
+
+    /** Token válido, mas sem o papel que o endpoint exige (@RolesAllowed): 403. */
+    @ServerExceptionMapper
+    public Response semOPapel(ForbiddenException e) {
+        return Response.status(Response.Status.FORBIDDEN)
+                .entity(ErroResponse.de("Sem permissão para esta operação"))
+                .build();
+    }
+
+    private static Response naoIdentificado() {
+        return Response.status(Response.Status.UNAUTHORIZED)
+                .header("WWW-Authenticate", "Bearer")
+                .entity(ErroResponse.de("Identificação ausente ou inválida"))
+                .build();
     }
 
     @ServerExceptionMapper

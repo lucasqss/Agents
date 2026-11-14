@@ -32,7 +32,7 @@ final class ProcessoPagamentoMapper {
                     EstadoProcesso.valueOf(entity.getEstado()), entity.getProtocoloPagamento(), proposta,
                     entity.getIdentificacaoSolicitacao() == null ? null
                             : new IdentificacaoSolicitacao(entity.getIdentificacaoSolicitacao()),
-                    entity.getVersao());
+                    entity.getAutorUltimaConclusaoAnalise(), entity.getVersao());
         } catch (IllegalArgumentException e) {
             throw new IllegalStateException("Valor desconhecido no banco: " + e.getMessage(), e);
         }
@@ -105,6 +105,7 @@ final class ProcessoPagamentoMapper {
         entity.setEstadoDestino(transicao.para().name());
         entity.setAcao(transicao.acao().name());
         entity.setOcorridoEm(transicao.quando());
+        entity.setAutor(transicao.autor());
         entity.setObservacao(transicao.observacao());
         entity.setValorAnterior(transicao.valorAnterior() == null ? null : transicao.valorAnterior().valor());
         entity.setValorNovo(transicao.valorNovo() == null ? null : transicao.valorNovo().valor());
@@ -120,6 +121,7 @@ final class ProcessoPagamentoMapper {
         entity.setEstado(processo.estado().name());
         entity.setProtocoloPagamento(processo.protocoloPagamento());
         entity.setIdentificacaoSolicitacao(processo.identificacaoSolicitacao().map(IdentificacaoSolicitacao::valor).orElse(null));
+        entity.setAutorUltimaConclusaoAnalise(processo.autorDaUltimaConclusaoDaAnalise().orElse(null));
         entity.setVersao(processo.versao());
         return entity;
     }

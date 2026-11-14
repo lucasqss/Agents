@@ -118,8 +118,8 @@ class FluxoProcessoTest {
     @Test
     void umTipoTrocaEAcrescentaLinhasSemAfetarOComum() {
         FluxoProcesso comVistoria = FluxoProcesso.comum()
-                .transicao(EM_ANALISE, CONCLUIR_ANALISE, AGUARDANDO_VISTORIA)
-                .transicao(AGUARDANDO_VISTORIA, CONCLUIR_VISTORIA, APROVADO)
+                .transicao(EM_ANALISE, CONCLUIR_ANALISE, AGUARDANDO_VISTORIA, Papel.BACKOFFICE)
+                .transicao(AGUARDANDO_VISTORIA, CONCLUIR_VISTORIA, APROVADO, Papel.BACKOFFICE)
                 .construir();
 
         assertEquals(AGUARDANDO_VISTORIA, comVistoria.proximo(EM_ANALISE, CONCLUIR_ANALISE, ATE_A_ALCADA));
@@ -226,7 +226,7 @@ class FluxoProcessoTest {
     @Test
     void linhaCondicionalPodeSerDeclaradaComQualquerCondicao() {
         FluxoProcesso fluxo = FluxoProcesso.comum()
-                .transicaoCondicional(ABERTO, INICIAR_ANALISE, contexto -> false, REPROVADO, PENDENTE_DOCUMENTO)
+                .transicaoCondicional(ABERTO, INICIAR_ANALISE, contexto -> false, REPROVADO, PENDENTE_DOCUMENTO, Papel.BACKOFFICE)
                 .construir();
 
         assertEquals(PENDENTE_DOCUMENTO, fluxo.proximo(ABERTO, INICIAR_ANALISE, ATE_A_ALCADA));

@@ -68,6 +68,12 @@
             <artifactId>quarkus-scheduler</artifactId>
         </dependency>
 
+        <!-- Identidade: token JWT verificado pela aplicação (ver docs/adr/ADR_003_identidade_por_jwt.md); só o entrypoint o usa -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-jwt</artifactId>
+        </dependency>
+
         <!-- Persistência: Hibernate ORM + Jakarta Data (escrita e leitura) sobre PostgreSQL, schema via Flyway -->
         <dependency>
             <groupId>io.quarkus</groupId>

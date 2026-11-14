@@ -80,7 +80,7 @@ class ConcorrenciaAlteracaoTest {
         }
         assertTrue(Collections.frequency(respostas, 200) >= 1, respostas.toString());
         // O que ficou gravado é um único conjunto: um favorecido, com a parte igual ao valor do processo.
-        var favorecidos = io.restassured.RestAssured.given().get("/processos/" + processo + "/favorecidos")
+        var favorecidos = Api.given().get("/processos/" + processo + "/favorecidos")
                 .then().statusCode(200).extract().jsonPath();
         assertEquals(1, favorecidos.getList("nome").size());
     }

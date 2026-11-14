@@ -4,6 +4,7 @@ import br.com.claudio.consorcio.application.NaoEncontradoException;
 import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.cota.Cota;
 import br.com.claudio.consorcio.domain.cota.CotaRepository;
+import br.com.claudio.consorcio.domain.processo.Autor;
 import br.com.claudio.consorcio.domain.processo.Favorecido;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
@@ -32,15 +33,17 @@ public class AlterarProcessoUseCase {
     }
 
     @Transactional
-    public EstadoProcesso executar(Long id, BigDecimal valor, List<DadosFavorecido> favorecidos) {
+    public EstadoProcesso executar(Long id, Autor autor, BigDecimal valor, List<DadosFavorecido> favorecidos) {
         Dinheiro novoValor = Dinheiro.de(valor);
         List<Favorecido> novosFavorecidos = favorecidos.stream().map(DadosFavorecido::paraFavorecido).toList();
         // O id da cota não muda; ler o processo sem bloqueio só serve para achar a cota, que vem primeiro na ordem.
         Long cotaId = processos.buscarPorId(id).orElseThrow(() -> new NaoEncontradoException("Processo", id)).cotaId();
         Cota cota = cotas.buscarPorIdComBloqueio(cotaId).orElseThrow(() -> new NaoEncontradoException("Cota", cotaId));
+        // R18: só o cliente da cota altera; conferido com o dado da cota, depois do 404 e antes da situação (409).
+        cota.exigirDoCliente(autor.clienteId());
         ProcessoPagamento processo = processos.buscarPorIdComBloqueio(id)
                 .orElseThrow(() -> new NaoEncontradoException("Processo", id));
-        processo.alterar(novoValor, novosFavorecidos, Instant.now());
+        processo.alterar(autor, novoValor, novosFavorecidos, Instant.now());
         // Nada foi gravado: se o crédito não cobre o valor, a transação termina sem efeito.
         cota.exigirCreditoPara(novoValor, processos.somarValorPagoPorCota(cotaId));
         return processos.salvar(processo).estado();

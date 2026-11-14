@@ -2,10 +2,13 @@ package br.com.claudio.consorcio.domain.processo;
 
 import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.DominioException;
+import br.com.claudio.consorcio.domain.PermissaoNegadaException;
 import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.ContextoDaTransicao;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.Papel;
 import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
+import br.com.claudio.consorcio.domain.processo.fluxo.TransicaoInvalidaException;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -13,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Motor único dos processos de pagamento, de todos os tipos. Ele não conhece nenhum tipo em particular:
@@ -30,12 +34,14 @@ public final class ProcessoPagamento {
     private String protocoloPagamento;
     private AlteracaoProposta proposta;
     private IdentificacaoSolicitacao identificacaoSolicitacao;
+    private String autorDaUltimaConclusaoDaAnalise;
     private final long versao;
     private final List<Transicao> novasTransicoes = new ArrayList<>();
 
     private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
             List<Favorecido> favorecidos, EstadoProcesso estado, String protocoloPagamento,
-            AlteracaoProposta proposta, IdentificacaoSolicitacao identificacaoSolicitacao, long versao) {
+            AlteracaoProposta proposta, IdentificacaoSolicitacao identificacaoSolicitacao,
+            String autorDaUltimaConclusaoDaAnalise, long versao) {
         if (cotaId == null) {
             throw new DominioException("Processo precisa de uma cota");
         }
@@ -65,6 +71,7 @@ public final class ProcessoPagamento {
         this.protocoloPagamento = protocoloPagamento;
         this.proposta = proposta;
         this.identificacaoSolicitacao = identificacaoSolicitacao;
+        this.autorDaUltimaConclusaoDaAnalise = autorDaUltimaConclusaoDaAnalise;
         this.versao = versao;
     }
 
@@ -73,18 +80,20 @@ public final class ProcessoPagamento {
      * dividido entre os favorecidos (R15, R29): ao menos um, partes maiores que zero somando o valor, sem documento repetido.
      */
     public static ProcessoPagamento novo(TipoProcesso tipo, Long cotaId, Dinheiro valor, List<Favorecido> favorecidos) {
-        return new ProcessoPagamento(null, cotaId, tipo, valor, favorecidos, EstadoProcesso.ABERTO, null, null, null, 0);
+        return new ProcessoPagamento(null, cotaId, tipo, valor, favorecidos, EstadoProcesso.ABERTO, null, null, null, null, 0);
     }
 
     /**
      * Recria um processo já gravado, no estado em que ele estava; a alteração proposta existe só em Aguardando
-     * concordância, e a identificação da solicitação só em Pagamento solicitado.
+     * concordância, e a identificação da solicitação só em Pagamento solicitado. {@code autorDaUltimaConclusaoDaAnalise}
+     * é o usuário que concluiu a análise pela última vez (R17); nulo se nunca concluiu (ou o processo é anterior a R17).
      */
     public static ProcessoPagamento reconstituir(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
             List<Favorecido> favorecidos, EstadoProcesso estado, String protocoloPagamento,
-            AlteracaoProposta proposta, IdentificacaoSolicitacao identificacaoSolicitacao, long versao) {
+            AlteracaoProposta proposta, IdentificacaoSolicitacao identificacaoSolicitacao,
+            String autorDaUltimaConclusaoDaAnalise, long versao) {
         return new ProcessoPagamento(id, cotaId, tipo, valor, favorecidos, estado, protocoloPagamento, proposta,
-                identificacaoSolicitacao, versao);
+                identificacaoSolicitacao, autorDaUltimaConclusaoDaAnalise, versao);
     }
 
     /**
@@ -92,19 +101,26 @@ public final class ProcessoPagamento {
      * Ação que exige motivo ({@link AcaoProcesso#exigeMotivo()}) é recusada sem ele; o motivo vai ao histórico
      * como observação. Ação com método próprio ({@link AcaoProcesso#comMetodoProprio()}) é recusada aqui.
      * Concordar torna vigente a alteração proposta; discordar e cancelar a descartam.
+     * Quem pede ({@code autor}) é conferido contra a linha da tabela do fluxo: o papel (R18) e, em Aguardando alçada, não
+     * ser quem concluiu a análise (R17); recusa com {@link PermissaoNegadaException}, sem mudar nada. A ordem das recusas
+     * é: a ação vale no estado (409), a pessoa pode (403), o dado está certo (400).
      * A alçada em vigor (R16) é entregue por quem chama, como {@link Dinheiro}: o domínio não lê configuração. Quando a
      * linha da tabela é condicional (concluir a análise ou a vistoria), a tabela decide o destino com o valor vigente e a
      * alçada; aqui não há comparação de valor.
      */
-    public void executar(AcaoProcesso acao, Instant quando, String observacao, Dinheiro alcada) {
+    public void executar(Autor autor, AcaoProcesso acao, Instant quando, String observacao, Dinheiro alcada) {
         tipo.fluxo().proximo(estado, acao, contexto(alcada));
         if (acao.comMetodoProprio()) {
             throw new DominioException("Para " + acao.descricao() + " um processo é preciso informar os dados da ação");
         }
+        exigirPermissao(autor, acao);
         if (acao.exigeMotivo() && (observacao == null || observacao.isBlank())) {
             throw new DominioException("Motivo é obrigatório para " + acao.descricao() + " um processo");
         }
-        transitar(acao, quando, observacao, null, null, alcada);
+        transitar(autor.usuario(), acao, quando, observacao, null, null, alcada);
+        if (acao == AcaoProcesso.CONCLUIR_ANALISE) {
+            autorDaUltimaConclusaoDaAnalise = autor.usuario();
+        }
         if (acao == AcaoProcesso.CONCORDAR) {
             valor = proposta.valor();
             favorecidos = proposta.favorecidos();
@@ -118,9 +134,10 @@ public final class ProcessoPagamento {
      * Troca o valor e os favorecidos vigentes (R24, só em Aberto), com as mesmas regras da abertura (R12, R15, R29).
      * Recusa o dado inválido antes de olhar o estado, e nada muda quando recusa.
      */
-    public void alterar(Dinheiro novoValor, List<Favorecido> novosFavorecidos, Instant quando) {
+    public void alterar(Autor autor, Dinheiro novoValor, List<Favorecido> novosFavorecidos, Instant quando) {
         exigirDivisaoValida(novoValor, novosFavorecidos);
-        transitar(AcaoProcesso.ALTERAR, quando, null, valor, novoValor);
+        exigirPermissao(autor, AcaoProcesso.ALTERAR);
+        transitar(autor.usuario(), AcaoProcesso.ALTERAR, quando, null, valor, novoValor);
         valor = novoValor;
         favorecidos = List.copyOf(novosFavorecidos);
     }
@@ -129,9 +146,11 @@ public final class ProcessoPagamento {
      * Guarda a alteração pedida pelo backoffice (R25, só em Análise) e passa a aguardar o cliente. O valor e os
      * favorecidos vigentes continuam os mesmos até {@code CONCORDAR}. O motivo é obrigatório e vai ao histórico.
      */
-    public void proporAlteracao(Dinheiro novoValor, List<Favorecido> novosFavorecidos, String motivo, Instant quando) {
+    public void proporAlteracao(Autor autor, Dinheiro novoValor, List<Favorecido> novosFavorecidos, String motivo,
+            Instant quando) {
         AlteracaoProposta nova = new AlteracaoProposta(novoValor, novosFavorecidos, motivo);
-        transitar(AcaoProcesso.PROPOR_ALTERACAO, quando, nova.motivo(), valor, novoValor);
+        exigirPermissao(autor, AcaoProcesso.PROPOR_ALTERACAO);
+        transitar(autor.usuario(), AcaoProcesso.PROPOR_ALTERACAO, quando, nova.motivo(), valor, novoValor);
         proposta = nova;
     }
 
@@ -139,11 +158,13 @@ public final class ProcessoPagamento {
      * Solicita o pagamento (R7): só leva o processo a Pagamento solicitado e guarda a identificação desta solicitação,
      * que a rotina repete em todas as tentativas (R22). Nada é enviado à tesouraria aqui.
      */
-    public void solicitarPagamento(IdentificacaoSolicitacao identificacao, Instant quando, String observacao) {
+    public void solicitarPagamento(Autor autor, IdentificacaoSolicitacao identificacao, Instant quando,
+            String observacao) {
         if (identificacao == null) {
             throw new DominioException("Identificação da solicitação de pagamento é obrigatória");
         }
-        transitar(AcaoProcesso.SOLICITAR_PAGAMENTO, quando, observacao, null, null);
+        exigirPermissao(autor, AcaoProcesso.SOLICITAR_PAGAMENTO);
+        transitar(autor.usuario(), AcaoProcesso.SOLICITAR_PAGAMENTO, quando, observacao, null, null);
         identificacaoSolicitacao = identificacao;
     }
 
@@ -178,7 +199,7 @@ public final class ProcessoPagamento {
         if (protocolo == null || protocolo.isBlank()) {
             throw new DominioException("Protocolo de pagamento é obrigatório");
         }
-        transitar(AcaoProcesso.CONFIRMAR_PAGAMENTO, quando, "Protocolo " + protocolo.strip(), null, null);
+        transitar(Transicao.AUTOR_SISTEMA, AcaoProcesso.CONFIRMAR_PAGAMENTO, quando, "Protocolo " + protocolo.strip(), null, null);
         protocoloPagamento = protocolo.strip();
         identificacaoSolicitacao = null;
     }
@@ -186,14 +207,14 @@ public final class ProcessoPagamento {
     /** A tesouraria recusou: volta a Aprovado, com o motivo no histórico; a identificação é descartada (R21). */
     public void recusarPagamento(String motivo, Instant quando) {
         exigirTexto(AcaoProcesso.RECUSAR_PAGAMENTO, motivo);
-        transitar(AcaoProcesso.RECUSAR_PAGAMENTO, quando, limitar(motivo), null, null);
+        transitar(Transicao.AUTOR_SISTEMA, AcaoProcesso.RECUSAR_PAGAMENTO, quando, limitar(motivo), null, null);
         identificacaoSolicitacao = null;
     }
 
     /** Tentativa sem resultado aplicado (sem resposta ou resposta incoerente): continua esperando, com o fato no histórico. */
     public void registrarTentativaSemResultado(String observacao, Instant quando) {
         exigirTexto(AcaoProcesso.TENTAR_PAGAMENTO, observacao);
-        transitar(AcaoProcesso.TENTAR_PAGAMENTO, quando, limitar(observacao), null, null);
+        transitar(Transicao.AUTOR_SISTEMA, AcaoProcesso.TENTAR_PAGAMENTO, quando, limitar(observacao), null, null);
     }
 
     private static void exigirTexto(AcaoProcesso acao, String texto) {
@@ -242,17 +263,50 @@ public final class ProcessoPagamento {
         }
     }
 
-    private void transitar(AcaoProcesso acao, Instant quando, String observacao, Dinheiro valorAnterior,
+    private void transitar(String autor, AcaoProcesso acao, Instant quando, String observacao, Dinheiro valorAnterior,
             Dinheiro valorNovo) {
-        transitar(acao, quando, observacao, valorAnterior, valorNovo, null);
+        transitar(autor, acao, quando, observacao, valorAnterior, valorNovo, null);
     }
 
-    private void transitar(AcaoProcesso acao, Instant quando, String observacao, Dinheiro valorAnterior,
+    private void transitar(String autor, AcaoProcesso acao, Instant quando, String observacao, Dinheiro valorAnterior,
             Dinheiro valorNovo, Dinheiro alcada) {
         Transicao transicao = new Transicao(estado, tipo.fluxo().proximo(estado, acao, contexto(alcada)), acao, quando,
-                observacao, valorAnterior, valorNovo);
+                autor, observacao, valorAnterior, valorNovo);
         estado = transicao.para();
         novasTransicoes.add(transicao);
+    }
+
+    /**
+     * Confere o autor contra a linha da tabela do fluxo (estado atual, ação): precisa ter um dos papéis da linha (R18) e,
+     * se a linha exige (R17), não ser quem concluiu a análise pela última vez. Quem decide é a tabela, não esta raiz.
+     */
+    private void exigirPermissao(Autor autor, AcaoProcesso acao) {
+        if (autor == null) {
+            throw new DominioException("Autor da ação é obrigatório");
+        }
+        Set<Papel> papeis = tipo.fluxo().papeisDe(estado, acao);
+        if (!autor.temAlgumDosPapeis(papeis)) {
+            throw new PermissaoNegadaException("Para " + acao.descricao() + " um processo no estado " + estado
+                    + " é preciso ter o papel " + papeis.stream().map(p -> p.name().toLowerCase()).sorted()
+                            .collect(Collectors.joining(" ou ")));
+        }
+        if (tipo.fluxo().exigeOutraPessoaQueConcluiuAAnalise(estado, acao)
+                && autor.usuario().equals(autorDaUltimaConclusaoDaAnalise)) {
+            throw new PermissaoNegadaException(
+                    "Quem concluiu a análise não pode " + acao.descricao() + " o mesmo processo (R17)");
+        }
+    }
+
+    /**
+     * A linha da tabela, no estado atual, é do cliente da cota (alterar, concordar, discordar): o caso de uso confere
+     * então que o cliente do autor é o dono da cota (R18). Falso se a ação não vale no estado (a recusa será o 409).
+     */
+    public boolean exigeClienteDaCota(AcaoProcesso acao) {
+        try {
+            return tipo.fluxo().papeisDe(estado, acao).contains(Papel.CLIENTE);
+        } catch (TransicaoInvalidaException e) {
+            return false;
+        }
     }
 
     /** Confere se a ação vale no estado atual, sem aplicá-la; para validar antes de um efeito externo. */
@@ -307,6 +361,11 @@ public final class ProcessoPagamento {
 
     public EstadoProcesso estado() {
         return estado;
+    }
+
+    /** Usuário que concluiu a análise pela última vez (R17); vazio se ela nunca foi concluída. */
+    public Optional<String> autorDaUltimaConclusaoDaAnalise() {
+        return Optional.ofNullable(autorDaUltimaConclusaoDaAnalise);
     }
 
     public String protocoloPagamento() {

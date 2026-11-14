@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import br.com.claudio.consorcio.application.processo.ExecutarRotinaDePagamentoUseCase;
 import br.com.claudio.consorcio.domain.AlteracaoConcorrenteException;
 import br.com.claudio.consorcio.domain.Dinheiro;
+import br.com.claudio.consorcio.domain.processo.AutoresDeTeste;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamento;
 import br.com.claudio.consorcio.domain.processo.ProcessoPagamentoRepository;
 import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
@@ -122,7 +123,7 @@ class ConcorrenciaProcessoTest {
 
         acao(id, "iniciar-analise").statusCode(200);
 
-        leituraAntiga.executar(AcaoProcesso.CANCELAR, AGORA, "desistência", Dinheiro.de("50000.00"));
+        leituraAntiga.executar(AutoresDeTeste.ANA, AcaoProcesso.CANCELAR, AGORA, "desistência", Dinheiro.de("50000.00"));
         assertThrows(AlteracaoConcorrenteException.class,
                 () -> QuarkusTransaction.requiringNew().run(() -> processos.salvar(leituraAntiga)));
         EstadoProcesso gravado = QuarkusTransaction.requiringNew()

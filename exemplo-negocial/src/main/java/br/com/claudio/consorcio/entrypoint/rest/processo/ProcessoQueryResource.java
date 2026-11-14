@@ -10,6 +10,7 @@ import br.com.claudio.consorcio.persistence.processo.ProcessoFavorecidoResumo;
 import br.com.claudio.consorcio.persistence.processo.ProcessoPropostaResumo;
 import br.com.claudio.consorcio.persistence.processo.ProcessoResumo;
 import br.com.claudio.consorcio.persistence.processo.ProcessoTransicaoResumo;
+import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
@@ -18,6 +19,8 @@ import jakarta.ws.rs.QueryParam;
 import java.util.List;
 import java.util.Locale;
 
+/** Consultas: qualquer papel autenticado (ADR 003). */
+@Authenticated
 @Path("/processos")
 public class ProcessoQueryResource {
 

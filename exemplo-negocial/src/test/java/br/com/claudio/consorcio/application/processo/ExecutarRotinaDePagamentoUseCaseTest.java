@@ -37,7 +37,7 @@ class ExecutarRotinaDePagamentoUseCaseTest {
         ProcessoPagamento solicitado(long id) {
             ProcessoPagamento processo = ProcessoPagamento.reconstituir(id, 1L, TipoProcesso.SERVICO, VALOR,
                     List.of(new Favorecido("Favorecido", Documento.de("12345678901"), "vendedor", VALOR)),
-                    EstadoProcesso.PAGAMENTO_SOLICITADO, null, null, new IdentificacaoSolicitacao(UUID.randomUUID()), 0);
+                    EstadoProcesso.PAGAMENTO_SOLICITADO, null, null, new IdentificacaoSolicitacao(UUID.randomUUID()), null, 0);
             gravados.put(id, processo);
             return processo;
         }

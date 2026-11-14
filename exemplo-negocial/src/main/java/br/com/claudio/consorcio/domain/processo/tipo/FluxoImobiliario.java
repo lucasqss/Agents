@@ -8,6 +8,7 @@ import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.AGUA
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.AGUARDANDO_VISTORIA;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.APROVADO;
 import static br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso.EM_ANALISE;
+import static br.com.claudio.consorcio.domain.processo.fluxo.Papel.BACKOFFICE;
 
 import br.com.claudio.consorcio.domain.processo.fluxo.FluxoProcesso;
 
@@ -22,9 +23,9 @@ final class FluxoImobiliario {
 
     static FluxoProcesso definir() {
         return FluxoProcesso.comum()
-                .transicao(EM_ANALISE, CONCLUIR_ANALISE, AGUARDANDO_VISTORIA)
-                .transicaoCondicional(AGUARDANDO_VISTORIA, CONCLUIR_VISTORIA, VALOR_PASSA_DA_ALCADA, AGUARDANDO_ALCADA, APROVADO)
-                .transicao(AGUARDANDO_VISTORIA, DEVOLVER_PARA_ANALISE, EM_ANALISE)
+                .transicao(EM_ANALISE, CONCLUIR_ANALISE, AGUARDANDO_VISTORIA, BACKOFFICE)
+                .transicaoCondicional(AGUARDANDO_VISTORIA, CONCLUIR_VISTORIA, VALOR_PASSA_DA_ALCADA, AGUARDANDO_ALCADA, APROVADO, BACKOFFICE)
+                .transicao(AGUARDANDO_VISTORIA, DEVOLVER_PARA_ANALISE, EM_ANALISE, BACKOFFICE)
                 .construir();
     }
 }

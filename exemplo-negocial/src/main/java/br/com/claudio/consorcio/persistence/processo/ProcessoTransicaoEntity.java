@@ -32,6 +32,8 @@ public class ProcessoTransicaoEntity {
     @Column(name = "ocorrido_em")
     private Instant ocorridoEm;
 
+    private String autor;
+
     private String observacao;
 
     @Column(name = "valor_anterior")
@@ -86,6 +88,14 @@ public class ProcessoTransicaoEntity {
 
     public void setOcorridoEm(Instant ocorridoEm) {
         this.ocorridoEm = ocorridoEm;
+    }
+
+    public String getAutor() {
+        return autor;
+    }
+
+    public void setAutor(String autor) {
+        this.autor = autor;
     }
 
     public String getObservacao() {

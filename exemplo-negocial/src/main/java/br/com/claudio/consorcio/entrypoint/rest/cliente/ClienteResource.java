@@ -4,6 +4,8 @@ import br.com.claudio.consorcio.application.cliente.AtualizarClienteUseCase;
 import br.com.claudio.consorcio.application.cliente.CriarClienteUseCase;
 import br.com.claudio.consorcio.application.cliente.ExcluirClienteUseCase;
 import br.com.claudio.consorcio.entrypoint.IdCriado;
+import br.com.claudio.consorcio.entrypoint.rest.PapeisDaApi;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.DELETE;
@@ -13,6 +15,8 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
 
+/** Cadastro: papel backoffice, decisão do coordenador na fatia 7 (o caso de uso não trata cadastro). */
+@RolesAllowed(PapeisDaApi.BACKOFFICE)
 @Path("/clientes")
 public class ClienteResource {
 

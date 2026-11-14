@@ -34,6 +34,8 @@ import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.executarComObserva
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.listarProcessosPorSituacao;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.novaCota;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.quantidadeDeProcessosDaCota;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.requisicaoDeCliente;
+import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.requisicaoDeConsulta;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.ABERTO;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.AGUARDANDO_CONCORDANCIA;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.AGUARDANDO_ALCADA;
@@ -70,7 +72,6 @@ import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamen
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CANCELADO;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CANCELAR;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.SERVICO;
-import static io.restassured.RestAssured.given;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.comparesEqualTo;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -421,7 +422,7 @@ class PagamentoProcessoAceitacaoTest {
         long processo = abrirProcesso(novaCota(), IMOBILIARIO);
         executar(processo, INICIAR_ANALISE).statusCode(200);
 
-        given().queryParam("tipo", IMOBILIARIO).queryParam("estado", "EM_ANALISE").queryParam("tamanho", 100)
+        requisicaoDeConsulta().queryParam("tipo", IMOBILIARIO).queryParam("estado", "EM_ANALISE").queryParam("tamanho", 100)
                 .when().get("/processos").then().statusCode(200)
                 .body("itens.tipo", everyItem(equalTo(IMOBILIARIO)))
                 .body("itens.estado", everyItem(equalTo("EM_ANALISE")));
@@ -432,7 +433,7 @@ class PagamentoProcessoAceitacaoTest {
     void listagemPaginada() {
         abrirProcesso(novaCota(), SERVICO);
 
-        given().queryParam("pagina", 1).queryParam("tamanho", 1).when().get("/processos").then().statusCode(200)
+        requisicaoDeConsulta().queryParam("pagina", 1).queryParam("tamanho", 1).when().get("/processos").then().statusCode(200)
                 .body("pagina", equalTo(1))
                 .body("tamanho", equalTo(1))
                 .body("itens.size()", lessThanOrEqualTo(1))
@@ -444,14 +445,14 @@ class PagamentoProcessoAceitacaoTest {
     @Test
     @DisplayName("Corpo malformado é recusado com 400")
     void corpoMalformado() {
-        given().contentType(ContentType.JSON).body("{\"cotaId\": ").when().post("/processos").then().statusCode(400)
+        requisicaoDeCliente().contentType(ContentType.JSON).body("{\"cotaId\": ").when().post("/processos").then().statusCode(400)
                 .body("mensagem", notNullValue());
     }
 
     @Test
     @DisplayName("Corpo vazio é recusado com 400")
     void corpoVazio() {
-        given().contentType(ContentType.JSON).when().post("/processos").then().statusCode(400)
+        requisicaoDeCliente().contentType(ContentType.JSON).when().post("/processos").then().statusCode(400)
                 .body("mensagem", notNullValue());
     }
 
@@ -2550,7 +2551,7 @@ class PagamentoProcessoAceitacaoTest {
     // inclusive) e aguardando alçada. Oráculo: ModeloPagamentoProcesso (faixas de valor e decisaoDaAlcada).
     // A tabela situação × ação (linha aguardando alçada e coluna aprovar na alçada) e os caminhos estão nos testes
     // acaoForaDaOrdemERecusada, acoesAceitasNaSituacao, fluxoPelaAlcadaChegaASituacaoFinal e nos de motivo e observação.
-    // R17 e R18 (quem aprova, papéis): pendentes, fatia 7.
+    // R17 e R18 (quem aprova, papéis): em PapeisEAutoriaAceitacaoTest (fatia 7). Aqui o auxiliar envia o token do papel certo.
 
     private static final List<String> ACOES_EM_AGUARDANDO_ALCADA =
             List.of("aprovar-na-alcada", "reprovar", "devolver-para-analise", "cancelar");
