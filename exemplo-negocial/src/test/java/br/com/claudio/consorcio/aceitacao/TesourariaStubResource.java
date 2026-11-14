@@ -17,6 +17,14 @@ import java.util.Map;
  */
 public class TesourariaStubResource implements QuarkusTestResourceLifecycleManager {
 
+    /**
+     * Chave por método da configuração do SmallRye Fault Tolerance: {@code "<classe>/<método>"}. Num REST client de
+     * interface a classe que vale é a do wrapper CDI que o Quarkus gera ({@code TesourariaClient$$CDIWrapper}), não a
+     * da interface onde estão as anotações.
+     */
+    private static final String METODO_DO_CLIENTE =
+            "\"br.com.claudio.consorcio.gateway.tesouraria.TesourariaClient$$CDIWrapper/criarOrdem\"";
+
     private WireMockServer servidor;
 
     @Override
@@ -28,6 +36,11 @@ public class TesourariaStubResource implements QuarkusTestResourceLifecycleManag
         Map<String, String> configuracao = new HashMap<>();
         configuracao.put("quarkus.rest-client.tesouraria.url", servidor.baseUrl());
         configuracao.put("pagamento.rotina.intervalo", "1s");
+        // Resiliência do TesourariaClient encurtada só nos testes (as anotações, 2 s e 5 s, seguem como estão).
+        configuracao.put("quarkus.fault-tolerance." + METODO_DO_CLIENTE + ".timeout.value",
+                String.valueOf(TesourariaStub.TEMPO_PARA_RESPONDER.toMillis()));
+        configuracao.put("quarkus.fault-tolerance." + METODO_DO_CLIENTE + ".circuit-breaker.delay",
+                String.valueOf(TesourariaStub.ESPERA_DO_CIRCUITO.toMillis()));
         configuracao.putAll(IdentidadeTeste.configuracaoDaAplicacao());
         return configuracao;
     }

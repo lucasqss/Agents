@@ -78,7 +78,7 @@ class ConcorrenciaProcessoTest {
         long processo = processoAprovado();
         Api.solicitarPagamento(processo).statusCode(200);
         // A tesouraria demora, para as duas execuções estarem com a chamada em andamento ao mesmo tempo.
-        TesourariaFake.demorar(400);
+        TesourariaFake.demorar(150);
         int execucoes = 2;
         CountDownLatch largada = new CountDownLatch(1);
         Callable<Void> executar = () -> {

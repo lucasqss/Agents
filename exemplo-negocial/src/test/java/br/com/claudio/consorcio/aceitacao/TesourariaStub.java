@@ -31,7 +31,8 @@ import java.util.Map;
  * {@code POST /ordens-pagamento} com {@code {"requestId", "processId", "amount", "payees": [{"name", "document",
  * "role", "amount"}]}}; resposta 200 com {@code {"status": "ACCEPTED", "protocolNumber"}},
  * {@code {"status": "REJECTED", "reason"}} ou {@code {"status": "ALREADY_PROCESSED", "protocolNumber"}}; 5xx ou
- * demora acima de 2 segundos é indisponível ou sem resposta.
+ * demora acima do tempo para responder (2 segundos em produção, {@link #TEMPO_PARA_RESPONDER} nos testes) é
+ * indisponível ou sem resposta.
  *
  * <p>O estado do stub é compartilhado: a rotina da aplicação roda o tempo todo sobre todos os processos em
  * pagamento solicitado. Quem muda o comportamento o devolve a {@link #confirmar()} ao terminar, e as consultas ao
@@ -42,8 +43,17 @@ public final class TesourariaStub {
     /** Protocolo que só este stub emite: encontrá-lo no processo prova que a chamada passou por aqui. */
     public static final String PROTOCOLO = "PROTOCOLO-STUB-ACEITACAO";
 
-    /** Tempo de resposta que o stub usa para "não respondeu": acima dos 2 segundos que a tesouraria tem para responder. */
-    public static final Duration DEMORA_SEM_RESPOSTA = Duration.ofSeconds(3);
+    /**
+     * Tempo que a aplicação dá à tesouraria para responder nos testes (o {@code @Timeout} do client, 2 segundos em
+     * produção, é sobrescrito por configuração pelo {@link TesourariaStubResource}).
+     */
+    public static final Duration TEMPO_PARA_RESPONDER = Duration.ofMillis(300);
+
+    /** Quanto o circuito do client fica aberto nos testes (5 segundos em produção; sobrescrito como o tempo acima). */
+    public static final Duration ESPERA_DO_CIRCUITO = Duration.ofMillis(500);
+
+    /** Tempo de resposta que o stub usa para "não respondeu": bem acima do {@link #TEMPO_PARA_RESPONDER}. */
+    public static final Duration DEMORA_SEM_RESPOSTA = Duration.ofSeconds(1);
 
     static final String PROPRIEDADE_PORTA = "aceitacao.tesouraria.porta";
 

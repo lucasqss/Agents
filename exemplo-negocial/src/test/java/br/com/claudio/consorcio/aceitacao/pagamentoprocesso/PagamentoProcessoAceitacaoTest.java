@@ -2159,6 +2159,13 @@ class PagamentoProcessoAceitacaoTest {
                 assertThat(consultarAcoes(a.processo()), empty());
             }
         }
+
+        // Resposta não aplicada deixa o processo na fila da rotina, que atende primeiro os mais antigos: a tesouraria
+        // volta a confirmar e o caso só termina quando ele sai da fila, para não roubar as chamadas do próximo caso.
+        if (!resposta.aplicada()) {
+            TesourariaStub.confirmar();
+            aguardarSituacao(a.processo(), PAGO);
+        }
     }
 
     // R22: indisponível por algumas tentativas e depois confirma, sempre com a mesma identificação.
@@ -2213,11 +2220,11 @@ class PagamentoProcessoAceitacaoTest {
     }
 
     @Test
-    @DisplayName("Tesouraria que responde dentro do prazo (1 segundo de atraso) tem a resposta aplicada")
+    @DisplayName("Tesouraria que responde dentro do prazo (com atraso, abaixo do tempo para responder) tem a resposta aplicada")
     void respostaDentroDoPrazoEAplicada() {
         Acompanhado a = aberto(SERVICO);
         levar(a.processo(), caminhoAte(SERVICO, APROVADO));
-        TesourariaStub.confirmarComAtraso(Duration.ofSeconds(1), PROTOCOLO_DA_TESOURARIA);
+        TesourariaStub.confirmarComAtraso(TesourariaStub.TEMPO_PARA_RESPONDER.dividedBy(3), PROTOCOLO_DA_TESOURARIA);
 
         executar(a.processo(), SOLICITAR_PAGAMENTO).statusCode(200);
         aguardarSituacao(a.processo(), PAGO);
