@@ -34,16 +34,17 @@ class PagamentoComoSagaTest {
 
     private static final Dinheiro VALOR = Dinheiro.de("30000.00");
     private static final Instant AGORA = Instant.parse("2026-11-13T10:00:00Z");
+    private static final Dinheiro ALCADA = Dinheiro.de("50000.00");
     private static final IdentificacaoSolicitacao PRIMEIRA = new IdentificacaoSolicitacao(UUID.randomUUID());
     private static final IdentificacaoSolicitacao SEGUNDA = new IdentificacaoSolicitacao(UUID.randomUUID());
 
     private static ProcessoPagamento aprovado(TipoProcesso tipo) {
         ProcessoPagamento processo = ProcessoPagamento.novo(tipo, 1L, VALOR, List.of(
                 new Favorecido("Favorecido", Documento.de("12345678901"), "vendedor", VALOR)));
-        processo.executar(AcaoProcesso.INICIAR_ANALISE, AGORA, null);
-        processo.executar(AcaoProcesso.CONCLUIR_ANALISE, AGORA, null);
+        processo.executar(AcaoProcesso.INICIAR_ANALISE, AGORA, null, ALCADA);
+        processo.executar(AcaoProcesso.CONCLUIR_ANALISE, AGORA, null, ALCADA);
         if (tipo == TipoProcesso.IMOBILIARIO) {
-            processo.executar(AcaoProcesso.CONCLUIR_VISTORIA, AGORA, null);
+            processo.executar(AcaoProcesso.CONCLUIR_VISTORIA, AGORA, null, ALCADA);
         }
         return processo;
     }
@@ -105,7 +106,7 @@ class PagamentoComoSagaTest {
     void nenhumaAcaoDePessoaValeEmPagamentoSolicitado(AcaoProcesso acao) {
         ProcessoPagamento processo = solicitado(TipoProcesso.SERVICO);
 
-        assertThrows(DominioException.class, () -> processo.executar(acao, AGORA, "motivo"), acao.name());
+        assertThrows(DominioException.class, () -> processo.executar(acao, AGORA, "motivo", ALCADA), acao.name());
 
         assertEquals(PAGAMENTO_SOLICITADO, processo.estado());
         assertTrue(processo.acoesDisponiveis().isEmpty());

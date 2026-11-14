@@ -181,17 +181,21 @@ Os fronts são gerados por low-code e não formatam nada, então o backend entre
 ```
 Imobiliário: ABERTO → EM_ANALISE → AGUARDANDO_VISTORIA → APROVADO → PAGAMENTO_SOLICITADO → PAGO
 Serviço:     ABERTO → EM_ANALISE → APROVADO → PAGAMENTO_SOLICITADO → PAGO
+Alçada (R16): concluir a análise (serviço) ou a vistoria (imobiliário) leva a APROVADO se o valor vigente é até a alçada, inclusive, e a AGUARDANDO_ALCADA se passa dela
+Aprovar na alçada: AGUARDANDO_ALCADA → APROVADO; em AGUARDANDO_ALCADA valem também reprovar (→ REPROVADO), devolver para análise (→ EM_ANALISE) e cancelar
 Solicitar pagamento: APROVADO → PAGAMENTO_SOLICITADO (só grava; pessoa)
 Rotina (nunca pessoa): PAGAMENTO_SOLICITADO → PAGO (confirmar, com protocolo) | → APROVADO (recusar, com motivo) | → PAGAMENTO_SOLICITADO (tentar de novo)
 Solicitar documento: EM_ANALISE → PENDENTE_DOCUMENTO; receber documento: PENDENTE_DOCUMENTO → EM_ANALISE
-Reprovar: EM_ANALISE → REPROVADO (final)
-Devolver para análise: APROVADO → EM_ANALISE (e AGUARDANDO_VISTORIA → EM_ANALISE no imobiliário)
+Reprovar: EM_ANALISE ou AGUARDANDO_ALCADA → REPROVADO (final)
+Devolver para análise: APROVADO ou AGUARDANDO_ALCADA → EM_ANALISE (e AGUARDANDO_VISTORIA → EM_ANALISE no imobiliário)
 Alterar: ABERTO → ABERTO (o cliente troca valor e favorecidos na hora)
 Propor alteração: EM_ANALISE → AGUARDANDO_CONCORDANCIA (o backoffice propõe, com motivo)
 Concordar: AGUARDANDO_CONCORDANCIA → EM_ANALISE (a proposta passa a valer)
 Discordar: AGUARDANDO_CONCORDANCIA → EM_ANALISE (a proposta é descartada; motivo obrigatório)
 Qualquer estado não final → CANCELADO, exceto PAGAMENTO_SOLICITADO (exceção declarada na tabela: só a rotina tira o processo dali) (em AGUARDANDO_CONCORDANCIA só valem concordar, discordar e cancelar)
 ```
+
+**Alçada e transição condicional na tabela.** A linha que leva a APROVADO ao concluir a análise (serviço) e a vistoria (imobiliário) tem dois destinos, escolhidos por uma condição declarada na própria tabela: `.transicaoCondicional(EM_ANALISE, CONCLUIR_ANALISE, CondicaoDaTransicao.VALOR_PASSA_DA_ALCADA, AGUARDANDO_ALCADA, APROVADO)`. A condição recebe um `ContextoDaTransicao(valor, alcada)`; a raiz só entrega o valor vigente e a alçada, e não há `if (valor > alcada)` na entidade, no caso de uso nem no entrypoint. `acoesDisponiveis` continua saindo da tabela. O imobiliário troca só as linhas em que difere (concluir análise → AGUARDANDO_VISTORIA, sem condição; concluir vistoria, condicional). A alçada é a configuração `processo.alcada` (padrão `50000.00`, no `application.properties`): `ExecutarAcaoProcessoUseCase` a lê por `@ConfigProperty` e a passa ao domínio como `Dinheiro`. Valor igual à alçada vai a APROVADO; a decisão usa o valor vigente de cada conclusão. Fora desta entrega: quem aprova não pode ser quem concluiu a análise, papéis e autor no histórico.
 
 Pago, reprovado e cancelado são finais: não aceitam nenhuma ação e liberam a cota para um novo processo.
 
@@ -263,7 +267,7 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 | Escrita | `POST /clientes`, `PUT/DELETE /clientes/{id}` | CRUD de cliente (CPF único) |
 | Escrita | `POST /cotas`, `PUT/DELETE /cotas/{id}` | CRUD de cota |
 | Escrita | `POST /processos` `{cotaId, tipo, valor, favorecidos: [{nome, documento, papel, valor}]}` | Cria processo (`IMOBILIARIO` ou `SERVICO`) com o valor (número maior que zero, até 2 casas, até o crédito disponível da cota), dividido entre ao menos um favorecido (partes somando o valor) |
-| Escrita | `POST /processos/{id}/iniciar-analise` · `concluir-analise` · `concluir-vistoria` · `receber-documento` | Transições; corpo opcional `{"observacao": "..."}` (até 500 caracteres) |
+| Escrita | `POST /processos/{id}/iniciar-analise` · `concluir-analise` · `concluir-vistoria` · `aprovar-na-alcada` · `receber-documento` | Transições (`aprovar-na-alcada` só em AGUARDANDO_ALCADA; concluir análise ou vistoria responde APROVADO ou AGUARDANDO_ALCADA conforme `processo.alcada`); corpo opcional `{"observacao": "..."}` (até 500 caracteres) |
 | Escrita | `POST /processos/{id}/solicitar-documento` · `reprovar` · `devolver-para-analise` · `cancelar` | Transições; corpo obrigatório `{"motivo": "..."}` (não vazio, até 500 caracteres), gravado no histórico |
 | Escrita | `POST /processos/{id}/solicitar-pagamento` | Só leva APROVADO a PAGAMENTO_SOLICITADO (corpo opcional `{"observacao"}`); a rotina fala com a Tesouraria. Não existe endpoint para disparar a rotina nem para a Tesouraria avisar |
 | Leitura | `GET /clientes` | Clientes com a quantidade de cotas |
@@ -294,6 +298,6 @@ Requisitos: JDK 25 (`sdk env install` com SDKMAN) e Docker. O Dev Services sobe 
 docker compose up --build     # app empacotada + PostgreSQL (rode ./mvnw package antes)
 ```
 
-Em produção, informe o banco com `DB_URL`, `DB_USER` e `DB_PASSWORD`, e a tesouraria com `TESOURARIA_URL`. A rotina de pagamento roda a cada `pagamento.rotina.intervalo` (padrão `5m`; `off` desliga). Em `quarkus:dev`, sem uma tesouraria em `http://localhost:8089`, os processos ficam em PAGAMENTO_SOLICITADO e cada rodada registra uma tentativa no histórico. Nos testes de integração o agendamento está desligado (`%test.pagamento.rotina.intervalo=off`) e o caso de uso é chamado direto; nos de aceitação o intervalo é de 1 s.
+A alçada de aprovação é `processo.alcada` (padrão `50000.00`); em produção pode ser trocada por `PROCESSO_ALCADA`. Em produção, informe o banco com `DB_URL`, `DB_USER` e `DB_PASSWORD`, e a tesouraria com `TESOURARIA_URL`. A rotina de pagamento roda a cada `pagamento.rotina.intervalo` (padrão `5m`; `off` desliga). Em `quarkus:dev`, sem uma tesouraria em `http://localhost:8089`, os processos ficam em PAGAMENTO_SOLICITADO e cada rodada registra uma tentativa no histórico. Nos testes de integração o agendamento está desligado (`%test.pagamento.rotina.intervalo=off`) e o caso de uso é chamado direto; nos de aceitação o intervalo é de 1 s.
 
 Cópia do exemplo mantido em um repositório privado (branch `exemplo-negocial`). Rode os comandos acima de dentro desta pasta.

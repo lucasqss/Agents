@@ -8,17 +8,18 @@ import java.util.Map;
  */
 public final class Rotulos {
 
-    private static final Map<String, String> ESTADOS = Map.of(
-            "ABERTO", "Aberto",
-            "EM_ANALISE", "Em análise",
-            "PENDENTE_DOCUMENTO", "Pendente de documento",
-            "AGUARDANDO_VISTORIA", "Aguardando vistoria",
-            "AGUARDANDO_CONCORDANCIA", "Aguardando concordância",
-            "APROVADO", "Aprovado",
-            "PAGAMENTO_SOLICITADO", "Pagamento solicitado",
-            "PAGO", "Pago",
-            "REPROVADO", "Reprovado",
-            "CANCELADO", "Cancelado");
+    private static final Map<String, String> ESTADOS = Map.ofEntries(
+            Map.entry("ABERTO", "Aberto"),
+            Map.entry("EM_ANALISE", "Em análise"),
+            Map.entry("PENDENTE_DOCUMENTO", "Pendente de documento"),
+            Map.entry("AGUARDANDO_VISTORIA", "Aguardando vistoria"),
+            Map.entry("AGUARDANDO_ALCADA", "Aguardando alçada"),
+            Map.entry("AGUARDANDO_CONCORDANCIA", "Aguardando concordância"),
+            Map.entry("APROVADO", "Aprovado"),
+            Map.entry("PAGAMENTO_SOLICITADO", "Pagamento solicitado"),
+            Map.entry("PAGO", "Pago"),
+            Map.entry("REPROVADO", "Reprovado"),
+            Map.entry("CANCELADO", "Cancelado"));
 
     private static final Map<String, String> TIPOS = Map.of(
             "IMOBILIARIO", "Imobiliário",

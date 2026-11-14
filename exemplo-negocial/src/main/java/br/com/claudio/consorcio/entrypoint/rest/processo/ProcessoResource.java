@@ -136,6 +136,13 @@ public class ProcessoResource {
     }
 
     @POST
+    @Path("/{id}/aprovar-na-alcada")
+    @Consumes(MediaType.WILDCARD)
+    public EstadoAtual aprovarNaAlcada(Long id, @RequestBody(required = false) @Valid Observacao corpo) {
+        return EstadoAtual.de(executarAcao.executar(id, AcaoProcesso.APROVAR_NA_ALCADA, Observacao.texto(corpo)));
+    }
+
+    @POST
     @Path("/{id}/devolver-para-analise")
     @Consumes(MediaType.WILDCARD)
     public EstadoAtual devolverParaAnalise(Long id, @RequestBody(required = true) @Valid @NotNull Motivo corpo) {

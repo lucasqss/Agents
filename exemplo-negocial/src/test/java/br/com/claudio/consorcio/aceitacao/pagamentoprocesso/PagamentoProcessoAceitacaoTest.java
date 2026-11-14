@@ -36,7 +36,12 @@ import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.novaCota;
 import static br.com.claudio.consorcio.aceitacao.ApiAceitacao.quantidadeDeProcessosDaCota;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.ABERTO;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.AGUARDANDO_CONCORDANCIA;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.AGUARDANDO_ALCADA;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.AGUARDANDO_VISTORIA;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.ALTERAR;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.APROVAR_NA_ALCADA;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.VALOR_ACIMA_DA_ALCADA;
+import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.decisaoDaAlcada;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CONCLUIR_VISTORIA;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CONCORDAR;
 import static br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.DISCORDAR;
@@ -93,6 +98,7 @@ import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProce
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Registro;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Base;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Caminho;
+import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.Faixa;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CasoFavorecidos;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.CenarioCredito;
 import br.com.claudio.consorcio.aceitacao.pagamentoprocesso.ModeloPagamentoProcesso.ProcessoPlanejado;
@@ -171,9 +177,20 @@ class PagamentoProcessoAceitacaoTest {
         percorrerEConferir(caminho);
     }
 
+    static Stream<Caminho> caminhosCompletosPelaAlcada() {
+        return ModeloPagamentoProcesso.caminhosCompletosPelaAlcada();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("caminhosCompletosPelaAlcada")
+    @DisplayName("Fluxo de um processo acima da alçada passa por aguardando alçada e chega à situação final")
+    void fluxoPelaAlcadaChegaASituacaoFinal(Caminho caminho) {
+        percorrerEConferir(caminho);
+    }
+
     private static void percorrerEConferir(Caminho caminho) {
         long cota = novaCota();
-        ProcessoEsperado esperado = ProcessoEsperado.inicial();
+        ProcessoEsperado esperado = ProcessoEsperado.comValor(caminho.valor());
         long processo = abrirProcesso(cota, caminho.tipo(), esperado.valor(), esperado.favorecidos());
         assertThat(consultarProcesso(processo).get("estado"), equalTo(ABERTO));
 
@@ -244,7 +261,7 @@ class PagamentoProcessoAceitacaoTest {
     @MethodSource("acoesInvalidas")
     @DisplayName("Ação fora da ordem é recusada e a situação não muda")
     void acaoForaDaOrdemERecusada(AcaoInvalida invalida) {
-        long processo = abrirProcesso(novaCota(), invalida.ate().tipo());
+        long processo = abrirProcesso(novaCota(), invalida.ate().tipo(), invalida.ate().valor());
         levar(processo, invalida.ate());
         int itensNoHistorico = consultarHistoricoSemTentativas(processo).size();
 
@@ -330,7 +347,7 @@ class PagamentoProcessoAceitacaoTest {
     @DisplayName("Cota com processo em andamento não abre outro")
     void cotaComProcessoEmAndamentoNaoAbreOutro(Caminho caminho) {
         long cota = novaCota();
-        long processo = abrirProcesso(cota, caminho.tipo());
+        long processo = abrirProcesso(cota, caminho.tipo(), caminho.valor());
         levar(processo, caminho);
 
         tentarAbrirProcesso(cota, SERVICO).statusCode(409)
@@ -342,7 +359,7 @@ class PagamentoProcessoAceitacaoTest {
     @DisplayName("Cota com processo finalizado pode abrir outro")
     void cotaComProcessoFinalizadoAbreOutro(Caminho caminho) {
         long cota = novaCota();
-        long processo = abrirProcesso(cota, caminho.tipo());
+        long processo = abrirProcesso(cota, caminho.tipo(), caminho.valor());
         levar(processo, caminho);
 
         long novo = abrirProcesso(cota, SERVICO);
@@ -630,10 +647,11 @@ class PagamentoProcessoAceitacaoTest {
     // Consulta: filtro por situação aceita as situações novas (fatia 1).
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {PENDENTE_DOCUMENTO, REPROVADO, AGUARDANDO_CONCORDANCIA, PAGAMENTO_SOLICITADO})
-    @DisplayName("Listagem filtra pelas situações pendente de documento, reprovado, aguardando concordância e pagamento solicitado")
+    @ValueSource(strings = {PENDENTE_DOCUMENTO, REPROVADO, AGUARDANDO_CONCORDANCIA, PAGAMENTO_SOLICITADO,
+            AGUARDANDO_ALCADA})
+    @DisplayName("Listagem filtra pelas situações pendente de documento, reprovado, aguardando concordância, pagamento solicitado e aguardando alçada")
     void listagemFiltraPorSituacoesNovas(String situacao) {
-        long processo = processoEm(caminhoAte(SERVICO, situacao));
+        long processo = processoEmCotaNova(SERVICO, situacao);
 
         List<Map<String, Object>> itens = listarProcessosPorSituacao(situacao);
 
@@ -827,7 +845,7 @@ class PagamentoProcessoAceitacaoTest {
     void exemploDoCasoDeUsoCreditoRestante() {
         long cota = novaCota(new BigDecimal("250000.00"));
         long pago = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
-        levar(pago, caminhoAte(SERVICO, PAGO));
+        levar(pago, caminhoAte(SERVICO, PAGO, new BigDecimal("100000.00")));
         assertThat(consultarProcesso(pago).get("estado"), equalTo(PAGO));
         assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(new BigDecimal("150000.00")));
 
@@ -863,7 +881,7 @@ class PagamentoProcessoAceitacaoTest {
         long cota = novaCota();
         long outra = novaCota();
         long pago = abrirProcesso(outra, SERVICO, new BigDecimal("100000.00"));
-        levar(pago, caminhoAte(SERVICO, PAGO));
+        levar(pago, caminhoAte(SERVICO, PAGO, new BigDecimal("100000.00")));
 
         assertThat(consultarCreditoDisponivel(outra), comparesEqualTo(new BigDecimal("150000.00")));
         assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
@@ -876,7 +894,7 @@ class PagamentoProcessoAceitacaoTest {
     void pagamentoNaoConcluidoNaoConsomeCredito() {
         long cota = novaCota();
         long processo = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
-        levar(processo, caminhoAte(SERVICO, APROVADO));
+        levar(processo, caminhoAte(SERVICO, APROVADO, new BigDecimal("100000.00")));
 
         TesourariaStub.recusar(MOTIVO_DA_TESOURARIA);
         aplicar(processo, SOLICITAR_PAGAMENTO).statusCode(200);
@@ -896,7 +914,7 @@ class PagamentoProcessoAceitacaoTest {
     void creditoSoDiminuiNoPagamento() {
         long cota = novaCota();
         long processo = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
-        levar(processo, caminhoAte(SERVICO, APROVADO));
+        levar(processo, caminhoAte(SERVICO, APROVADO, new BigDecimal("100000.00")));
         assertThat(consultarCreditoDisponivel(cota), comparesEqualTo(CREDITO_PADRAO));
 
         TesourariaStub.ficarIndisponivel();
@@ -1169,7 +1187,9 @@ class PagamentoProcessoAceitacaoTest {
     @MethodSource("caminhosPorSituacao")
     @DisplayName("Os favorecidos continuam os mesmos em cada situação do processo")
     void favorecidosPermanecemEmCadaSituacao(Caminho caminho) {
-        CasoFavorecidos caso = ModeloPagamentoProcesso.exemploDoCasoDeUso();
+        // Aguardando alçada só existe com o processo acima da alçada (R16): os favorecidos somam o valor dele.
+        CasoFavorecidos caso = caminho.faixa() == Faixa.ACIMA_DA_ALCADA
+                ? ModeloPagamentoProcesso.favorecidosAcimaDaAlcada() : ModeloPagamentoProcesso.exemploDoCasoDeUso();
         long processo = abrirProcesso(novaCota(), caminho.tipo(), caso.valor(), caso.favorecidos());
         levar(processo, caminho);
 
@@ -1566,7 +1586,7 @@ class PagamentoProcessoAceitacaoTest {
     void propostaPendenteNaoConsomeCredito() {
         long cota = novaCota(CREDITO_PADRAO);
         long pago = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
-        levar(pago, caminhoAte(SERVICO, PAGO));
+        levar(pago, caminhoAte(SERVICO, PAGO, new BigDecimal("100000.00")));
         long processo = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
         executar(processo, INICIAR_ANALISE).statusCode(200);
         BigDecimal disponivel = new BigDecimal("150000.00");
@@ -1885,7 +1905,7 @@ class PagamentoProcessoAceitacaoTest {
     void exemploDoCasoDeUsoDeCreditoNaAlteracao() {
         long cota = novaCota(CREDITO_PADRAO);
         long pago = abrirProcesso(cota, SERVICO, new BigDecimal("100000.00"));
-        levar(pago, caminhoAte(SERVICO, PAGO));
+        levar(pago, caminhoAte(SERVICO, PAGO, new BigDecimal("100000.00")));
         ProcessoEsperado esperado = ProcessoEsperado.comUmFavorecido(new BigDecimal("100000.00"));
         long processo = abrirProcesso(cota, SERVICO, esperado.valor(), esperado.favorecidos());
         Acompanhado a = new Acompanhado(cota, processo, esperado, SERVICO);
@@ -2525,6 +2545,375 @@ class PagamentoProcessoAceitacaoTest {
         assertThat(TesourariaStub.identificacoesRecebidas(a.processo()).size(), equalTo(1));
     }
 
+    // ---- Fatia 6: alçada (R16, com R2, R3, R4, R6, R11, R13, R23) ----
+    // Concluir a análise (serviço) ou a vistoria (imobiliário) decide, com o valor VIGENTE, entre aprovado (até a alçada,
+    // inclusive) e aguardando alçada. Oráculo: ModeloPagamentoProcesso (faixas de valor e decisaoDaAlcada).
+    // A tabela situação × ação (linha aguardando alçada e coluna aprovar na alçada) e os caminhos estão nos testes
+    // acaoForaDaOrdemERecusada, acoesAceitasNaSituacao, fluxoPelaAlcadaChegaASituacaoFinal e nos de motivo e observação.
+    // R17 e R18 (quem aprova, papéis): pendentes, fatia 7.
+
+    private static final List<String> ACOES_EM_AGUARDANDO_ALCADA =
+            List.of("aprovar-na-alcada", "reprovar", "devolver-para-analise", "cancelar");
+
+    /** Abre com o valor dado e um favorecido que o recebe, na cota padrão, com o oráculo dos dados vigentes. */
+    private static Acompanhado abertoComValor(String tipo, BigDecimal valor) {
+        long cota = novaCota();
+        ProcessoEsperado esperado = ProcessoEsperado.comValor(valor);
+        long processo = abrirProcesso(cota, tipo, esperado.valor(), esperado.favorecidos());
+        return new Acompanhado(cota, processo, esperado, tipo);
+    }
+
+    private static Acompanhado emAnaliseComValor(String tipo, BigDecimal valor) {
+        Acompanhado a = abertoComValor(tipo, valor);
+        passo(a, INICIAR_ANALISE, EM_ANALISE);
+        return a;
+    }
+
+    /**
+     * Conclui o que decide a alçada e confere a situação a que o processo foi (R16): no serviço, concluir a análise; no
+     * imobiliário, concluir a análise (que sempre leva à vistoria, R3) e depois concluir a vistoria.
+     */
+    private static void concluirEConferirDecisao(Acompanhado a, String esperada) {
+        if (IMOBILIARIO.equals(a.tipo())) {
+            passo(a, CONCLUIR_ANALISE, AGUARDANDO_VISTORIA);
+            passo(a, CONCLUIR_VISTORIA, esperada);
+        } else {
+            passo(a, CONCLUIR_ANALISE, esperada);
+        }
+    }
+
+    /** Processo acima da alçada que acabou de ser concluído: aguardando alçada. */
+    private static Acompanhado aguardandoAlcada(String tipo) {
+        Acompanhado a = emAnaliseComValor(tipo, VALOR_ACIMA_DA_ALCADA);
+        concluirEConferirDecisao(a, AGUARDANDO_ALCADA);
+        return a;
+    }
+
+    // Valor-limite da alçada (R16): 49.999,99 e 50.000,00 aprovam; 50.000,01 e acima vão a aguardando alçada.
+
+    static Stream<Arguments> valoresDaAlcada() {
+        return tipos().flatMap(tipo -> Stream.of(
+                Arguments.of(tipo, "um centavo abaixo da alçada: 49.999,99", new BigDecimal("49999.99"), APROVADO),
+                Arguments.of(tipo, "exatamente a alçada: 50.000,00", new BigDecimal("50000.00"), APROVADO),
+                Arguments.of(tipo, "um centavo acima da alçada: 50.000,01", new BigDecimal("50000.01"),
+                        AGUARDANDO_ALCADA),
+                Arguments.of(tipo, "bem acima da alçada: 100.000,00", new BigDecimal("100000.00"), AGUARDANDO_ALCADA),
+                Arguments.of(tipo, "o crédito inteiro da cota: 250.000,00", new BigDecimal("250000.00"),
+                        AGUARDANDO_ALCADA)));
+    }
+
+    @ParameterizedTest(name = "{0} | {1}")
+    @MethodSource("valoresDaAlcada")
+    @DisplayName("Concluir decide pela alçada: até 50.000,00, inclusive, vai a aprovado; acima vai a aguardando alçada")
+    void concluirDecidePelaAlcada(String tipo, String descricao, BigDecimal valor, String esperada) {
+        assertThat("o oráculo do modelo concorda com a regra", decisaoDaAlcada(valor), equalTo(esperada));
+        Acompanhado a = emAnaliseComValor(tipo, valor);
+        String antesDeDecidir = EM_ANALISE;
+        if (IMOBILIARIO.equals(tipo)) {
+            // R3: no imobiliário a análise sempre leva à vistoria, qualquer que seja o valor; é a vistoria que decide.
+            passo(a, CONCLUIR_ANALISE, AGUARDANDO_VISTORIA);
+            conferir(a, AGUARDANDO_VISTORIA);
+            antesDeDecidir = AGUARDANDO_VISTORIA;
+            passo(a, CONCLUIR_VISTORIA, esperada);
+        } else {
+            passo(a, CONCLUIR_ANALISE, esperada);
+        }
+
+        conferir(a, esperada);
+        Map<String, Object> ultimo = consultarHistorico(a.processo()).getLast();
+        assertThat(ultimo.get("de"), equalTo(antesDeDecidir));
+        assertThat(ultimo.get("para"), equalTo(esperada));
+        assertThat(ultimo.get("acao"), equalTo(IMOBILIARIO.equals(tipo) ? "CONCLUIR_VISTORIA" : "CONCLUIR_ANALISE"));
+        assertThat(valorDoProcesso(consultarProcesso(a.processo())), comparesEqualTo(valor));
+        // R6 e R13: aprovado ou aguardando alçada, a cota segue indisponível e o crédito não é consumido.
+        tentarAbrirProcesso(a.cota(), SERVICO).statusCode(409).body("mensagem", notNullValue());
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO));
+        if (APROVADO.equals(esperada)) {
+            assertThat(consultarAcoes(a.processo()), hasItem(SOLICITAR_PAGAMENTO));
+            assertThat(consultarAcoes(a.processo()), not(hasItem(APROVAR_NA_ALCADA)));
+        } else {
+            assertThat(consultarAcoes(a.processo()), containsInAnyOrder(ACOES_EM_AGUARDANDO_ALCADA.toArray()));
+        }
+    }
+
+    // Aguardando alçada: o que vale, o que a cota e o crédito fazem (R6, R13, R4, R11, R23).
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tipos")
+    @DisplayName("Em aguardando alçada a consulta de ações lista exatamente aprovar na alçada, reprovar, devolver para análise e cancelar")
+    void aguardandoAlcadaOfereceQuatroAcoes(String tipo) {
+        Acompanhado a = aguardandoAlcada(tipo);
+
+        assertThat(consultarAcoes(a.processo()), containsInAnyOrder("aprovar-na-alcada", "reprovar",
+                "devolver-para-analise", "cancelar"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tipos")
+    @DisplayName("Em aguardando alçada a cota fica indisponível, o crédito não é consumido e a listagem filtra a situação")
+    void aguardandoAlcadaMantemACotaIndisponivelESemConsumirCredito(String tipo) {
+        Acompanhado a = aguardandoAlcada(tipo);
+
+        tentarAbrirProcesso(a.cota(), SERVICO).statusCode(409).body("mensagem", notNullValue());
+        assertThat(quantidadeDeProcessosDaCota(a.cota()), equalTo(1L));
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO));
+        Map<String, Object> item = consultarProcesso(a.processo());
+        assertThat(item.get("estado"), equalTo(AGUARDANDO_ALCADA));
+        assertThat(valorDoProcesso(item), comparesEqualTo(VALOR_ACIMA_DA_ALCADA));
+        assertThat(item.get("protocoloPagamento"), nullValue());
+        assertThat(idsDaListagem(AGUARDANDO_ALCADA), hasItem(a.processo()));
+        assertThat(idsDaListagem(APROVADO), not(hasItem(a.processo())));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tipos")
+    @DisplayName("Aprovar na alçada leva a aprovado, e o processo segue por solicitar pagamento até pago, consumindo o crédito só no pago")
+    void aprovarNaAlcadaSeguePeloPagamentoAtePago(String tipo) {
+        Acompanhado a = aguardandoAlcada(tipo);
+        int antes = consultarHistorico(a.processo()).size();
+
+        passo(a, APROVAR_NA_ALCADA, APROVADO);
+
+        conferir(a, APROVADO);
+        assertThat(consultarAcoes(a.processo()), hasItem(SOLICITAR_PAGAMENTO));
+        assertThat(consultarAcoes(a.processo()), not(hasItem(APROVAR_NA_ALCADA)));
+        assertThat(idsDaListagem(AGUARDANDO_ALCADA), not(hasItem(a.processo())));
+        assertThat(idsDaListagem(APROVADO), hasItem(a.processo()));
+        TesourariaStub.confirmar(PROTOCOLO_DA_TESOURARIA);
+        passo(a, SOLICITAR_PAGAMENTO, PAGAMENTO_SOLICITADO);
+        aguardarSituacao(a.processo(), PAGO);
+        a.esperado().confirmar(ROTINA_CONFIRMOU);
+
+        conferir(a, PAGO);
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO.subtract(VALOR_ACIMA_DA_ALCADA)));
+        assertThat(consultarProcesso(a.processo()).get("protocoloPagamento"), equalTo(PROTOCOLO_DA_TESOURARIA));
+        assertThat(acoesDesde(a.processo(), antes),
+                contains("APROVAR_NA_ALCADA", "SOLICITAR_PAGAMENTO", "CONFIRMAR_PAGAMENTO"));
+        Map<String, Object> aprovacao = consultarHistorico(a.processo()).get(antes);
+        assertThat(aprovacao.get("de"), equalTo(AGUARDANDO_ALCADA));
+        assertThat(aprovacao.get("para"), equalTo(APROVADO));
+        long novo = abrirProcesso(a.cota(), SERVICO);
+        assertThat(consultarProcesso(novo).get("estado"), equalTo(ABERTO));
+    }
+
+    static Stream<Arguments> saidasFinaisDaAlcada() {
+        return tipos().flatMap(tipo -> Stream.of(
+                Arguments.of(tipo, REPROVAR, REPROVADO, "favorecido divergente"),
+                Arguments.of(tipo, CANCELAR, CANCELADO, "desistência da cota")));
+    }
+
+    @ParameterizedTest(name = "{0} | {1}")
+    @MethodSource("saidasFinaisDaAlcada")
+    @DisplayName("Reprovar ou cancelar em aguardando alçada, com motivo, é final: não consome crédito e libera a cota")
+    void reprovarOuCancelarEmAguardandoAlcadaEFinalELiberaACota(String tipo, String acao, String situacaoFinal,
+            String motivo) {
+        Acompanhado a = aguardandoAlcada(tipo);
+        int antes = consultarHistorico(a.processo()).size();
+
+        executarComMotivo(a.processo(), acao, motivo).statusCode(200).body("estado", equalTo(situacaoFinal));
+        a.esperado().confirmar(acao);
+
+        conferir(a, situacaoFinal);
+        List<Map<String, Object>> novas = consultarHistorico(a.processo()).stream().skip(antes).toList();
+        assertThat(novas.size(), equalTo(1));
+        assertThat(novas.getFirst().get("de"), equalTo(AGUARDANDO_ALCADA));
+        assertThat(novas.getFirst().get("para"), equalTo(situacaoFinal));
+        assertThat(novas.getFirst().get("acao"), equalTo(nomeNoHistorico(acao)));
+        assertThat(novas.getFirst().get("observacao"), equalTo(motivo));
+        assertThat(consultarAcoes(a.processo()), empty());
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO));
+        // R14: a cota está livre e o crédito inteiro disponível.
+        long novo = abrirProcesso(a.cota(), SERVICO, CREDITO_PADRAO);
+        assertThat(consultarProcesso(novo).get("estado"), equalTo(ABERTO));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tipos")
+    @DisplayName("Devolver para análise em aguardando alçada, com motivo, volta a em análise e a cota segue indisponível")
+    void devolverEmAguardandoAlcadaVoltaParaAnalise(String tipo) {
+        Acompanhado a = aguardandoAlcada(tipo);
+        int antes = consultarHistorico(a.processo()).size();
+
+        executarComMotivo(a.processo(), DEVOLVER_PARA_ANALISE, "documento divergente").statusCode(200)
+                .body("estado", equalTo(EM_ANALISE));
+        a.esperado().confirmar(DEVOLVER_PARA_ANALISE);
+
+        conferir(a, EM_ANALISE);
+        List<Map<String, Object>> novas = consultarHistorico(a.processo()).stream().skip(antes).toList();
+        assertThat(novas.size(), equalTo(1));
+        assertThat(novas.getFirst().get("de"), equalTo(AGUARDANDO_ALCADA));
+        assertThat(novas.getFirst().get("para"), equalTo(EM_ANALISE));
+        assertThat(novas.getFirst().get("acao"), equalTo("DEVOLVER_PARA_ANALISE"));
+        assertThat(novas.getFirst().get("observacao"), equalTo("documento divergente"));
+        assertThat(consultarAcoes(a.processo()),
+                containsInAnyOrder(ModeloPagamentoProcesso.acoesAceitas(tipo, EM_ANALISE).toArray()));
+        tentarAbrirProcesso(a.cota(), SERVICO).statusCode(409);
+    }
+
+    // Depois de devolver e concluir de novo, a alçada é decidida de novo, com o valor vigente daquele momento.
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tipos")
+    @DisplayName("Devolver de aguardando alçada e concluir de novo, sem mudar o valor, volta a aguardando alçada (no imobiliário, repete a vistoria)")
+    void devolverEConcluirDeNovoSemMudarOValorDecideDeNovo(String tipo) {
+        Acompanhado a = aguardandoAlcada(tipo);
+        int antes = consultarHistorico(a.processo()).size();
+
+        passo(a, DEVOLVER_PARA_ANALISE, EM_ANALISE);
+        concluirEConferirDecisao(a, AGUARDANDO_ALCADA);
+
+        conferir(a, AGUARDANDO_ALCADA);
+        List<String> esperadas = IMOBILIARIO.equals(tipo)
+                ? List.of("DEVOLVER_PARA_ANALISE", "CONCLUIR_ANALISE", "CONCLUIR_VISTORIA")
+                : List.of("DEVOLVER_PARA_ANALISE", "CONCLUIR_ANALISE");
+        assertThat(acoesDesde(a.processo(), antes), equalTo(esperadas));
+        assertThat(consultarAcoes(a.processo()), containsInAnyOrder(ACOES_EM_AGUARDANDO_ALCADA.toArray()));
+    }
+
+    static Stream<Arguments> devolucoesQueMudamOValor() {
+        return tipos().flatMap(tipo -> Stream.of(
+                Arguments.of(tipo, "abre com 60.000, vai a aguardando alçada; devolvido e proposto 40.000, passa a aprovado",
+                        new BigDecimal("60000.00"), AGUARDANDO_ALCADA, new BigDecimal("40000.00"), APROVADO),
+                Arguments.of(tipo, "abre com 40.000, vai a aprovado; devolvido e proposto 60.000, passa a aguardando alçada",
+                        new BigDecimal("40000.00"), APROVADO, new BigDecimal("60000.00"), AGUARDANDO_ALCADA)));
+    }
+
+    @ParameterizedTest(name = "{0} | {1}")
+    @MethodSource("devolucoesQueMudamOValor")
+    @DisplayName("Devolver para análise, mudar o valor com a concordância do cliente e concluir de novo decide a alçada com o valor novo")
+    void devolverEMudarOValorRefazADecisaoDaAlcada(String tipo, String descricao, BigDecimal inicial, String primeira,
+            BigDecimal proposto, String segunda) {
+        Acompanhado a = emAnaliseComValor(tipo, inicial);
+        concluirEConferirDecisao(a, primeira);
+        passo(a, DEVOLVER_PARA_ANALISE, EM_ANALISE);
+        Alteracao proposta = new Alteracao(proposto, favorecidoUnico(proposto));
+        tentarProporAlteracao(a.processo(), proposta.valor(), proposta.favorecidos(), "valor corrigido").statusCode(200)
+                .body("estado", equalTo(AGUARDANDO_CONCORDANCIA));
+        a.esperado().propor(proposta, "valor corrigido");
+        passo(a, CONCORDAR, EM_ANALISE);
+
+        concluirEConferirDecisao(a, segunda);
+
+        conferir(a, segunda);
+        assertThat(valorDoProcesso(consultarProcesso(a.processo())), comparesEqualTo(proposto));
+        assertThat(consultarCreditoDisponivel(a.cota()), comparesEqualTo(CREDITO_PADRAO));
+    }
+
+    // Alçada com o valor vigente (R16, D35): vale o valor de depois de qualquer alteração.
+
+    static Stream<Arguments> alteracoesDoClienteEmAberto() {
+        return tipos().flatMap(tipo -> Stream.of(
+                Arguments.of(tipo, "abre com 60.000, o cliente altera para 40.000", new BigDecimal("60000.00"),
+                        new BigDecimal("40000.00"), APROVADO),
+                Arguments.of(tipo, "abre com 40.000, o cliente altera para 60.000", new BigDecimal("40000.00"),
+                        new BigDecimal("60000.00"), AGUARDANDO_ALCADA),
+                Arguments.of(tipo, "abre com 60.000, o cliente altera para exatamente 50.000,00", new BigDecimal("60000.00"),
+                        new BigDecimal("50000.00"), APROVADO),
+                Arguments.of(tipo, "abre com 40.000, o cliente altera para 50.000,01", new BigDecimal("40000.00"),
+                        new BigDecimal("50000.01"), AGUARDANDO_ALCADA)));
+    }
+
+    @ParameterizedTest(name = "{0} | {1}")
+    @MethodSource("alteracoesDoClienteEmAberto")
+    @DisplayName("A alteração do cliente em aberto muda a decisão da alçada: vale o valor vigente ao concluir, não o da abertura")
+    void alteracaoEmAbertoMudaADecisaoDaAlcada(String tipo, String descricao, BigDecimal inicial, BigDecimal alterado,
+            String esperada) {
+        Acompanhado a = abertoComValor(tipo, inicial);
+        Alteracao nova = new Alteracao(alterado, favorecidoUnico(alterado));
+        tentarAlterar(a.processo(), nova.valor(), nova.favorecidos()).statusCode(200).body("estado", equalTo(ABERTO));
+        a.esperado().alterar(nova);
+        passo(a, INICIAR_ANALISE, EM_ANALISE);
+
+        concluirEConferirDecisao(a, esperada);
+
+        conferir(a, esperada);
+        assertThat(valorDoProcesso(consultarProcesso(a.processo())), comparesEqualTo(alterado));
+    }
+
+    static Stream<Arguments> propostasDoBackoffice() {
+        return tipos().flatMap(tipo -> Stream.of(
+                Arguments.of(tipo, "abre com 40.000, o backoffice propõe 60.000 e o cliente concorda",
+                        new BigDecimal("40000.00"), new BigDecimal("60000.00"), CONCORDAR, AGUARDANDO_ALCADA),
+                Arguments.of(tipo, "abre com 40.000, o backoffice propõe 60.000 e o cliente discorda",
+                        new BigDecimal("40000.00"), new BigDecimal("60000.00"), DISCORDAR, APROVADO),
+                Arguments.of(tipo, "abre com 60.000, o backoffice propõe 40.000 e o cliente concorda",
+                        new BigDecimal("60000.00"), new BigDecimal("40000.00"), CONCORDAR, APROVADO),
+                Arguments.of(tipo, "abre com 60.000, o backoffice propõe 40.000 e o cliente discorda",
+                        new BigDecimal("60000.00"), new BigDecimal("40000.00"), DISCORDAR, AGUARDANDO_ALCADA)));
+    }
+
+    @ParameterizedTest(name = "{0} | {1}")
+    @MethodSource("propostasDoBackoffice")
+    @DisplayName("A proposta do backoffice só muda a decisão da alçada se o cliente concorda; se discorda, vale o valor anterior")
+    void propostaSoMudaADecisaoDaAlcadaSeOClienteConcorda(String tipo, String descricao, BigDecimal inicial,
+            BigDecimal proposto, String resposta, String esperada) {
+        Acompanhado a = emAnaliseComValor(tipo, inicial);
+        Alteracao proposta = new Alteracao(proposto, favorecidoUnico(proposto));
+        tentarProporAlteracao(a.processo(), proposta.valor(), proposta.favorecidos(), "valor corrigido").statusCode(200)
+                .body("estado", equalTo(AGUARDANDO_CONCORDANCIA));
+        a.esperado().propor(proposta, "valor corrigido");
+        passo(a, resposta, EM_ANALISE);
+
+        concluirEConferirDecisao(a, esperada);
+
+        conferir(a, esperada);
+        BigDecimal vigente = CONCORDAR.equals(resposta) ? proposto : inicial;
+        assertThat(valorDoProcesso(consultarProcesso(a.processo())), comparesEqualTo(vigente));
+    }
+
+    // Efeito observável nos outros endpoints: a listagem acompanha a aprovação na alçada.
+
+    @Test
+    @DisplayName("Listagem por aguardando alçada acompanha a aprovação: o processo sai dela e entra em aprovado")
+    void listagemAcompanhaAAprovacaoNaAlcada() {
+        Acompanhado a = aguardandoAlcada(SERVICO);
+        assertThat(idsDaListagem(AGUARDANDO_ALCADA), hasItem(a.processo()));
+        assertThat(idsDaListagem(APROVADO), not(hasItem(a.processo())));
+
+        passo(a, APROVAR_NA_ALCADA, APROVADO);
+
+        assertThat(idsDaListagem(AGUARDANDO_ALCADA), not(hasItem(a.processo())));
+        assertThat(idsDaListagem(APROVADO), hasItem(a.processo()));
+    }
+
+    // Recusas: aprovar e reprovar ao mesmo tempo, quem chega primeiro vale e o outro é tratado como fora da ordem.
+
+    @Test
+    @DisplayName("Pedidos simultâneos de aprovar na alçada e reprovar: um só vale, e a situação e o histórico são coerentes com ele")
+    void aprovarEReprovarNaAlcadaAoMesmoTempoValeUmSo() throws Exception {
+        Acompanhado a = aguardandoAlcada(SERVICO);
+        int antes = consultarHistorico(a.processo()).size();
+        int quantidade = 4;
+        CyclicBarrier largada = new CyclicBarrier(quantidade);
+        List<Callable<Integer>> pedidos = new ArrayList<>();
+        for (int i = 0; i < quantidade; i++) {
+            boolean aprova = i % 2 == 0;
+            pedidos.add(() -> {
+                largada.await(30, TimeUnit.SECONDS);
+                return (aprova ? executar(a.processo(), APROVAR_NA_ALCADA)
+                        : executarComMotivo(a.processo(), REPROVAR, "favorecido divergente")).extract().statusCode();
+            });
+        }
+
+        List<Integer> respostas = new ArrayList<>();
+        try (ExecutorService executor = Executors.newFixedThreadPool(quantidade)) {
+            for (Future<Integer> resposta : executor.invokeAll(pedidos)) {
+                respostas.add(resposta.get());
+            }
+        }
+
+        assertThat(Collections.frequency(respostas, 200), equalTo(1));
+        assertThat(Collections.frequency(respostas, 409), equalTo(quantidade - 1));
+        List<Map<String, Object>> novas = consultarHistorico(a.processo()).stream().skip(antes).toList();
+        assertThat(novas.size(), equalTo(1));
+        String vencedora = (String) novas.getFirst().get("acao");
+        String situacao = "APROVAR_NA_ALCADA".equals(vencedora) ? APROVADO : REPROVADO;
+        assertThat(vencedora, org.hamcrest.Matchers.anyOf(equalTo("APROVAR_NA_ALCADA"), equalTo("REPROVAR")));
+        assertThat(novas.getFirst().get("de"), equalTo(AGUARDANDO_ALCADA));
+        assertThat(novas.getFirst().get("para"), equalTo(situacao));
+        assertThat(consultarProcesso(a.processo()).get("estado"), equalTo(situacao));
+    }
+
     /**
      * Ação com o corpo que o contrato exige: motivo nas ações que o pedem, valor e favorecidos (e motivo) nas
      * alterações, nenhum corpo nas demais. As alterações levam dados válidos (R12, R13, R15, R29).
@@ -2544,14 +2933,15 @@ class PagamentoProcessoAceitacaoTest {
         return executarComCorpo(processo, acao, json(ModeloPagamentoProcesso.corpoComMotivo(acao, motivo)));
     }
 
+    /** Processo de uma cota nova, aberto com o valor da faixa do caminho (R16) e levado por ele. */
     private static long processoEm(Caminho caminho) {
-        long processo = abrirProcesso(novaCota(), caminho.tipo());
+        long processo = abrirProcesso(novaCota(), caminho.tipo(), caminho.valor());
         levar(processo, caminho);
         return processo;
     }
 
     private static long processoEm(Base base) {
-        return processoEm(caminhoAte(base.tipo(), base.situacao()));
+        return processoEm(caminhoAte(base.tipo(), base.faixa(), base.situacao()));
     }
 
     private static long processoAprovado() {
@@ -2565,11 +2955,9 @@ class PagamentoProcessoAceitacaoTest {
         return processoEmCotaNova(tipo, APROVADO);
     }
 
-    /** Processo de uma cota nova, levado pelo caminho mais curto até a situação. */
+    /** Processo de uma cota nova, levado pelo caminho mais curto até a situação (aguardando alçada: acima da alçada). */
     private static long processoEmCotaNova(String tipo, String situacao) {
-        long processo = abrirProcesso(novaCota(), tipo);
-        levar(processo, caminhoAte(tipo, situacao));
-        return processo;
+        return processoEm(caminhoAte(tipo, situacao));
     }
 
     /**

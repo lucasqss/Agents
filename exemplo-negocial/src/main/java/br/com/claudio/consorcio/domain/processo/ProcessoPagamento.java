@@ -3,6 +3,7 @@ package br.com.claudio.consorcio.domain.processo;
 import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.DominioException;
 import br.com.claudio.consorcio.domain.processo.fluxo.AcaoProcesso;
+import br.com.claudio.consorcio.domain.processo.fluxo.ContextoDaTransicao;
 import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
 import br.com.claudio.consorcio.domain.processo.tipo.TipoProcesso;
@@ -91,16 +92,19 @@ public final class ProcessoPagamento {
      * Ação que exige motivo ({@link AcaoProcesso#exigeMotivo()}) é recusada sem ele; o motivo vai ao histórico
      * como observação. Ação com método próprio ({@link AcaoProcesso#comMetodoProprio()}) é recusada aqui.
      * Concordar torna vigente a alteração proposta; discordar e cancelar a descartam.
+     * A alçada em vigor (R16) é entregue por quem chama, como {@link Dinheiro}: o domínio não lê configuração. Quando a
+     * linha da tabela é condicional (concluir a análise ou a vistoria), a tabela decide o destino com o valor vigente e a
+     * alçada; aqui não há comparação de valor.
      */
-    public void executar(AcaoProcesso acao, Instant quando, String observacao) {
-        tipo.fluxo().proximo(estado, acao);
+    public void executar(AcaoProcesso acao, Instant quando, String observacao, Dinheiro alcada) {
+        tipo.fluxo().proximo(estado, acao, contexto(alcada));
         if (acao.comMetodoProprio()) {
             throw new DominioException("Para " + acao.descricao() + " um processo é preciso informar os dados da ação");
         }
         if (acao.exigeMotivo() && (observacao == null || observacao.isBlank())) {
             throw new DominioException("Motivo é obrigatório para " + acao.descricao() + " um processo");
         }
-        transitar(acao, quando, observacao, null, null);
+        transitar(acao, quando, observacao, null, null, alcada);
         if (acao == AcaoProcesso.CONCORDAR) {
             valor = proposta.valor();
             favorecidos = proposta.favorecidos();
@@ -240,15 +244,25 @@ public final class ProcessoPagamento {
 
     private void transitar(AcaoProcesso acao, Instant quando, String observacao, Dinheiro valorAnterior,
             Dinheiro valorNovo) {
-        Transicao transicao = new Transicao(estado, tipo.fluxo().proximo(estado, acao), acao, quando, observacao,
-                valorAnterior, valorNovo);
+        transitar(acao, quando, observacao, valorAnterior, valorNovo, null);
+    }
+
+    private void transitar(AcaoProcesso acao, Instant quando, String observacao, Dinheiro valorAnterior,
+            Dinheiro valorNovo, Dinheiro alcada) {
+        Transicao transicao = new Transicao(estado, tipo.fluxo().proximo(estado, acao, contexto(alcada)), acao, quando,
+                observacao, valorAnterior, valorNovo);
         estado = transicao.para();
         novasTransicoes.add(transicao);
     }
 
     /** Confere se a ação vale no estado atual, sem aplicá-la; para validar antes de um efeito externo. */
     public void exigirQuePode(AcaoProcesso acao) {
-        tipo.fluxo().proximo(estado, acao);
+        tipo.fluxo().proximo(estado, acao, contexto(null));
+    }
+
+    /** O que a tabela do fluxo precisa para escolher o destino: o valor vigente agora e a alçada informada. */
+    private ContextoDaTransicao contexto(Dinheiro alcada) {
+        return new ContextoDaTransicao(valor, alcada);
     }
 
     /** Ações que o fluxo do tipo aceita no estado atual. */

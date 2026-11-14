@@ -19,8 +19,15 @@ import org.junit.jupiter.params.provider.Arguments;
  * Padrão: Máquina de estados como modelo de teste [Ammann e Offutt].
  * Escrita a partir das regras 2 a 6, 10, 11 e 23 do caso de uso (fatia 1), 12 a 14 (fatia 2, valor e crédito),
  * 15 e 29 (fatia 3, favorecidos), 24 a 28 (fatia 4, alteração com concordância do cliente) e 7, 8, 20 a 22 e 31
- * (fatia 5, pagamento como saga: solicitar só grava e uma rotina agendada fala com a tesouraria);
+ * (fatia 5, pagamento como saga: solicitar só grava e uma rotina agendada fala com a tesouraria) e 16 (fatia 6,
+ * alçada: concluir a análise ou a vistoria leva a aprovado ou a aguardando alçada conforme o valor vigente);
  * nada aqui vem do código da aplicação.
+ *
+ * <p>Alçada (R16): a transição de concluir é CONDICIONAL ao valor vigente. O modelo a trata com duas faixas de valor,
+ * {@link Faixa}: "até a alçada" (concluir leva a aprovado) e "acima da alçada" (concluir leva a aguardando alçada).
+ * Cada {@link Caminho} tem a faixa do processo que o percorre, e o valor dele não muda no caminho: por isso, na
+ * faixa acima da alçada, as ações que mudam o valor vigente (alterar e concordar) não entram no grafo; a decisão
+ * depois de uma alteração de valor é conferida à mão, nos testes de valor vigente.
  *
  * <p>"Rotina: tesouraria confirmou" e "rotina: tesouraria recusou" são transições do modelo, não ações de pessoa:
  * só existem em PAGAMENTO_SOLICITADO e nunca entram nas ações aceitas, recusadas ou consultadas.
@@ -31,6 +38,7 @@ final class ModeloPagamentoProcesso {
     static final String EM_ANALISE = "EM_ANALISE";
     static final String AGUARDANDO_VISTORIA = "AGUARDANDO_VISTORIA";
     static final String AGUARDANDO_CONCORDANCIA = "AGUARDANDO_CONCORDANCIA";
+    static final String AGUARDANDO_ALCADA = "AGUARDANDO_ALCADA";
     static final String PENDENTE_DOCUMENTO = "PENDENTE_DOCUMENTO";
     static final String REPROVADO = "REPROVADO";
     static final String APROVADO = "APROVADO";
@@ -45,6 +53,7 @@ final class ModeloPagamentoProcesso {
     static final String DEVOLVER_PARA_ANALISE = "devolver-para-analise";
     static final String CONCLUIR_ANALISE = "concluir-analise";
     static final String CONCLUIR_VISTORIA = "concluir-vistoria";
+    static final String APROVAR_NA_ALCADA = "aprovar-na-alcada";
     static final String SOLICITAR_PAGAMENTO = "solicitar-pagamento";
     /** O endpoint antigo, que deixou de existir na fatia 5: só serve para provar que responde 404. */
     static final String PAGAR = "pagar";
@@ -57,6 +66,49 @@ final class ModeloPagamentoProcesso {
     static final String SERVICO = "SERVICO";
     static final String IMOBILIARIO = "IMOBILIARIO";
 
+    /** Alçada padrão (R16): até este valor, inclusive, concluir leva a aprovado; acima, a aguardando alçada. */
+    static final BigDecimal ALCADA = new BigDecimal("50000.00");
+
+    /** Valor de teste acima da alçada e dentro do crédito padrão da cota (R13). */
+    static final BigDecimal VALOR_ACIMA_DA_ALCADA = new BigDecimal("60000.00");
+
+    /** Faixa de valor do processo em relação à alçada (R16). O valor padrão dos testes está na primeira. */
+    enum Faixa {
+        ATE_A_ALCADA(VALOR_PADRAO, ""),
+        ACIMA_DA_ALCADA(VALOR_ACIMA_DA_ALCADA, " (acima da alçada)");
+
+        final BigDecimal valor;
+        final String marca;
+
+        Faixa(BigDecimal valor, String marca) {
+            this.valor = valor;
+            this.marca = marca;
+        }
+
+        /** Ações que mudam o valor vigente tiram o processo da faixa: não entram nos caminhos da faixa acima. */
+        boolean permite(String acao) {
+            return this == ATE_A_ALCADA || !ACOES_QUE_MUDAM_O_VALOR.contains(acao);
+        }
+    }
+
+    private static final Set<String> ACOES_QUE_MUDAM_O_VALOR = Set.of(ALTERAR, CONCORDAR);
+
+    /** R16: a faixa do valor vigente. Até a alçada, inclusive, é a primeira; acima é a segunda. */
+    static Faixa faixaDoValor(BigDecimal valor) {
+        return valor.compareTo(ALCADA) <= 0 ? Faixa.ATE_A_ALCADA : Faixa.ACIMA_DA_ALCADA;
+    }
+
+    /** R16: a situação a que concluir a análise (serviço) ou a vistoria (imobiliário) leva, com o valor vigente dado. */
+    static String decisaoDaAlcada(BigDecimal valorVigente) {
+        return faixaDoValor(valorVigente) == Faixa.ATE_A_ALCADA ? APROVADO : AGUARDANDO_ALCADA;
+    }
+
+    /** O passo que decide a alçada: concluir a análise no serviço, concluir a vistoria no imobiliário (R16, R3). */
+    private static boolean ehDecisaoDeAlcada(String tipo, String situacao, String acao) {
+        return SERVICO.equals(tipo) ? EM_ANALISE.equals(situacao) && CONCLUIR_ANALISE.equals(acao)
+                : AGUARDANDO_VISTORIA.equals(situacao) && CONCLUIR_VISTORIA.equals(acao);
+    }
+
     /** Resultados que a rotina aplica quando a tesouraria responde (R20, R21): transições do modelo, não pedidos. */
     static final String ROTINA_CONFIRMOU = "rotina:tesouraria-confirmou";
     static final String ROTINA_RECUSOU = "rotina:tesouraria-recusou";
@@ -65,10 +117,10 @@ final class ModeloPagamentoProcesso {
     static final String PROTOCOLO_DA_TESOURARIA = "778899";
     static final String MOTIVO_DA_TESOURARIA = "conta inválida";
 
-    /** Ações de pessoa (as treze do quadro situação × ação). */
+    /** Ações de pessoa (as catorze do quadro situação × ação). */
     private static final List<String> ACOES = List.of(INICIAR_ANALISE, SOLICITAR_DOCUMENTO, RECEBER_DOCUMENTO,
-            REPROVAR, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, DEVOLVER_PARA_ANALISE, SOLICITAR_PAGAMENTO, CANCELAR,
-            ALTERAR, PROPOR_ALTERACAO, CONCORDAR, DISCORDAR);
+            REPROVAR, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, APROVAR_NA_ALCADA, DEVOLVER_PARA_ANALISE,
+            SOLICITAR_PAGAMENTO, CANCELAR, ALTERAR, PROPOR_ALTERACAO, CONCORDAR, DISCORDAR);
 
     private static final Set<String> ACOES_DA_ROTINA = Set.of(ROTINA_CONFIRMOU, ROTINA_RECUSOU);
 
@@ -77,8 +129,8 @@ final class ModeloPagamentoProcesso {
             Stream.of(ROTINA_CONFIRMOU, ROTINA_RECUSOU)).toList();
 
     private static final List<String> SITUACOES = List.of(ABERTO, EM_ANALISE, PENDENTE_DOCUMENTO,
-            AGUARDANDO_VISTORIA, AGUARDANDO_CONCORDANCIA, APROVADO, PAGAMENTO_SOLICITADO, PAGO, REPROVADO,
-            CANCELADO);
+            AGUARDANDO_VISTORIA, AGUARDANDO_ALCADA, AGUARDANDO_CONCORDANCIA, APROVADO, PAGAMENTO_SOLICITADO, PAGO,
+            REPROVADO, CANCELADO);
 
     /** Ações cujo corpo é obrigatório e traz o motivo (R4, R10, R11, R23, R25, R27). */
     private static final Set<String> ACOES_COM_MOTIVO =
@@ -90,54 +142,70 @@ final class ModeloPagamentoProcesso {
     /** Ações cujo corpo é opcional e pode trazer uma observação. */
     private static final Set<String> ACOES_COM_OBSERVACAO =
             Set.of(INICIAR_ANALISE, CONCLUIR_ANALISE, CONCLUIR_VISTORIA, RECEBER_DOCUMENTO, CONCORDAR,
-                    SOLICITAR_PAGAMENTO);
+                    SOLICITAR_PAGAMENTO, APROVAR_NA_ALCADA);
 
+    /**
+     * Transições por tipo e situação. Concluir a análise (serviço) e concluir a vistoria (imobiliário) aparecem aqui
+     * levando a APROVADO, que é o destino da faixa "até a alçada"; na faixa acima o destino é AGUARDANDO_ALCADA
+     * (ver {@link #proxima(String, Faixa, String, String)}). A linha AGUARDANDO_ALCADA vale para as duas faixas, mas só
+     * é alcançada na faixa acima.
+     */
     private static final Map<String, Map<String, Map<String, String>>> TRANSICOES = Map.of(
-            SERVICO, Map.of(
-                    ABERTO, Map.of(INICIAR_ANALISE, EM_ANALISE, CANCELAR, CANCELADO, ALTERAR, ABERTO),
-                    EM_ANALISE, Map.of(SOLICITAR_DOCUMENTO, PENDENTE_DOCUMENTO, REPROVAR, REPROVADO,
+            SERVICO, Map.ofEntries(
+                    Map.entry(ABERTO, Map.of(INICIAR_ANALISE, EM_ANALISE, CANCELAR, CANCELADO, ALTERAR, ABERTO)),
+                    Map.entry(EM_ANALISE, Map.of(SOLICITAR_DOCUMENTO, PENDENTE_DOCUMENTO, REPROVAR, REPROVADO,
                             CONCLUIR_ANALISE, APROVADO, CANCELAR, CANCELADO,
-                            PROPOR_ALTERACAO, AGUARDANDO_CONCORDANCIA),
-                    PENDENTE_DOCUMENTO, Map.of(RECEBER_DOCUMENTO, EM_ANALISE, CANCELAR, CANCELADO),
-                    AGUARDANDO_CONCORDANCIA, Map.of(CONCORDAR, EM_ANALISE, DISCORDAR, EM_ANALISE,
-                            CANCELAR, CANCELADO),
-                    APROVADO, Map.of(SOLICITAR_PAGAMENTO, PAGAMENTO_SOLICITADO, DEVOLVER_PARA_ANALISE, EM_ANALISE,
-                            CANCELAR, CANCELADO),
-                    PAGAMENTO_SOLICITADO, Map.of(ROTINA_CONFIRMOU, PAGO, ROTINA_RECUSOU, APROVADO),
-                    PAGO, Map.of(),
-                    REPROVADO, Map.of(),
-                    CANCELADO, Map.of()),
-            IMOBILIARIO, Map.of(
-                    ABERTO, Map.of(INICIAR_ANALISE, EM_ANALISE, CANCELAR, CANCELADO, ALTERAR, ABERTO),
-                    EM_ANALISE, Map.of(SOLICITAR_DOCUMENTO, PENDENTE_DOCUMENTO, REPROVAR, REPROVADO,
+                            PROPOR_ALTERACAO, AGUARDANDO_CONCORDANCIA)),
+                    Map.entry(PENDENTE_DOCUMENTO, Map.of(RECEBER_DOCUMENTO, EM_ANALISE, CANCELAR, CANCELADO)),
+                    Map.entry(AGUARDANDO_ALCADA, Map.of(APROVAR_NA_ALCADA, APROVADO, REPROVAR, REPROVADO,
+                            DEVOLVER_PARA_ANALISE, EM_ANALISE, CANCELAR, CANCELADO)),
+                    Map.entry(AGUARDANDO_CONCORDANCIA, Map.of(CONCORDAR, EM_ANALISE, DISCORDAR, EM_ANALISE,
+                            CANCELAR, CANCELADO)),
+                    Map.entry(APROVADO, Map.of(SOLICITAR_PAGAMENTO, PAGAMENTO_SOLICITADO,
+                            DEVOLVER_PARA_ANALISE, EM_ANALISE, CANCELAR, CANCELADO)),
+                    Map.entry(PAGAMENTO_SOLICITADO, Map.of(ROTINA_CONFIRMOU, PAGO, ROTINA_RECUSOU, APROVADO)),
+                    Map.entry(PAGO, Map.<String, String>of()),
+                    Map.entry(REPROVADO, Map.<String, String>of()),
+                    Map.entry(CANCELADO, Map.<String, String>of())),
+            IMOBILIARIO, Map.ofEntries(
+                    Map.entry(ABERTO, Map.of(INICIAR_ANALISE, EM_ANALISE, CANCELAR, CANCELADO, ALTERAR, ABERTO)),
+                    Map.entry(EM_ANALISE, Map.of(SOLICITAR_DOCUMENTO, PENDENTE_DOCUMENTO, REPROVAR, REPROVADO,
                             CONCLUIR_ANALISE, AGUARDANDO_VISTORIA, CANCELAR, CANCELADO,
-                            PROPOR_ALTERACAO, AGUARDANDO_CONCORDANCIA),
-                    PENDENTE_DOCUMENTO, Map.of(RECEBER_DOCUMENTO, EM_ANALISE, CANCELAR, CANCELADO),
-                    AGUARDANDO_CONCORDANCIA, Map.of(CONCORDAR, EM_ANALISE, DISCORDAR, EM_ANALISE,
-                            CANCELAR, CANCELADO),
-                    AGUARDANDO_VISTORIA, Map.of(CONCLUIR_VISTORIA, APROVADO, DEVOLVER_PARA_ANALISE, EM_ANALISE,
-                            CANCELAR, CANCELADO),
-                    APROVADO, Map.of(SOLICITAR_PAGAMENTO, PAGAMENTO_SOLICITADO, DEVOLVER_PARA_ANALISE, EM_ANALISE,
-                            CANCELAR, CANCELADO),
-                    PAGAMENTO_SOLICITADO, Map.of(ROTINA_CONFIRMOU, PAGO, ROTINA_RECUSOU, APROVADO),
-                    PAGO, Map.of(),
-                    REPROVADO, Map.of(),
-                    CANCELADO, Map.of()));
+                            PROPOR_ALTERACAO, AGUARDANDO_CONCORDANCIA)),
+                    Map.entry(PENDENTE_DOCUMENTO, Map.of(RECEBER_DOCUMENTO, EM_ANALISE, CANCELAR, CANCELADO)),
+                    Map.entry(AGUARDANDO_CONCORDANCIA, Map.of(CONCORDAR, EM_ANALISE, DISCORDAR, EM_ANALISE,
+                            CANCELAR, CANCELADO)),
+                    Map.entry(AGUARDANDO_VISTORIA, Map.of(CONCLUIR_VISTORIA, APROVADO,
+                            DEVOLVER_PARA_ANALISE, EM_ANALISE, CANCELAR, CANCELADO)),
+                    Map.entry(AGUARDANDO_ALCADA, Map.of(APROVAR_NA_ALCADA, APROVADO, REPROVAR, REPROVADO,
+                            DEVOLVER_PARA_ANALISE, EM_ANALISE, CANCELAR, CANCELADO)),
+                    Map.entry(APROVADO, Map.of(SOLICITAR_PAGAMENTO, PAGAMENTO_SOLICITADO,
+                            DEVOLVER_PARA_ANALISE, EM_ANALISE, CANCELAR, CANCELADO)),
+                    Map.entry(PAGAMENTO_SOLICITADO, Map.of(ROTINA_CONFIRMOU, PAGO, ROTINA_RECUSOU, APROVADO)),
+                    Map.entry(PAGO, Map.<String, String>of()),
+                    Map.entry(REPROVADO, Map.<String, String>of()),
+                    Map.entry(CANCELADO, Map.<String, String>of())));
 
     /** Um passo do fluxo: a ação pedida e a situação esperada depois dela. */
     record Passo(String acao, String situacao) {
     }
 
     /** Caminho do início até uma situação, na ordem em que o usuário age. */
-    record Caminho(String tipo, List<Passo> passos) {
+    record Caminho(String tipo, Faixa faixa, List<Passo> passos) {
 
         String situacaoFinal() {
             return passos.isEmpty() ? ABERTO : passos.getLast().situacao();
         }
 
+        /** Valor com que o processo é aberto para percorrer o caminho (R16). */
+        BigDecimal valor() {
+            return faixa.valor;
+        }
+
         @Override
         public String toString() {
-            return tipo + ": " + ABERTO + passos.stream().map(p -> " -> " + p.situacao()).reduce("", String::concat);
+            return tipo + faixa.marca + ": " + ABERTO
+                    + passos.stream().map(p -> " -> " + p.situacao()).reduce("", String::concat);
         }
     }
 
@@ -146,16 +214,16 @@ final class ModeloPagamentoProcesso {
 
         @Override
         public String toString() {
-            return "%s em %s (%s)".formatted(acao, ate.situacaoFinal(), ate.tipo());
+            return "%s em %s (%s%s)".formatted(acao, ate.situacaoFinal(), ate.tipo(), ate.faixa().marca);
         }
     }
 
     /** Transição do modelo: de uma situação, por uma ação, para um destino. */
-    record Base(String tipo, String situacao, String acao, String destino) {
+    record Base(String tipo, Faixa faixa, String situacao, String acao, String destino) {
 
         @Override
         public String toString() {
-            return "%s: %s em %s -> %s".formatted(tipo, acao, situacao, destino);
+            return "%s%s: %s em %s -> %s".formatted(tipo, faixa.marca, acao, situacao, destino);
         }
     }
 
@@ -269,9 +337,15 @@ final class ModeloPagamentoProcesso {
 
         /** Processo aberto com o valor padrão e dois favorecidos conhecidos. */
         static ProcessoEsperado inicial() {
-            return new ProcessoEsperado(VALOR_PADRAO, List.of(
-                    favorecido("Vendedor inicial", cpf(901), "vendedor", v("25000.00")),
-                    favorecido("Cartório inicial", cnpj(902), "cartório", v("5000.00"))));
+            return comValor(VALOR_PADRAO);
+        }
+
+        /** Processo aberto com o valor dado (acima de 5.000,00) e dois favorecidos: o cartório com 5.000,00 e o vendedor com o resto. */
+        static ProcessoEsperado comValor(BigDecimal valor) {
+            BigDecimal cartorio = v("5000.00");
+            return new ProcessoEsperado(valor, List.of(
+                    favorecido("Vendedor inicial", cpf(901), "vendedor", valor.subtract(cartorio)),
+                    favorecido("Cartório inicial", cnpj(902), "cartório", cartorio)));
         }
 
         /** Processo aberto com o valor dado e um favorecido que o recebe inteiro. */
@@ -379,7 +453,7 @@ final class ModeloPagamentoProcesso {
     record ProcessoPlanejado(String tipo, BigDecimal valor, String situacao) {
 
         Caminho caminho() {
-            return caminhoAte(tipo, situacao);
+            return caminhoAte(tipo, situacao, valor);
         }
 
         boolean consomeCredito() {
@@ -582,6 +656,13 @@ final class ModeloPagamentoProcesso {
         return caso("exemplo do caso de uso: vendedor 9500,00 e cartório 500,00", "10000.00", List.of(
                 fav("João da Silva", "12345678901", "vendedor", "9500.00"),
                 fav("Cartório Central", "12345678000199", "cartório", "500.00")));
+    }
+
+    /** Favorecidos de um processo acima da alçada (R16): vendedor R$ 55.000,00 e cartório R$ 5.000,00 em R$ 60.000,00. */
+    static CasoFavorecidos favorecidosAcimaDaAlcada() {
+        return caso("processo acima da alçada: vendedor 55000,00 e cartório 5000,00", "60000.00", List.of(
+                fav("João da Silva", "12345678901", "vendedor", "55000.00"),
+                fav("Cartório Central", "12345678000199", "cartório", "5000.00")));
     }
 
     /** Aberturas que R15 e R29 mandam aceitar (partição e limites). */
@@ -852,13 +933,39 @@ final class ModeloPagamentoProcesso {
     private static Stream<Base> transicoes(Set<String> acoes) {
         return tipos().flatMap(tipo -> SITUACOES.stream().flatMap(situacao -> ACOES.stream()
                 .filter(acoes::contains)
-                .flatMap(acao -> proxima(tipo, situacao, acao)
-                        .map(destino -> new Base(tipo, situacao, acao, destino)).stream())));
+                .flatMap(acao -> Stream.of(Faixa.values())
+                        .filter(faixa -> valeNaFaixa(tipo, faixa, situacao, acao))
+                        .flatMap(faixa -> proxima(tipo, faixa, situacao, acao)
+                                .map(destino -> new Base(tipo, faixa, situacao, acao, destino)).stream()))));
     }
 
-    /** Menor caminho do início até a situação. */
+    /**
+     * A transição entra nos casos da faixa? Aguardando alçada só existe acima da alçada; a decisão de concluir tem uma
+     * transição em cada faixa (aprovado ou aguardando alçada); o resto é igual nas duas faixas e fica na primeira.
+     */
+    private static boolean valeNaFaixa(String tipo, Faixa faixa, String situacao, String acao) {
+        if (AGUARDANDO_ALCADA.equals(situacao)) {
+            return faixa == Faixa.ACIMA_DA_ALCADA;
+        }
+        return ehDecisaoDeAlcada(tipo, situacao, acao) || faixa == Faixa.ATE_A_ALCADA;
+    }
+
+    /**
+     * Menor caminho do início até a situação. Para aguardando alçada o processo está acima da alçada; para as demais
+     * situações, até a alçada.
+     */
     static Caminho caminhoAte(String tipo, String situacao) {
-        return primeiroCaminhoAte(tipo, situacao);
+        return caminhoAte(tipo, AGUARDANDO_ALCADA.equals(situacao) ? Faixa.ACIMA_DA_ALCADA : Faixa.ATE_A_ALCADA,
+                situacao);
+    }
+
+    /** Menor caminho até a situação para um processo com o valor dado: a faixa do valor decide se concluir passa pela alçada. */
+    static Caminho caminhoAte(String tipo, String situacao, BigDecimal valor) {
+        return caminhoAte(tipo, faixaDoValor(valor), situacao);
+    }
+
+    static Caminho caminhoAte(String tipo, Faixa faixa, String situacao) {
+        return primeiroCaminhoAte(tipo, faixa, situacao);
     }
 
     /** Um menor caminho para cada situação de cada tipo. */
@@ -883,7 +990,7 @@ final class ModeloPagamentoProcesso {
     }
 
     private static Stream<Caminho> todosOsCaminhosCompletos() {
-        return tipos().flatMap(tipo -> percorrer(tipo, ABERTO, List.of(), Set.of()).stream()
+        return tipos().flatMap(tipo -> percorrer(tipo, Faixa.ATE_A_ALCADA, ABERTO, List.of(), Set.of()).stream()
                 .filter(caminho -> proximas(tipo, caminho.situacaoFinal()).isEmpty()));
     }
 
@@ -938,13 +1045,71 @@ final class ModeloPagamentoProcesso {
         return itens;
     }
 
-    /** Cada par situação × ação que não é uma transição permitida. */
+    /**
+     * Caminhos completos de um processo ACIMA da alçada (fatia 6, R16, R11, R23, R4): passam por aguardando alçada e
+     * saem dela por cada uma das quatro ações. Todos somam muitos (o grafo tem ciclos), então escolhe-se, para cada
+     * tipo, um conjunto mínimo (guloso, dos caminhos mais curtos para os mais longos) que usa a decisão de concluir
+     * que vai a aguardando alçada, cada saída de aguardando alçada e chega a cada situação final depois dela.
+     * Nenhum caminho altera o valor (ver {@link Faixa#permite}).
+     */
+    static Stream<Caminho> caminhosCompletosPelaAlcada() {
+        return tipos().flatMap(tipo -> {
+            List<Caminho> candidatos = percorrer(tipo, Faixa.ACIMA_DA_ALCADA, ABERTO, List.of(), Set.of()).stream()
+                    .filter(c -> proximas(tipo, c.situacaoFinal()).isEmpty())
+                    .filter(c -> !coberturaDaAlcada(c).isEmpty())
+                    .sorted(java.util.Comparator.comparingInt(c -> c.passos().size())).toList();
+            Set<String> faltam = new HashSet<>();
+            candidatos.forEach(c -> faltam.addAll(coberturaDaAlcada(c)));
+            List<Caminho> escolhidos = new ArrayList<>();
+            while (!faltam.isEmpty()) {
+                Caminho melhor = null;
+                int melhorGanho = 0;
+                for (Caminho candidato : candidatos) {
+                    Set<String> ganho = new HashSet<>(coberturaDaAlcada(candidato));
+                    ganho.retainAll(faltam);
+                    if (ganho.size() > melhorGanho) {
+                        melhor = candidato;
+                        melhorGanho = ganho.size();
+                    }
+                }
+                escolhidos.add(melhor);
+                faltam.removeAll(coberturaDaAlcada(melhor));
+            }
+            return escolhidos.stream();
+        });
+    }
+
+    /** A decisão que leva a aguardando alçada, cada saída dela e os finais alcançados depois dela. */
+    private static Set<String> coberturaDaAlcada(Caminho caminho) {
+        Set<String> itens = new HashSet<>();
+        String antes = ABERTO;
+        boolean passouPelaAlcada = false;
+        for (Passo passo : caminho.passos()) {
+            if (AGUARDANDO_ALCADA.equals(antes) || AGUARDANDO_ALCADA.equals(passo.situacao())) {
+                itens.add(antes + "/" + passo.acao());
+            }
+            passouPelaAlcada |= AGUARDANDO_ALCADA.equals(passo.situacao());
+            antes = passo.situacao();
+        }
+        if (passouPelaAlcada) {
+            itens.add("final " + caminho.situacaoFinal());
+        }
+        return itens;
+    }
+
+    /** Cada par situação × ação que não é uma transição permitida (aguardando alçada com o processo acima da alçada). */
     static Stream<AcaoInvalida> acoesInvalidas() {
-        return tipos().flatMap(tipo -> percorrer(tipo, ABERTO, List.of(), Set.of()).stream()
-                .filter(caminho -> caminho.equals(primeiroCaminhoAte(tipo, caminho.situacaoFinal())))
+        Stream<AcaoInvalida> ateAAlcada = tipos().flatMap(tipo -> percorrer(tipo, Faixa.ATE_A_ALCADA, ABERTO, List.of(), Set.of()).stream()
+                .filter(caminho -> caminho.equals(primeiroCaminhoAte(tipo, Faixa.ATE_A_ALCADA, caminho.situacaoFinal())))
                 .flatMap(caminho -> ACOES.stream()
                         .filter(acao -> proxima(tipo, caminho.situacaoFinal(), acao).isEmpty())
                         .map(acao -> new AcaoInvalida(caminho, acao))));
+        Stream<AcaoInvalida> emAguardandoAlcada = tipos().flatMap(tipo -> {
+            Caminho caminho = primeiroCaminhoAte(tipo, Faixa.ACIMA_DA_ALCADA, AGUARDANDO_ALCADA);
+            return ACOES.stream().filter(acao -> proxima(tipo, AGUARDANDO_ALCADA, acao).isEmpty())
+                    .map(acao -> new AcaoInvalida(caminho, acao));
+        });
+        return Stream.concat(ateAAlcada, emAguardandoAlcada);
     }
 
     /** Situações em que o processo ainda está em andamento (regra 6), com o caminho para chegar a elas. */
@@ -957,38 +1122,54 @@ final class ModeloPagamentoProcesso {
         return caminhosUnicos().filter(c -> proximas(c.tipo(), c.situacaoFinal()).isEmpty());
     }
 
+    /** Um menor caminho para cada situação de cada tipo; aguardando alçada, com o processo acima da alçada. */
     private static Stream<Caminho> caminhosUnicos() {
-        return tipos().flatMap(tipo -> percorrer(tipo, ABERTO, List.of(), Set.of()).stream()
-                .filter(caminho -> caminho.equals(primeiroCaminhoAte(tipo, caminho.situacaoFinal()))));
+        Stream<Caminho> ateAAlcada = tipos().flatMap(tipo -> percorrer(tipo, Faixa.ATE_A_ALCADA, ABERTO, List.of(), Set.of()).stream()
+                .filter(caminho -> caminho.equals(primeiroCaminhoAte(tipo, Faixa.ATE_A_ALCADA, caminho.situacaoFinal()))));
+        Stream<Caminho> emAguardandoAlcada = tipos()
+                .map(tipo -> primeiroCaminhoAte(tipo, Faixa.ACIMA_DA_ALCADA, AGUARDANDO_ALCADA));
+        return Stream.concat(ateAAlcada, emAguardandoAlcada);
     }
 
-    private static Caminho primeiroCaminhoAte(String tipo, String situacao) {
-        return percorrer(tipo, ABERTO, List.of(), Set.of()).stream()
+    private static Caminho primeiroCaminhoAte(String tipo, Faixa faixa, String situacao) {
+        return percorrer(tipo, faixa, ABERTO, List.of(), Set.of()).stream()
                 .filter(caminho -> caminho.situacaoFinal().equals(situacao))
                 .min(java.util.Comparator.comparingInt(caminho -> caminho.passos().size()))
-                .orElseThrow();
+                .orElseThrow(() -> new IllegalStateException(
+                        "Sem caminho até %s para %s%s".formatted(situacao, tipo, faixa.marca)));
     }
 
     /** Busca em profundidade; devolve o caminho atual e todos os que partem dele, sem repetir transição. */
-    private static List<Caminho> percorrer(String tipo, String situacao, List<Passo> passos, Set<String> usadas) {
+    private static List<Caminho> percorrer(String tipo, Faixa faixa, String situacao, List<Passo> passos,
+            Set<String> usadas) {
         List<Caminho> caminhos = new ArrayList<>();
-        caminhos.add(new Caminho(tipo, passos));
+        caminhos.add(new Caminho(tipo, faixa, passos));
         for (String acao : TODAS_AS_ACOES) {
             String transicao = situacao + "/" + acao;
-            if (usadas.contains(transicao)) {
+            if (usadas.contains(transicao) || !faixa.permite(acao)) {
                 continue;
             }
-            proxima(tipo, situacao, acao).ifPresent(destino -> {
+            proxima(tipo, faixa, situacao, acao).ifPresent(destino -> {
                 List<Passo> seguintes = new ArrayList<>(passos);
                 seguintes.add(new Passo(acao, destino));
                 Set<String> novas = new HashSet<>(usadas);
                 novas.add(transicao);
-                caminhos.addAll(percorrer(tipo, destino, List.copyOf(seguintes), Set.copyOf(novas)));
+                caminhos.addAll(percorrer(tipo, faixa, destino, List.copyOf(seguintes), Set.copyOf(novas)));
             });
         }
         return caminhos;
     }
 
+    /** Destino da ação na situação, para um processo da faixa: a decisão de concluir depende da faixa (R16). */
+    private static Optional<String> proxima(String tipo, Faixa faixa, String situacao, String acao) {
+        Optional<String> destino = proxima(tipo, situacao, acao);
+        if (faixa == Faixa.ACIMA_DA_ALCADA && ehDecisaoDeAlcada(tipo, situacao, acao)) {
+            return Optional.of(AGUARDANDO_ALCADA);
+        }
+        return destino;
+    }
+
+    /** Destino da ação na situação para um processo até a alçada (a linha aguardando alçada vale nas duas faixas). */
     private static Optional<String> proxima(String tipo, String situacao, String acao) {
         return Optional.ofNullable(proximas(tipo, situacao).get(acao));
     }

@@ -13,6 +13,7 @@ public enum AcaoProcesso {
     REPROVAR("reprovar", true),
     CONCLUIR_ANALISE("concluir a análise de", false),
     CONCLUIR_VISTORIA("concluir a vistoria de", false),
+    APROVAR_NA_ALCADA("aprovar na alçada", false),
     DEVOLVER_PARA_ANALISE("devolver para análise", true),
     SOLICITAR_PAGAMENTO("solicitar o pagamento de", false, true, false),
     CONFIRMAR_PAGAMENTO("confirmar o pagamento de", false, true, true),

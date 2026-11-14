@@ -11,6 +11,7 @@ public enum EstadoProcesso {
     EM_ANALISE(false),
     PENDENTE_DOCUMENTO(false),
     AGUARDANDO_VISTORIA(false),
+    AGUARDANDO_ALCADA(false),
     AGUARDANDO_CONCORDANCIA(false),
     APROVADO(false),
     PAGAMENTO_SOLICITADO(false),
