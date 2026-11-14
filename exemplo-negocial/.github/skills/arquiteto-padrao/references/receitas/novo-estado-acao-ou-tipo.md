@@ -7,6 +7,7 @@ Tudo fica em `domain/<agregado>/fluxo/` e `domain/<agregado>/tipo/`. A entidade 
 | Quero... | Faça |
 |---|---|
 | Transição nova entre estados e ação que já existem | uma linha `.transicao(de, acao, para)`: em `comum()` se vale para todos os tipos, senão no `Fluxo<Tipo>` |
+| Transição que depende de um dado do agregado (valor acima de um limite, por exemplo) | a linha vira `transicaoCondicional(de, acao, condicao, seVerdadeira, seFalsa)`, com a condição declarada ao lado ([domínio](../dominio.md)). Se o limite é configurável, ele entra pelo caso de uso ([casos de uso](../use-cases.md)) |
 | Estado novo | constante no enum de estados (dizendo se é final) + as linhas que chegam nele e saem dele + rótulo em `Rotulos` |
 | Ação nova que só muda o estado | constante no enum de ações + as linhas que a aceitam + endpoint que chama o caso de uso de executar ação |
 | Ação nova que exige um dado de quem pede (motivo, por exemplo) | o mesmo, mais o atributo no enum de ações, a recusa na raiz do agregado e um record de request com Bean Validation no endpoint. Segue no caso de uso genérico de executar ação |
