@@ -9,6 +9,13 @@ Cada sistema tem seu pacote, com o padrão Gateway [PoEAA] ([exemplo](exemplos-c
 - `XGateway` (`@ApplicationScoped`): API simples no nosso vocabulário, traduz request/response e converte qualquer falha em `SistemaExternoIndisponivelException` (vira 503). Essa exceção fica na raiz de `gateway/`.
 - **Records próprios** (opcional): quando o retorno não cabe num tipo simples, o `XGateway` devolve um record nosso, declarado neste pacote, com nomes do nosso vocabulário. O caso de uso pode importá-lo; o domínio, não.
 
+## Gateway que não lança
+
+Quando quem chama é uma rotina que tenta de novo ([saga por rotina](transacao-e-sistema-externo.md)), a exceção não ajuda: o `XGateway` devolve um record próprio de resposta, selado (confirmada, recusada, sem resposta, incoerente), e traduz erro, timeout e circuito aberto em "sem resposta".
+
+- Sem `@Retry`: a repetição é da rotina. `@Timeout` sempre; `@CircuitBreaker` é opcional e, com ele, nem toda tentativa chega ao sistema externo.
+- O Gateway não importa o domínio. O caso de uso traduz a resposta para o tipo de resultado do domínio, e é o domínio que decide o que é incoerente. Veja `TesourariaGateway` e `ResultadoPagamento` no exemplo.
+
 ## Catálogo corporativo
 
 O client e os DTOs de muitos sistemas chegam prontos, como dependência Maven gerada pelo catálogo corporativo. Nesse caso não se escreve `XClient` nem DTO à mão: o `XGateway` usa as classes do catálogo e devolve tipo simples ou record próprio.

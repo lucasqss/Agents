@@ -34,6 +34,24 @@ O ciclo de vida ganha um estado "solicitado". São três passos, cada um no seu 
 
 Use quando a chamada é lenta ou instável, ou quando o negócio precisa enxergar "em andamento". Custo: um estado e uma ação a mais, e uma rotina de retomada para o que ficou parado.
 
+### Receita: saga orquestrada por uma rotina
+
+A retomada é a própria forma de trabalhar: o pedido não chama ninguém, e uma rotina agendada ([job](canais.md)) faz a chamada.
+
+1. **Pedir** (caso de uso transacional): confere a regra, leva o agregado ao estado intermediário e grava uma **identificação do pedido**, sorteada a cada pedido novo e igual em todas as tentativas dele. É a chave de idempotência. Nada vai ao sistema externo.
+2. **Chamar** (caso de uso sem transação, chamado pela rotina): para cada agregado no estado intermediário, chama o sistema externo com a identificação ([use-cases](use-cases.md)).
+3. **Aplicar** (outro caso de uso, transação curta): relê o agregado **com bloqueio** e só aplica o resultado se ele ainda está no estado intermediário **com a mesma identificação**; senão não faz nada.
+
+| Falha | Efeito | Como se resolve |
+|---|---|---|
+| Sem resposta (erro, timeout, circuito aberto) | O agregado continua no estado intermediário | Próxima rodada, mesma identificação |
+| Resposta incoerente (confirmação sem o dado que a prova) | Não é aplicada; fica como tentativa | Próxima rodada |
+| Queda entre a chamada e a gravação | O efeito existe lá e não aqui | Próxima rodada: o sistema externo reconhece a identificação e devolve o resultado, sem repetir o efeito |
+| Duas execuções ao mesmo tempo (duas rodadas, ou duas instâncias) | As duas chamam com a mesma identificação | Quem grava primeiro aplica; a outra relê com bloqueio, vê que o estado mudou e não faz nada |
+| Recusa | É a compensação: o agregado volta ao estado anterior, com o motivo no histórico, e a identificação é descartada | Novo pedido, com identificação nova |
+
+Use esta forma quando o negócio aceita a latência de uma rodada e o sistema externo é idempotente pela identificação. Não use quando a resposta precisa chegar na mesma requisição (forma 1) ou quando o sistema externo repete o efeito se a identificação voltar (a retomada passa a ser perigosa). Caso resolvido: ADR 002 do projeto de exemplo (`docs/adr/ADR_002_pagamento_como_saga.md`).
+
 ## 3. Outbox
 
 A transação grava a mudança e, na mesma transação, uma linha "a enviar". Um processo separado lê as linhas e chama o sistema externo ou publica a mensagem, marcando o que já foi.

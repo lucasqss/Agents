@@ -30,6 +30,9 @@ Inclua só as dos recursos que o componente usa. Um componente sem sistema exter
 <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-rest-client-jackson</artifactId></dependency>
 <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-smallrye-fault-tolerance</artifactId></dependency>
 
+<!-- Quando houver job agendado -->
+<dependency><groupId>io.quarkus</groupId><artifactId>quarkus-scheduler</artifactId></dependency>
+
 <!-- Persistência: Jakarta Data sobre PostgreSQL, com schema pelo Flyway -->
 <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-hibernate-orm</artifactId></dependency>
 <dependency><groupId>jakarta.data</groupId><artifactId>jakarta.data-api</artifactId></dependency>

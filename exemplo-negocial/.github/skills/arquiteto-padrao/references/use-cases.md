@@ -17,6 +17,10 @@ A pasta é a do agregado principal da operação. Excluir uma cota verifica proc
 - Diga o que acontece com duas requisições simultâneas e com a mesma requisição repetida: [concorrência](concorrencia.md).
 - Proibido importar `*Entity`, Jakarta Data, JPA, as implementações de `persistence/` ou qualquer `*QueryRepository`.
 
+## Rotina (sem transação)
+
+O caso de uso que orquestra uma rotina ([saga](transacao-e-sistema-externo.md)) **não** é `@Transactional`, de propósito: a chamada ao sistema externo fica fora de transação. Ele delega a gravação a outro caso de uso transacional, de outra classe (um método público por classe; autochamada não abre transação). Falha em um item é capturada e registrada em log por item, e não impede os demais.
+
 Precisa consultar algo para validar ou decidir a escrita?
 
 1. Acrescente o método na interface de repositório do domínio, no vocabulário do negócio: `boolean existeProcessoAtivo(Long cotaId)`, `List<Cota> buscarPorCliente(Long clienteId)`.

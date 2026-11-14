@@ -57,6 +57,15 @@ Regras:
 - O Resource de canal nunca devolve record de `persistence/`: ele devolve o próprio `*Response`, e o Assembler recebe o record. Na API neutra (`entrypoint/rest/<agregado>/`), o Resource pode devolver o record. Um canal nunca usa outro canal nem o `Padrao` de outro canal.
 - **Contrato congelado:** só mudanças aditivas no `*Response`. Renomear ou remover campo quebra o front low-code; quebra vira `/<canal>/v2`.
 
+## Job agendado (`entrypoint/batch/<agregado>/`)
+
+Só chama um caso de uso, como qualquer entrypoint. Veja `RotinaDePagamentoJob` no exemplo.
+
+- O intervalo vem de configuração: `@Scheduled(every = "{<propriedade>}", concurrentExecution = SKIP)`, com valor padrão no `application.properties`; `off` desliga o agendamento.
+- `SKIP` só impede duas execuções **na mesma instância**. Entre instâncias, quem protege é o caso de uso que aplica o resultado, com bloqueio e conferência do estado ([transação e sistema externo](transacao-e-sistema-externo.md)).
+- Dependência `quarkus-scheduler` ([pom](pom-obrigatorio.md)).
+- Nos testes de integração o agendamento fica desligado (`%test.<propriedade>=off`) e o teste chama o caso de uso direto. Nos de aceitação o intervalo é curto e o teste espera o efeito consultando a API.
+
 ## Apresentação comum (`entrypoint/apresentacao/`)
 
 Se a pasta ainda não existir, crie-a na primeira tela de canal ([exemplo](exemplos-codigo.md)).
