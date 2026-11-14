@@ -73,7 +73,8 @@ Só chama um caso de uso, como qualquer entrypoint. Veja `RotinaDePagamentoJob` 
 
 - O intervalo vem de configuração: `@Scheduled(every = "{<propriedade>}", concurrentExecution = SKIP)`, com valor padrão no `application.properties`; `off` desliga o agendamento.
 - `SKIP` só impede duas execuções **na mesma instância**. Entre instâncias, quem protege é o caso de uso que aplica o resultado, com bloqueio e conferência do estado ([transação e sistema externo](transacao-e-sistema-externo.md)).
-- Dependência `quarkus-scheduler` ([pom](pom-obrigatorio.md)).
+- Dependência `quarkus-scheduler` ([pom](pom-obrigatorio.md)), que atende quando o intervalo nos testes pode ser de 1 s ou mais: o agendador simples só confere as tarefas a cada 1 s e não aceita `every` abaixo de 1000 ms. Quando os testes precisam de intervalo menor, `quarkus-quartz` é o caminho: mesma anotação `@Scheduled`, store em memória (`ram`, o padrão). Nenhum dos dois é obrigatório; escolha pelo intervalo de que os testes precisam.
+- Com `quarkus-quartz`, a mesma `@Scheduled(... concurrentExecution = SKIP)` vira `@DisallowConcurrentExecution` do Quartz; confira o `quarkus.quartz.thread-count` e não ligue cluster nem store em banco sem decisão do dono.
 - Nos testes de integração o agendamento fica desligado (`%test.<propriedade>=off`) e o teste chama o caso de uso direto. Nos de aceitação o intervalo é curto e o teste espera o efeito consultando a API.
 
 ## Apresentação comum (`entrypoint/apresentacao/`)

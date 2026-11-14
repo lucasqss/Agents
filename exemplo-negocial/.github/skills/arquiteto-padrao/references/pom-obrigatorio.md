@@ -43,8 +43,10 @@ Inclua só as dos recursos que o componente usa. Um componente sem sistema exter
 <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-rest-client-jackson</artifactId></dependency>
 <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-smallrye-fault-tolerance</artifactId></dependency>
 
-<!-- Quando houver job agendado -->
+<!-- Quando houver job agendado (intervalo nos testes de 1 s ou mais) -->
 <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-scheduler</artifactId></dependency>
+<!-- Alternativa, mesma anotação @Scheduled, store em memória: quando os testes precisam de intervalo abaixo de 1 s (use uma ou outra, não as duas) -->
+<!-- <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-quartz</artifactId></dependency> -->
 
 <!-- Quando houver identidade (token JWT verificado pela aplicação) -->
 <dependency><groupId>io.quarkus</groupId><artifactId>quarkus-smallrye-jwt</artifactId></dependency>

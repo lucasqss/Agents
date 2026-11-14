@@ -65,10 +65,11 @@
             <artifactId>quarkus-smallrye-fault-tolerance</artifactId>
         </dependency>
 
-        <!-- Rotina de pagamento: job agendado (entrypoint/batch) que fala com a tesouraria; ver docs/adr/ADR_002_pagamento_como_saga.md -->
+        <!-- Rotina de pagamento: job agendado (entrypoint/batch) que fala com a tesouraria; ver docs/adr/ADR_002_pagamento_como_saga.md.
+             Quartz (store em memória, sem cluster) em vez do agendador simples: este só confere as tarefas a cada 1 s e os testes de aceitação precisam de intervalo menor -->
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-scheduler</artifactId>
+            <artifactId>quarkus-quartz</artifactId>
         </dependency>
 
         <!-- Identidade: token JWT verificado pela aplicação (ver docs/adr/ADR_003_identidade_por_jwt.md); só o entrypoint o usa -->

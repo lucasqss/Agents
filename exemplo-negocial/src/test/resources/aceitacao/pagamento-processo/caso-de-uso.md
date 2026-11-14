@@ -410,7 +410,7 @@ Decidido por quem coordena a implementação; os testes usam só isto. Papéis e
 |---|---|
 | `POST /processos/{id}/solicitar-pagamento` | corpo opcional `{"observacao"}`, como as ações sem dado. Só em APROVADO: `200 {"estado": "PAGAMENTO_SOLICITADO"}`. Não depende de a tesouraria estar disponível e não envia nada a ela (R7). Fora de APROVADO: `409`. Processo inexistente: `404`. JSON malformado: `400`; corpo com tipo que não é JSON: `415` (como as demais ações com corpo) |
 | `POST /processos/{id}/pagar` | não existe mais: `404` |
-| Rotina | não há endpoint para disparar a rotina nem para a tesouraria nos avisar. A rotina roda sozinha, por tempo; no ambiente de teste o intervalo é de 1 segundo, pela propriedade `pagamento.rotina.intervalo` (`1s`), que o `TesourariaStubResource` devolve junto com a URL da tesouraria (vale no `*Test` e no `*IT`) |
+| Rotina | não há endpoint para disparar a rotina nem para a tesouraria nos avisar. A rotina roda sozinha, por tempo; no ambiente de teste o intervalo é de 100 milissegundos, pela propriedade `pagamento.rotina.intervalo` (`100ms`), que o `TesourariaStubResource` devolve junto com a URL da tesouraria (vale no `*Test` e no `*IT`) |
 
 | Efeito observável | Contrato |
 |---|---|
@@ -776,7 +776,7 @@ Casos da fatia 1: 290; fatia 7: 1286 no total, 295 casos novos, todos em `Papeis
 | F5-5: o que a pessoa informa em `observacao` ao solicitar pagamento vai ao histórico (como nas demais ações com observação) e o limite é de 500 caracteres? (mesma dúvida da fatia 1 para observação vazia, só espaços ou acima de 500) | Testadas só observação curta e de 500 caracteres |
 | F5-6: o detalhe do processo mostra "o motivo da última recusa da tesouraria" (seção Consultas); o contrato não tem consulta de detalhe, e o motivo é conferido no histórico (`RECUSAR_PAGAMENTO`) | Só o histórico é conferido |
 | F5-7: depois da recusa da tesouraria, o motivo continua visível quando o processo é solicitado de novo e confirmado? | Não testado |
-| F5-8: o intervalo padrão de 5 minutos (R20) e a configuração do intervalo não são testados: o ambiente de teste fixa 1 segundo | Sem teste do valor padrão |
+| F5-8: o intervalo padrão de 5 minutos (R20) e a configuração do intervalo não são testados: o ambiente de teste fixa 100 milissegundos | Sem teste do valor padrão |
 | F5-9: duas execuções da rotina ao mesmo tempo sobre o mesmo processo (seção Recusas): "um único pedido efetivo à tesouraria e uma única mudança de situação". Sem endpoint para disparar a rotina, a concorrência não é provocável por fora | Testado o equivalente observável: solicitações de pessoa simultâneas (uma vale, uma só identificação chega à tesouraria) |
 | F5-10: R7 diz que nada é enviado à tesouraria ao solicitar. Entre solicitar e a primeira rodada da rotina não dá para provar a ausência de pedido | Prova-se só que solicitar responde 200 com a tesouraria fora do ar e que a rotina não pede por processos fora de pagamento solicitado |
 | F5-11: quando a rotina aplica a recusa e a tesouraria já tinha recebido a ordem de uma tentativa anterior sem resposta (dois pedidos, uma só identificação), há algo a fazer além de aplicar a resposta? | Não testado |

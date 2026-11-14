@@ -32,10 +32,10 @@ public class TesourariaStubResource implements QuarkusTestResourceLifecycleManag
         servidor = new WireMockServer(options().dynamicPort());
         servidor.start();
         System.setProperty(TesourariaStub.PROPRIEDADE_PORTA, String.valueOf(servidor.port()));
-        // A rotina de pagamento roda sozinha, por tempo: no ambiente de teste, a cada segundo (em vez dos 5 minutos).
+        // A rotina de pagamento roda sozinha, por tempo: no ambiente de teste, a cada 100 ms (em vez dos 5 minutos).
         Map<String, String> configuracao = new HashMap<>();
         configuracao.put("quarkus.rest-client.tesouraria.url", servidor.baseUrl());
-        configuracao.put("pagamento.rotina.intervalo", "1s");
+        configuracao.put("pagamento.rotina.intervalo", "100ms");
         // Resiliência do TesourariaClient encurtada só nos testes (as anotações, 2 s e 5 s, seguem como estão).
         configuracao.put("quarkus.fault-tolerance." + METODO_DO_CLIENTE + ".timeout.value",
                 String.valueOf(TesourariaStub.TEMPO_PARA_RESPONDER.toMillis()));

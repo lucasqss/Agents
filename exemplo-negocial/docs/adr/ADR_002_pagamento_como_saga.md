@@ -20,7 +20,9 @@ O fluxo (tabela de transições): `SOLICITAR_PAGAMENTO` (APROVADO → PAGAMENTO_
 
 O `TesourariaGateway` devolve sempre um `RespostaDaTesouraria` (record próprio do gateway: confirmada, recusada, sem resposta, incoerente) e nunca lança exceção: 5xx, timeout de 2 segundos e circuito aberto são "sem resposta". O caso de uso traduz para o `ResultadoPagamento` do domínio, que decide o que é incoerente: confirmação sem protocolo e recusa sem motivo não são aplicadas e viram `TENTAR_PAGAMENTO` (R31); `ALREADY_PROCESSED` com protocolo vale como confirmação. Não há `@Retry`: quem repete é a rotina, no próximo intervalo, com a mesma identificação. O **circuit breaker** (`@CircuitBreaker` no client) fica: sem limite de tentativas e sem aviso, uma tesouraria fora do ar faria cada rodada gastar 2 segundos por processo esperando; com o circuito aberto as chamadas falham na hora e o resto da rodada é rápido.
 
-Os testes de integração desligam o agendamento (`%test.pagamento.rotina.intervalo=off`) e chamam o caso de uso; os de aceitação ligam `1s` pelo `TesourariaStubResource`.
+Os testes de integração desligam o agendamento (`%test.pagamento.rotina.intervalo=off`) e chamam o caso de uso; os de aceitação ligam `100ms` pelo `TesourariaStubResource`.
+
+**Agendador:** `quarkus-quartz` (mesma anotação `@Scheduled`), com o store em memória (`ram`, o padrão), sem cluster e sem tabelas ou migration. O motivo é o intervalo dos testes de aceitação: o agendador simples (`quarkus-scheduler`) só confere as tarefas a cada 1 s e não aceita `every` abaixo de 1000 ms. `quarkus.quartz.thread-count=1`, porque só há uma rotina e ela não pode rodar em paralelo consigo mesma.
 
 ## 3. Alternativas consideradas
 
@@ -36,7 +38,7 @@ Os testes de integração desligam o agendamento (`%test.pagamento.rotina.interv
 - **Histórico cresce a cada tentativa:** cada rodada sem resultado grava uma entrada `TENTAR_PAGAMENTO`. Não há limite de tentativas nem aviso a ninguém, por decisão do dono; um processo parado cresce o histórico a cada 5 minutos até a tesouraria responder.
 - **Cada nova solicitação tem identificação nova;** as tentativas da mesma solicitação repetem a dela. A recusa descarta a identificação.
 - Nada fica pela metade sem poder ser retomado, e a rotina é a retomada: ver abaixo.
-- Obrigatório: a dependência `io.quarkus:quarkus-scheduler`; migration V8; `pagamento.rotina.intervalo` configurável; teste de concorrência com duas execuções da rotina.
+- Obrigatório: a dependência `io.quarkus:quarkus-quartz`; migration V8; `pagamento.rotina.intervalo` configurável; teste de concorrência com duas execuções da rotina.
 - Várias instâncias: o job roda em cada uma (o `SKIP` só vale dentro de uma instância). É seguro: todas chamam com a mesma identificação e só quem gravar primeiro aplica o resultado, porque o passo 3 bloqueia e confere a identificação. O custo é chamadas repetidas à tesouraria, que devolve `ALREADY_PROCESSED`.
 
 ### O que acontece em cada falha
@@ -55,4 +57,4 @@ Os testes de integração desligam o agendamento (`%test.pagamento.rotina.interv
 - ArchUnit: o job só chama caso de uso; só caso de uso chama o gateway; `@Transactional` só em `application`; `@Retry` e `@CircuitBreaker` só no gateway.
 - JUnit puro do fluxo e da raiz (`FluxoProcessoTest`, `PagamentoComoSagaTest`), do gateway (`TesourariaGatewayTest`) e da rotina (`ExecutarRotinaDePagamentoUseCaseTest`).
 - Integração: `RotinaDePagamentoTest` (confirmou, recusou, indisponível, queda entre chamada e gravação, incoerente, circuito aberto) e `ConcorrenciaProcessoTest` (duas execuções da rotina aplicam o resultado uma vez, com a mesma identificação).
-- Aceitação: `PagamentoProcessoAceitacaoTest`, com a rotina em 1 segundo e a tesouraria simulada por WireMock.
+- Aceitação: `PagamentoProcessoAceitacaoTest`, com a rotina em 100 ms e a tesouraria simulada por WireMock.
