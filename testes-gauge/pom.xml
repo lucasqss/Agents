@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Smoke tests do exemplo-negocial com Gauge: especificações em Markdown (specs/) e passos em Java.
+         Rodam contra a aplicação já em pé (API_URL), não dentro do ciclo de teste do Quarkus. Ver README.md. -->
+    <groupId>br.com.claudio</groupId>
+    <artifactId>testes-gauge</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <name>Smoke tests (Gauge)</name>
+
+    <properties>
+        <maven.compiler.release>25</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <gauge-java.version>1.0.5</gauge-java.version>
+        <gauge-maven-plugin.version>2.0.0</gauge-maven-plugin.version>
+        <jackson.version>2.23.0</jackson.version>
+        <compiler-plugin.version>3.15.0</compiler-plugin.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.thoughtworks.gauge</groupId>
+            <artifactId>gauge-java</artifactId>
+            <version>${gauge-java.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Lê as respostas JSON da API -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${compiler-plugin.version}</version>
+            </plugin>
+            <!-- ./mvnw test-compile gauge:execute roda as especificações; precisa do executável gauge e do plugin java instalados -->
+            <plugin>
+                <groupId>com.thoughtworks.gauge.maven</groupId>
+                <artifactId>gauge-maven-plugin</artifactId>
+                <version>${gauge-maven-plugin.version}</version>
+                <configuration>
+                    <specsDir>specs</specsDir>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

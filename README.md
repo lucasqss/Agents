@@ -10,6 +10,7 @@ Modelo para criar e manter serviços **Java 25 + Quarkus 3.33** com agentes de I
 | [`exemplo-negocial/AGENTS.md`](exemplo-negocial/AGENTS.md) | Regras sempre ativas para qualquer agente: como trabalhar, o que é proibido, o que rodar antes de terminar. |
 | [`exemplo-negocial/.github/skills/`](exemplo-negocial/.github/skills/) | As skills: especificar o caso de uso, o padrão de arquitetura (com as regras ArchUnit e o teste de contrato para copiar), adequar legado e testes por nível (unidade, componente e aceitação com cenários em YAML e Karate). `.claude/skills/` aponta para elas. |
 | [`exemplo-negocial/.github/hooks/`](exemplo-negocial/.github/hooks/) | Hooks do agente: arquivo protegido não é alterado e o turno só termina com a verificação rápida passando. |
+| [`testes-gauge/`](testes-gauge/) | Smoke tests do exemplo com Gauge (especificações em Markdown, passos em Java), rodando contra a aplicação empacotada. Sobe tudo com `docker compose run --rm --build smoke`. [README](testes-gauge/README.md) |
 | [`ignore/`](ignore/) | Modelo de `.claudeignore` que limita o agente ao `src/`. |
 
 ## Por onde começar

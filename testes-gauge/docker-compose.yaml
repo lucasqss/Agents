@@ -1,0 +1,78 @@
+# Sobe o exemplo-negocial do zero e roda os smoke tests do Gauge contra ele.
+#
+#   docker compose up --build --abort-on-container-exit --exit-code-from smoke
+#
+# Ordem: empacotar (Maven gera target/quarkus-app do exemplo) -> postgres -> app (a aplicação empacotada, perfil prod)
+# -> smoke (Gauge). O código de saída do comando é o do smoke: 0 quando todas as especificações passam.
+# Relatório: testes-gauge/reports/html-report/index.html. Para recomeçar com o banco vazio: docker compose down -v
+name: smoke-exemplo-negocial
+
+services:
+  # Empacota o exemplo-negocial com o Maven Wrapper dele, sem rodar os testes (que são do build do próprio serviço).
+  empacotar:
+    image: eclipse-temurin:25-jdk
+    working_dir: /exemplo
+    command: ["./mvnw", "-B", "-q", "package", "-DskipTests"]
+    volumes:
+      - ../exemplo-negocial:/exemplo
+      - maven-cache:/root/.m2
+
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # A aplicação empacotada, no perfil prod, como no docker-compose.yml do exemplo.
+  app:
+    image: eclipse-temurin:25-jre
+    working_dir: /deployments
+    command: ["java", "-Djava.util.logging.manager=org.jboss.logmanager.LogManager", "-jar", "quarkus-run.jar"]
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/app
+      DB_USER: app
+      DB_PASSWORD: app
+      # Identidade (ADR 003 do exemplo): a chave pública de DESENVOLVIMENTO; o smoke assina com o par privado dela.
+      MP_JWT_VERIFY_PUBLICKEY_LOCATION: /chaves/publica-desenvolvimento.pem
+    volumes:
+      - ../exemplo-negocial/target/quarkus-app:/deployments:ro
+      - ../exemplo-negocial/src/main/resources/jwt:/chaves:ro
+    ports:
+      - "8080:8080"
+    healthcheck:
+      # A imagem não tem curl: o bash abre a conexão com a porta 8080.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8080"]
+      interval: 3s
+      timeout: 2s
+      retries: 40
+    depends_on:
+      empacotar:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  # Os smoke tests: Gauge com os passos em Java (./mvnw test-compile gauge:execute).
+  smoke:
+    build: .
+    environment:
+      API_URL: http://app:8080
+      CHAVE_PRIVADA_JWT: /chaves/privada-desenvolvimento.pem
+    volumes:
+      - .:/testes
+      - ../exemplo-negocial/docs/dev:/chaves:ro
+      - maven-cache:/root/.m2
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  maven-cache:
+  postgres-data:
