@@ -6,6 +6,7 @@ import jakarta.data.repository.Query;
 import jakarta.data.repository.Repository;
 import jakarta.data.repository.Update;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /** Jakarta Data: o Hibernate Processor gera a implementação e valida o HQL na compilação. */
 @Repository
@@ -24,5 +25,5 @@ interface ClienteDataRepository {
     void excluir(Long id);
 
     @Query("select count(c) from ClienteEntity c where c.cpf = :cpf and (:ignorarId is null or c.id <> :ignorarId)")
-    long contarPorCpf(String cpf, Long ignorarId);
+    long contarPorCpf(String cpf, @Nullable Long ignorarId);
 }

@@ -1,6 +1,7 @@
 package br.com.claudio.consorcio.domain.cliente;
 
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 public interface ClienteRepository {
 
@@ -10,7 +11,7 @@ public interface ClienteRepository {
     Optional<Cliente> buscarPorId(Long id);
 
     /** Indica se já existe outro cliente com o CPF; {@code ignorarId} exclui o próprio cliente da busca. */
-    boolean existeCpf(String cpf, Long ignorarId);
+    boolean existeCpf(String cpf, @Nullable Long ignorarId);
 
     void excluir(Long id);
 }

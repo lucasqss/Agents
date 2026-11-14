@@ -5,6 +5,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -81,12 +82,17 @@ public final class FluxoProcesso {
 
     /** R17: a linha exige que quem pede não seja a pessoa que concluiu a análise. Falso se a ação não vale no estado. */
     public boolean exigeOutraPessoaQueConcluiuAAnalise(EstadoProcesso atual, AcaoProcesso acao) {
-        Linha linha = transicoes.get(atual).get(acao);
+        Linha linha = saidas(atual).get(acao);
         return linha != null && linha.exigeOutraPessoaQueConcluiuAAnalise();
     }
 
+    /** A tabela tem uma entrada para cada estado (o Builder cria todas). */
+    private Map<AcaoProcesso, Linha> saidas(EstadoProcesso estado) {
+        return Objects.requireNonNull(transicoes.get(estado));
+    }
+
     private Linha linha(EstadoProcesso atual, AcaoProcesso acao) {
-        Linha linha = transicoes.get(atual).get(acao);
+        Linha linha = saidas(atual).get(acao);
         if (linha == null) {
             throw new TransicaoInvalidaException(acao, atual);
         }
@@ -96,7 +102,7 @@ public final class FluxoProcesso {
     /** Ações que uma pessoa pode pedir no estado: as da rotina de pagamento valem na tabela, mas não aparecem aqui. */
     public Set<AcaoProcesso> acoesDisponiveis(EstadoProcesso atual) {
         Set<AcaoProcesso> daPessoa = EnumSet.noneOf(AcaoProcesso.class);
-        for (AcaoProcesso acao : transicoes.get(atual).keySet()) {
+        for (AcaoProcesso acao : saidas(atual).keySet()) {
             if (!acao.daRotina()) {
                 daPessoa.add(acao);
             }
@@ -135,11 +141,11 @@ public final class FluxoProcesso {
 
         /** R17: na linha já declarada, quem pede não pode ser a pessoa da última conclusão da análise. */
         public Builder exigindoOutraPessoaQueConcluiuAAnalise(EstadoProcesso de, AcaoProcesso acao) {
-            Linha linha = transicoes.get(de).get(acao);
+            Linha linha = saidas(de).get(acao);
             if (linha == null) {
                 throw new IllegalArgumentException("Não há linha para " + acao + " em " + de);
             }
-            transicoes.get(de).put(acao, linha.comSegundaPessoa());
+            saidas(de).put(acao, linha.comSegundaPessoa());
             return this;
         }
 
@@ -166,6 +172,10 @@ public final class FluxoProcesso {
             return new FluxoProcesso(Collections.unmodifiableMap(tabela));
         }
 
+        private Map<AcaoProcesso, Linha> saidas(EstadoProcesso estado) {
+            return Objects.requireNonNull(transicoes.get(estado));
+        }
+
         private Builder linha(EstadoProcesso de, AcaoProcesso acao, Destino destino, Papel[] papeis) {
             if (de.finalizado()) {
                 throw new IllegalArgumentException("Estado final não tem saída: " + de);
@@ -176,7 +186,7 @@ public final class FluxoProcesso {
                         : "Ação de pessoa precisa de ao menos um papel: " + acao);
             }
             Set<Papel> quem = papeis.length == 0 ? EnumSet.noneOf(Papel.class) : EnumSet.copyOf(List.of(papeis));
-            transicoes.get(de).put(acao, new Linha(destino, Collections.unmodifiableSet(quem), false));
+            saidas(de).put(acao, new Linha(destino, Collections.unmodifiableSet(quem), false));
             return this;
         }
     }

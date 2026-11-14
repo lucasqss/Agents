@@ -6,6 +6,7 @@ import br.com.claudio.consorcio.persistence.processo.ProcessoResumo;
 import jakarta.data.page.Page;
 import jakarta.data.page.PageRequest;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.jspecify.annotations.Nullable;
 
 @ApplicationScoped
 public class ListarProcessosUseCase {
@@ -27,7 +28,7 @@ public class ListarProcessosUseCase {
         return new Pagina<>(page.content(), paginaValida, tamanhoValido, page.totalElements());
     }
 
-    private static String vazioComoNulo(String valor) {
+    private static @Nullable String vazioComoNulo(String valor) {
         return valor == null || valor.isBlank() ? null : valor.strip().toUpperCase();
     }
 }

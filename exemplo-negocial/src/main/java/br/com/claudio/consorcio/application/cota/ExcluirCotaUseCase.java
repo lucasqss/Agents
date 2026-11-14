@@ -21,7 +21,9 @@ public class ExcluirCotaUseCase {
 
     @Transactional
     public void executar(Long id) {
-        cotas.buscarPorId(id).orElseThrow(() -> new NaoEncontradoException("Cota", id));
+        if (cotas.buscarPorId(id).isEmpty()) {
+            throw new NaoEncontradoException("Cota", id);
+        }
         if (processos.existePorCota(id)) {
             throw new ConflitoException("Cota " + id + " possui processos e não pode ser excluída");
         }

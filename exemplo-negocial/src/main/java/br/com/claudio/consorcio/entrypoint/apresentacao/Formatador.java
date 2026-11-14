@@ -8,6 +8,8 @@ import java.text.Normalizer;
 import java.text.NumberFormat;
 import java.util.Locale;
 import java.util.function.Function;
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Ferramentas de formatação, parametrizadas e sem opinião de canal. Concentra os detalhes que costumam
@@ -84,7 +86,8 @@ public final class Formatador {
     }
 
     /** Aplica a função só se o valor não for nulo. */
-    public static <T> String seNaoNulo(T valor, Function<T, String> formatar) {
+    @Contract("!null, _ -> !null")
+    public static <T> @Nullable String seNaoNulo(@Nullable T valor, Function<T, String> formatar) {
         return valor == null ? null : formatar.apply(valor);
     }
 

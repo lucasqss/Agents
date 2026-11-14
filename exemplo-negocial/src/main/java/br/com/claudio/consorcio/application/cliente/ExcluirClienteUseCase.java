@@ -21,7 +21,9 @@ public class ExcluirClienteUseCase {
 
     @Transactional
     public void executar(Long id) {
-        clientes.buscarPorId(id).orElseThrow(() -> new NaoEncontradoException("Cliente", id));
+        if (clientes.buscarPorId(id).isEmpty()) {
+            throw new NaoEncontradoException("Cliente", id);
+        }
         if (cotas.existePorCliente(id)) {
             throw new ConflitoException("Cliente " + id + " possui cotas e não pode ser excluído");
         }

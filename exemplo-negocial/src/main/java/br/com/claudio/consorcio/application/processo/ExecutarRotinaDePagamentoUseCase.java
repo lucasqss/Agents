@@ -10,6 +10,7 @@ import br.com.claudio.consorcio.gateway.tesouraria.TesourariaGateway;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
 import org.jboss.logging.Logger;
+import java.util.Objects;
 
 /**
  * Padrão: Service Layer [PoEAA]. Passo do meio da saga de pagamento (ADR 002), chamado pelo job agendado: para cada
@@ -64,7 +65,7 @@ public class ExecutarRotinaDePagamentoUseCase {
         List<PedidoDePagamento.Parte> partes = processo.favorecidos().stream()
                 .map(f -> new PedidoDePagamento.Parte(f.nome(), f.documento().numero(), f.papel(), f.parte().valor()))
                 .toList();
-        return new PedidoDePagamento(identificacao.texto(), processo.id(), processo.valor().valor(), partes);
+        return new PedidoDePagamento(identificacao.texto(), Objects.requireNonNull(processo.id()), processo.valor().valor(), partes);
     }
 
     private static ResultadoPagamento traduzir(RespostaDaTesouraria resposta) {

@@ -4,6 +4,7 @@ import br.com.claudio.consorcio.domain.cota.Cota;
 import br.com.claudio.consorcio.domain.cota.CotaRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 @ApplicationScoped
 public class CotaRepositoryAdapter implements CotaRepository {
@@ -36,7 +37,7 @@ public class CotaRepositoryAdapter implements CotaRepository {
     }
 
     @Override
-    public boolean existeNumero(String numero, Long ignorarId) {
+    public boolean existeNumero(String numero, @Nullable Long ignorarId) {
         return dados.contarPorNumero(numero, ignorarId) > 0;
     }
 

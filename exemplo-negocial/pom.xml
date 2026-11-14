@@ -23,6 +23,20 @@
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
 
+        <!-- Qualidade, na ordem do ciclo: validate (Enforcer), compile (ErrorProne + NullAway), test (jqwik),
+             verify (OpenAPI-Diff) e, só com -Pauditoria, mutação (PITest) -->
+        <enforcer-plugin.version>3.7.0</enforcer-plugin.version>
+        <errorprone.version>2.52.0</errorprone.version>
+        <nullaway.version>0.14.3</nullaway.version>
+        <jspecify.version>1.0.0</jspecify.version>
+        <jetbrains-annotations.version>26.1.0</jetbrains-annotations.version>
+        <jqwik.version>1.10.2</jqwik.version>
+        <openapi-diff.version>2.1.7</openapi-diff.version>
+        <pitest.version>1.30.2</pitest.version>
+        <pitest-junit5.version>1.2.3</pitest-junit5.version>
+        <!-- Porcentagem mínima de mutantes mortos no -Pauditoria (medida na adoção, arredondada para baixo) -->
+        <pitest.limite>75</pitest.limite>
+
         <!-- Os *IT repetem os testes de aceitação contra o pacote final e rodam só na geração de versão (-Pversao) -->
         <skipITs>true</skipITs>
     </properties>
@@ -100,6 +114,19 @@
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
+        <!-- @Nullable (e @Contract, para "valor presente devolve valor") checado pelo NullAway na compilação: só anotação, sem código em tempo de execução -->
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <version>${jspecify.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>${jetbrains-annotations.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- Testes -->
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -115,6 +142,13 @@
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
             <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Testes de propriedade (*PropriedadesTest): invariantes do domínio verificadas com valores gerados -->
+        <dependency>
+            <groupId>net.jqwik</groupId>
+            <artifactId>jqwik</artifactId>
+            <version>${jqwik.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- Testes de aceitação: simula sistemas externos por HTTP, funciona também contra o artefato empacotado (*IT) -->
@@ -134,6 +168,44 @@
                 <version>${quarkus.platform.version}</version>
                 <extensions>true</extensions>
             </plugin>
+            <!-- validate: falha antes de compilar se o JDK/Maven não é o do projeto ou se entrou dependência proibida (AGENTS.md, "Proibido") -->
+            <plugin>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[25,)</version>
+                                    <message>O projeto usa Java 25: rode "sdk env install" (.sdkmanrc).</message>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                </requireMavenVersion>
+                                <banDuplicatePomDependencyVersions/>
+                                <dependencyConvergence/>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>org.projectlombok</exclude>
+                                        <exclude>org.mapstruct</exclude>
+                                        <exclude>io.quarkus:quarkus-hibernate-orm-panache*</exclude>
+                                        <exclude>io.quarkus:quarkus-panache*</exclude>
+                                    </excludes>
+                                    <message>Dependência proibida (AGENTS.md, "Proibido"): sem Lombok, MapStruct nem Panache.
+                                        Persistência é Hibernate ORM + Jakarta Data; mapeamento é Mapper escrito à mão.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- compile: ErrorProne (erros semânticos) e NullAway (nulo não declarado vira erro de compilação) rodam como plugin do javac.
+                 Exigem as opções add-exports de .mvn/jvm.config. Nulo permitido é declarado com org.jspecify.annotations.Nullable. -->
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${compiler-plugin.version}</version>
@@ -146,8 +218,42 @@
                             <groupId>org.hibernate.orm</groupId>
                             <artifactId>hibernate-processor</artifactId>
                         </path>
+                        <path>
+                            <groupId>com.google.errorprone</groupId>
+                            <artifactId>error_prone_core</artifactId>
+                            <version>${errorprone.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.uber.nullaway</groupId>
+                            <artifactId>nullaway</artifactId>
+                            <version>${nullaway.version}</version>
+                        </path>
                     </annotationProcessorPaths>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>default-compile</id>
+                        <configuration>
+                            <compilerArgs>
+                                <arg>-XDcompilePolicy=simple</arg>
+                                <arg>--should-stop=ifError=FLOW</arg>
+                                <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/generated-sources/.* -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=br.com.claudio -XepOpt:NullAway:CheckContracts=true -XepOpt:NullAway:ExcludedClassAnnotations=jakarta.persistence.Entity,jakarta.persistence.Embeddable -XepOpt:NullAway:ExcludedFieldAnnotations=jakarta.inject.Inject,org.eclipse.microprofile.config.inject.ConfigProperty,org.eclipse.microprofile.rest.client.inject.RestClient</arg>
+                            </compilerArgs>
+                        </configuration>
+                    </execution>
+                    <!-- Nos testes, só o ErrorProne: NullAway em teste acusaria os nulos passados de propósito para provar as validações -->
+                    <execution>
+                        <id>default-testCompile</id>
+                        <configuration>
+                            <compilerArgs>
+                                <arg>-XDcompilePolicy=simple</arg>
+                                <arg>--should-stop=ifError=FLOW</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/generated-test-sources/.* -Xep:NullAway:OFF</arg>
+                            </compilerArgs>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <!-- Testes unitários e @QuarkusTest (*Test) na fase test -->
             <plugin>
@@ -155,6 +261,14 @@
                 <version>${surefire-plugin.version}</version>
                 <configuration>
                     <argLine>@{argLine}</argLine>
+                    <!-- jqwik: relata só a propriedade que falhou (com o menor exemplo) e guarda os exemplos que falharam em target/.
+                         Vai aqui, e não num junit-platform.properties, porque esse arquivo substituiria o do Quarkus (ordem dos testes). -->
+                    <properties>
+                        <configurationParameters>
+                            jqwik.reporting.onlyfailures=true
+                            jqwik.database=target/.jqwik-database
+                        </configurationParameters>
+                    </properties>
                     <systemPropertyVariables>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                         <maven.home>${maven.home}</maven.home>
@@ -181,6 +295,30 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
+            <!-- verify: o contrato REST publicado (target/openapi/openapi.json, gerado no build) não pode quebrar quem já consome a API.
+                 Compara com a linha de base versionada e falha em mudança incompatível (AGENTS.md: só mudanças aditivas; quebra vira /v2).
+                 Remoção de campo de resposta não obrigatório não conta como quebra para o openapi-diff: quem a barra é o ContratoRestTest.
+                 Mudança compatível aceita: copie target/openapi/openapi.json para docs/api/openapi-base.json no mesmo commit. -->
+            <plugin>
+                <groupId>org.openapitools.openapidiff</groupId>
+                <artifactId>openapi-diff-maven</artifactId>
+                <version>${openapi-diff.version}</version>
+                <executions>
+                    <execution>
+                        <id>contrato-rest</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>diff</goal>
+                        </goals>
+                        <configuration>
+                            <oldSpec>${project.basedir}/docs/api/openapi-base.json</oldSpec>
+                            <newSpec>${project.build.directory}/openapi/openapi.json</newSpec>
+                            <failOnIncompatible>true</failOnIncompatible>
+                            <markdownOutputFileName>${project.build.directory}/openapi/diff.md</markdownOutputFileName>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
@@ -191,6 +329,55 @@
             <properties>
                 <skipITs>false</skipITs>
             </properties>
+        </profile>
+        <!-- Auditoria pesada (mvn verify -Pauditoria): teste de mutação do PITest no domínio e nos use cases. O PITest altera o
+             bytecode (troca > por >=, apaga uma chamada, inverte um if...) e roda os testes: mutante que sobrevive aponta teste
+             que passa sem afirmar a regra. Só os testes puros (sem Quarkus) entram, para caber em minutos.
+             Relatório em target/pit-reports/index.html. O limite impede regressão: suba-o quando a cobertura de mutação subir. -->
+        <profile>
+            <id>auditoria</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>${pitest.version}</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>${pitest-junit5.version}</version>
+                            </dependency>
+                        </dependencies>
+                        <executions>
+                            <execution>
+                                <id>mutacao</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>mutationCoverage</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <targetClasses>
+                                <param>br.com.claudio.consorcio.domain.*</param>
+                                <param>br.com.claudio.consorcio.application.*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>br.com.claudio.consorcio.domain.*</param>
+                                <param>br.com.claudio.consorcio.application.*</param>
+                            </targetTests>
+                            <threads>4</threads>
+                            <timestampedReports>false</timestampedReports>
+                            <outputFormats>
+                                <param>HTML</param>
+                                <param>XML</param>
+                            </outputFormats>
+                            <mutationThreshold>${pitest.limite}</mutationThreshold>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

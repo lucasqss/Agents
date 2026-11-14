@@ -14,9 +14,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Motor único dos processos de pagamento, de todos os tipos. Ele não conhece nenhum tipo em particular:
@@ -25,23 +27,23 @@ import java.util.stream.Collectors;
  */
 public final class ProcessoPagamento {
 
-    private final Long id;
+    private final @Nullable Long id;
     private final Long cotaId;
     private final TipoProcesso tipo;
     private Dinheiro valor;
     private List<Favorecido> favorecidos;
     private EstadoProcesso estado;
-    private String protocoloPagamento;
-    private AlteracaoProposta proposta;
-    private IdentificacaoSolicitacao identificacaoSolicitacao;
-    private String autorDaUltimaConclusaoDaAnalise;
+    private @Nullable String protocoloPagamento;
+    private @Nullable AlteracaoProposta proposta;
+    private @Nullable IdentificacaoSolicitacao identificacaoSolicitacao;
+    private @Nullable String autorDaUltimaConclusaoDaAnalise;
     private final long versao;
     private final List<Transicao> novasTransicoes = new ArrayList<>();
 
-    private ProcessoPagamento(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
-            List<Favorecido> favorecidos, EstadoProcesso estado, String protocoloPagamento,
-            AlteracaoProposta proposta, IdentificacaoSolicitacao identificacaoSolicitacao,
-            String autorDaUltimaConclusaoDaAnalise, long versao) {
+    private ProcessoPagamento(@Nullable Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
+            List<Favorecido> favorecidos, EstadoProcesso estado, @Nullable String protocoloPagamento,
+            @Nullable AlteracaoProposta proposta, @Nullable IdentificacaoSolicitacao identificacaoSolicitacao,
+            @Nullable String autorDaUltimaConclusaoDaAnalise, long versao) {
         if (cotaId == null) {
             throw new DominioException("Processo precisa de uma cota");
         }
@@ -88,10 +90,10 @@ public final class ProcessoPagamento {
      * concordância, e a identificação da solicitação só em Pagamento solicitado. {@code autorDaUltimaConclusaoDaAnalise}
      * é o usuário que concluiu a análise pela última vez (R17); nulo se nunca concluiu (ou o processo é anterior a R17).
      */
-    public static ProcessoPagamento reconstituir(Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
-            List<Favorecido> favorecidos, EstadoProcesso estado, String protocoloPagamento,
-            AlteracaoProposta proposta, IdentificacaoSolicitacao identificacaoSolicitacao,
-            String autorDaUltimaConclusaoDaAnalise, long versao) {
+    public static ProcessoPagamento reconstituir(@Nullable Long id, Long cotaId, TipoProcesso tipo, Dinheiro valor,
+            List<Favorecido> favorecidos, EstadoProcesso estado, @Nullable String protocoloPagamento,
+            @Nullable AlteracaoProposta proposta, @Nullable IdentificacaoSolicitacao identificacaoSolicitacao,
+            @Nullable String autorDaUltimaConclusaoDaAnalise, long versao) {
         return new ProcessoPagamento(id, cotaId, tipo, valor, favorecidos, estado, protocoloPagamento, proposta,
                 identificacaoSolicitacao, autorDaUltimaConclusaoDaAnalise, versao);
     }
@@ -108,7 +110,7 @@ public final class ProcessoPagamento {
      * linha da tabela é condicional (concluir a análise ou a vistoria), a tabela decide o destino com o valor vigente e a
      * alçada; aqui não há comparação de valor.
      */
-    public void executar(Autor autor, AcaoProcesso acao, Instant quando, String observacao, Dinheiro alcada) {
+    public void executar(Autor autor, AcaoProcesso acao, Instant quando, @Nullable String observacao, @Nullable Dinheiro alcada) {
         tipo.fluxo().proximo(estado, acao, contexto(alcada));
         if (acao.comMetodoProprio()) {
             throw new DominioException("Para " + acao.descricao() + " um processo é preciso informar os dados da ação");
@@ -122,8 +124,9 @@ public final class ProcessoPagamento {
             autorDaUltimaConclusaoDaAnalise = autor.usuario();
         }
         if (acao == AcaoProcesso.CONCORDAR) {
-            valor = proposta.valor();
-            favorecidos = proposta.favorecidos();
+            AlteracaoProposta aceita = Objects.requireNonNull(proposta, "Aguardando concordância sempre tem proposta");
+            valor = aceita.valor();
+            favorecidos = aceita.favorecidos();
         }
         if (estado != EstadoProcesso.AGUARDANDO_CONCORDANCIA) {
             proposta = null;
@@ -159,7 +162,7 @@ public final class ProcessoPagamento {
      * que a rotina repete em todas as tentativas (R22). Nada é enviado à tesouraria aqui.
      */
     public void solicitarPagamento(Autor autor, IdentificacaoSolicitacao identificacao, Instant quando,
-            String observacao) {
+            @Nullable String observacao) {
         if (identificacao == null) {
             throw new DominioException("Identificação da solicitação de pagamento é obrigatória");
         }
@@ -191,7 +194,7 @@ public final class ProcessoPagamento {
 
     /** O processo está em Pagamento solicitado, esperando a rotina, e é desta solicitação. */
     public boolean aguardaResultadoDe(IdentificacaoSolicitacao identificacao) {
-        return estado == EstadoProcesso.PAGAMENTO_SOLICITADO && identificacaoSolicitacao.equals(identificacao);
+        return estado == EstadoProcesso.PAGAMENTO_SOLICITADO && Objects.equals(identificacaoSolicitacao, identificacao);
     }
 
     /** A tesouraria confirmou: paga o processo e guarda o protocolo, numa operação só, e descarta a identificação. */
@@ -263,13 +266,13 @@ public final class ProcessoPagamento {
         }
     }
 
-    private void transitar(String autor, AcaoProcesso acao, Instant quando, String observacao, Dinheiro valorAnterior,
-            Dinheiro valorNovo) {
+    private void transitar(String autor, AcaoProcesso acao, Instant quando, @Nullable String observacao,
+            @Nullable Dinheiro valorAnterior, @Nullable Dinheiro valorNovo) {
         transitar(autor, acao, quando, observacao, valorAnterior, valorNovo, null);
     }
 
-    private void transitar(String autor, AcaoProcesso acao, Instant quando, String observacao, Dinheiro valorAnterior,
-            Dinheiro valorNovo, Dinheiro alcada) {
+    private void transitar(String autor, AcaoProcesso acao, Instant quando, @Nullable String observacao,
+            @Nullable Dinheiro valorAnterior, @Nullable Dinheiro valorNovo, @Nullable Dinheiro alcada) {
         Transicao transicao = new Transicao(estado, tipo.fluxo().proximo(estado, acao, contexto(alcada)), acao, quando,
                 autor, observacao, valorAnterior, valorNovo);
         estado = transicao.para();
@@ -315,7 +318,7 @@ public final class ProcessoPagamento {
     }
 
     /** O que a tabela do fluxo precisa para escolher o destino: o valor vigente agora e a alçada informada. */
-    private ContextoDaTransicao contexto(Dinheiro alcada) {
+    private ContextoDaTransicao contexto(@Nullable Dinheiro alcada) {
         return new ContextoDaTransicao(valor, alcada);
     }
 
@@ -333,7 +336,7 @@ public final class ProcessoPagamento {
         return !estado.finalizado();
     }
 
-    public Long id() {
+    public @Nullable Long id() {
         return id;
     }
 
@@ -368,7 +371,7 @@ public final class ProcessoPagamento {
         return Optional.ofNullable(autorDaUltimaConclusaoDaAnalise);
     }
 
-    public String protocoloPagamento() {
+    public @Nullable String protocoloPagamento() {
         return protocoloPagamento;
     }
 

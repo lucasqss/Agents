@@ -6,6 +6,7 @@ import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Set;
 import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Único lugar que lê o token da pessoa: extrai dele o {@link Autor}, dado puro que os casos de uso e o domínio recebem.
@@ -38,7 +39,7 @@ final class AutorDoToken {
         return papeis;
     }
 
-    private static Long clienteId(JsonWebToken token) {
+    private static @Nullable Long clienteId(JsonWebToken token) {
         Object valor = token.getClaim(CLAIM_CLIENTE_ID);
         if (valor == null) {
             return null;

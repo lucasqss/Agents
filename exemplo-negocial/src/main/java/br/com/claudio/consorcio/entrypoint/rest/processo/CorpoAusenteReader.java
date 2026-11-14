@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Deixa o corpo das ações ser de fato opcional. Sem {@code Content-Type} o Quarkus REST procura um leitor para
@@ -36,12 +37,12 @@ public class CorpoAusenteReader implements MessageBodyReader<Object> {
     }
 
     @Override
-    public Object readFrom(Class<Object> type, Type genericType,
+    public @Nullable Object readFrom(Class<Object> type, Type genericType,
             Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, String> httpHeaders,
             InputStream entityStream) throws IOException {
         if (entityStream.read() != -1) {
             throw new NotSupportedException("O corpo, quando enviado, deve ser application/json");
         }
-        return ((Class<?>) type) == ProcessoResource.Motivo.class ? new ProcessoResource.Motivo(null) : null;
+        return ((Class<?>) type) == ProcessoResource.Motivo.class ? new ProcessoResource.Motivo("") : null;
     }
 }

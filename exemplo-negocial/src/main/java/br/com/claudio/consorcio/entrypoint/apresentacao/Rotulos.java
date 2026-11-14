@@ -1,6 +1,7 @@
 package br.com.claudio.consorcio.entrypoint.apresentacao;
 
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Catálogo base dos rótulos de negócio, por extenso. Cada canal usa como está, sobrescreve alguns
@@ -31,7 +32,7 @@ public final class Rotulos {
     }
 
     /** {@code null} significa "sem processo". */
-    public static String estado(String codigo) {
+    public static String estado(@Nullable String codigo) {
         return codigo == null ? SEM_PROCESSO : ESTADOS.getOrDefault(codigo, codigo);
     }
 

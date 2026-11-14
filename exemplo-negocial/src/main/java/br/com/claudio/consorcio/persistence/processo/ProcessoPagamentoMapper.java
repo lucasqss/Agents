@@ -11,6 +11,7 @@ import br.com.claudio.consorcio.domain.processo.fluxo.EstadoProcesso;
 import br.com.claudio.consorcio.domain.processo.fluxo.Transicao;
 import java.util.List;
 import java.util.stream.IntStream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Padrão: Data Mapper [PoEAA].
@@ -24,7 +25,7 @@ final class ProcessoPagamentoMapper {
 
     /** {@code proposta} é nulo quando o processo não aguarda concordância. */
     static ProcessoPagamento paraDominio(ProcessoPagamentoEntity entity, List<ProcessoFavorecidoEntity> favorecidos,
-            AlteracaoProposta proposta) {
+            @Nullable AlteracaoProposta proposta) {
         try {
             return ProcessoPagamento.reconstituir(entity.getId(), entity.getCotaId(),
                     TipoProcesso.valueOf(entity.getTipo()), Dinheiro.de(entity.getValor()),

@@ -10,6 +10,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Padrão: Service Layer [PoEAA]. Primeiro passo da saga de pagamento (ADR 002): só grava Pagamento solicitado, com a
@@ -27,7 +28,7 @@ public class SolicitarPagamentoProcessoUseCase {
     }
 
     @Transactional
-    public EstadoProcesso executar(Long id, Autor autor, String observacao) {
+    public EstadoProcesso executar(Long id, Autor autor, @Nullable String observacao) {
         ProcessoPagamento processo = processos.buscarPorId(id)
                 .orElseThrow(() -> new NaoEncontradoException("Processo", id));
         processo.solicitarPagamento(autor, new IdentificacaoSolicitacao(UUID.randomUUID()), Instant.now(), observacao);

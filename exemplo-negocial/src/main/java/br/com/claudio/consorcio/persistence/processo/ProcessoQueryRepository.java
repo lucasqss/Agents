@@ -6,6 +6,7 @@ import jakarta.data.repository.Query;
 import jakarta.data.repository.Repository;
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 @Repository
 public interface ProcessoQueryRepository {
@@ -19,7 +20,7 @@ public interface ProcessoQueryRepository {
               and (:estado is null or p.estado = :estado)
             order by p.id
             """)
-    Page<ProcessoResumo> listar(String tipo, String estado, PageRequest pageRequest);
+    Page<ProcessoResumo> listar(@Nullable String tipo, @Nullable String estado, PageRequest pageRequest);
 
     @Query("select count(p) from ProcessoPagamentoEntity p where p.id = :id")
     long contar(Long id);

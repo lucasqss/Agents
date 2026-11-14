@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Mapeamento da tabela processo_pagamento. Uma única entidade para todos os tipos:
@@ -32,13 +33,13 @@ public class ProcessoPagamentoEntity {
     private String estado;
 
     @Column(name = "protocolo_pagamento")
-    private String protocoloPagamento;
+    private @Nullable String protocoloPagamento;
 
     @Column(name = "identificacao_solicitacao")
-    private UUID identificacaoSolicitacao;
+    private @Nullable UUID identificacaoSolicitacao;
 
     @Column(name = "autor_ultima_conclusao_analise")
-    private String autorUltimaConclusaoAnalise;
+    private @Nullable String autorUltimaConclusaoAnalise;
 
     @Version
     private long versao;
@@ -47,15 +48,15 @@ public class ProcessoPagamentoEntity {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 
-    public String getAutorUltimaConclusaoAnalise() {
+    public @Nullable String getAutorUltimaConclusaoAnalise() {
         return autorUltimaConclusaoAnalise;
     }
 
-    public void setAutorUltimaConclusaoAnalise(String autorUltimaConclusaoAnalise) {
+    public void setAutorUltimaConclusaoAnalise(@Nullable String autorUltimaConclusaoAnalise) {
         this.autorUltimaConclusaoAnalise = autorUltimaConclusaoAnalise;
     }
 
@@ -91,19 +92,19 @@ public class ProcessoPagamentoEntity {
         this.estado = estado;
     }
 
-    public String getProtocoloPagamento() {
+    public @Nullable String getProtocoloPagamento() {
         return protocoloPagamento;
     }
 
-    public void setProtocoloPagamento(String protocoloPagamento) {
+    public void setProtocoloPagamento(@Nullable String protocoloPagamento) {
         this.protocoloPagamento = protocoloPagamento;
     }
 
-    public UUID getIdentificacaoSolicitacao() {
+    public @Nullable UUID getIdentificacaoSolicitacao() {
         return identificacaoSolicitacao;
     }
 
-    public void setIdentificacaoSolicitacao(UUID identificacaoSolicitacao) {
+    public void setIdentificacaoSolicitacao(@Nullable UUID identificacaoSolicitacao) {
         this.identificacaoSolicitacao = identificacaoSolicitacao;
     }
 

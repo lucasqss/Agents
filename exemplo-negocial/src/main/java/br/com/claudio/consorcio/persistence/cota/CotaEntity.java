@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import org.jspecify.annotations.Nullable;
 
 /** Mapeamento da tabela cota. A referência ao cliente é só o id (sem associação JPA). */
 @Entity
@@ -29,7 +30,7 @@ public class CotaEntity {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 

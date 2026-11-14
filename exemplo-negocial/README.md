@@ -269,6 +269,25 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 2. *Require status checks to pass*, marcando o check da esteira que roda `./mvnw verify`. A proteção de branch continua nele; só a esteira de geração de versão usa `./mvnw verify -Pversao`, que acrescenta os `*IT`.
 3. *Block force pushes* e, se quiser, *Require linear history*.
 
+### Barreiras de qualidade no build
+
+Ficam na ordem do ciclo do Maven: a falha barata aborta o build antes de subir banco ou rodar mutação.
+
+| Fase | Ferramenta | O que barra |
+|---|---|---|
+| `validate` | Maven Enforcer | JDK abaixo de 25 e dependência proibida (Lombok, MapStruct, Panache) |
+| `compile` | ErrorProne + NullAway | Erros semânticos e uso de nulo não declarado. Nulo permitido se declara com `org.jspecify.annotations.Nullable` (no domínio também: é só anotação); `@Contract("!null -> !null")` diz que valor presente devolve valor |
+| `test` | jqwik (`*PropriedadesTest`) | Invariante quebrada para algum valor gerado: rateio que não fecha a soma, caminho do fluxo que paga acima da alçada sem a aprovação na alçada. A falha mostra o menor exemplo |
+| `test` | `ContratoRestTest` | Campo de resposta publicado removido, renomeado ou com tipo trocado, comparado com `docs/api/openapi-base.json` |
+| `verify` | openapi-diff | As demais quebras de contrato contra a mesma linha de base: endpoint removido, campo novo obrigatório na requisição, enum reduzido, tipo trocado. Relatório em `target/openapi/diff.md` |
+| `verify -Pauditoria` | PITest | Teste de mutação no domínio e nos use cases: mutante que sobrevive aponta teste que passa sem afirmar a regra. Relatório em `target/pit-reports/index.html`; o build falha abaixo de `pitest.limite` (no `pom.xml`) |
+
+**Mudança aditiva na API** (campo novo, endpoint novo, `/v2`): os dois testes de contrato passam. Para que a próxima mudança seja comparada com a API nova, atualize a linha de base no mesmo commit:
+
+```bash
+./mvnw package -DskipTests && cp target/openapi/openapi.json docs/api/openapi-base.json
+```
+
 ## API
 
 | Tipo | Método e caminho | Descrição |
@@ -307,6 +326,7 @@ Requisitos: JDK 25 (`sdk env install` com SDKMAN) e Docker. O Dev Services sobe 
 ./mvnw test                   # testes de domínio, ArchUnit e @QuarkusTest
 ./mvnw verify                 # domínio, ArchUnit e @QuarkusTest (inclusive aceitação) + empacotamento
 ./mvnw verify -Pversao        # o anterior + *IT contra o artefato empacotado (geração de versão fechada)
+./mvnw verify -Pauditoria     # o anterior + teste de mutação (PITest); alguns minutos
 docker compose up --build     # app empacotada + PostgreSQL (rode ./mvnw package antes)
 ```
 

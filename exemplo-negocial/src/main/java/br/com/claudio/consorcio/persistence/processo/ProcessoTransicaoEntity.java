@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 
 /** Mapeamento da tabela processo_transicao: o histórico de mudanças de estado, só com inclusões. */
 @Entity
@@ -34,19 +35,19 @@ public class ProcessoTransicaoEntity {
 
     private String autor;
 
-    private String observacao;
+    private @Nullable String observacao;
 
     @Column(name = "valor_anterior")
-    private BigDecimal valorAnterior;
+    private @Nullable BigDecimal valorAnterior;
 
     @Column(name = "valor_novo")
-    private BigDecimal valorNovo;
+    private @Nullable BigDecimal valorNovo;
 
     public Long getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 
@@ -98,27 +99,27 @@ public class ProcessoTransicaoEntity {
         this.autor = autor;
     }
 
-    public String getObservacao() {
+    public @Nullable String getObservacao() {
         return observacao;
     }
 
-    public void setObservacao(String observacao) {
+    public void setObservacao(@Nullable String observacao) {
         this.observacao = observacao;
     }
 
-    public BigDecimal getValorAnterior() {
+    public @Nullable BigDecimal getValorAnterior() {
         return valorAnterior;
     }
 
-    public void setValorAnterior(BigDecimal valorAnterior) {
+    public void setValorAnterior(@Nullable BigDecimal valorAnterior) {
         this.valorAnterior = valorAnterior;
     }
 
-    public BigDecimal getValorNovo() {
+    public @Nullable BigDecimal getValorNovo() {
         return valorNovo;
     }
 
-    public void setValorNovo(BigDecimal valorNovo) {
+    public void setValorNovo(@Nullable BigDecimal valorNovo) {
         this.valorNovo = valorNovo;
     }
 }

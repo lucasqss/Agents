@@ -8,6 +8,7 @@ import br.com.claudio.consorcio.domain.cota.Cota;
 import br.com.claudio.consorcio.domain.cota.CotaRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import java.util.Objects;
 
 /** Padrão: Service Layer [PoEAA]. Cria uma cota de um cliente existente, com número único. */
 @ApplicationScoped
@@ -30,6 +31,6 @@ public class CriarCotaUseCase {
         if (cotas.existeNumero(cota.numero(), null)) {
             throw new ConflitoException("Já existe cota com o número " + cota.numero());
         }
-        return cotas.salvar(cota).id();
+        return Objects.requireNonNull(cotas.salvar(cota).id());
     }
 }

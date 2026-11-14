@@ -7,6 +7,8 @@ import br.com.claudio.consorcio.entrypoint.apresentacao.PadraoApresentacao;
 import br.com.claudio.consorcio.entrypoint.apresentacao.Rotulos;
 import java.math.BigDecimal;
 import java.util.Map;
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.Nullable;
 
 /** Padrão do canal mobile (fictício): textos curtos para caber em cards, valores abreviados, CPF mascarado. */
 public final class PadraoMobile implements PadraoApresentacao {
@@ -20,28 +22,32 @@ public final class PadraoMobile implements PadraoApresentacao {
     private PadraoMobile() {
     }
 
+    @Contract("!null -> !null")
     @Override
-    public String moeda(BigDecimal valor) {
+    public @Nullable String moeda(@Nullable BigDecimal valor) {
         return seNaoNulo(valor, Formatador::moedaCompacta);
     }
 
+    @Contract("!null -> !null")
     @Override
-    public String cpf(String cpf) {
+    public @Nullable String cpf(@Nullable String cpf) {
         return seNaoNulo(cpf, c -> Formatador.cpf(c, "***.###.###-**"));
     }
 
+    @Contract("!null -> !null")
     @Override
-    public String nome(String nome) {
+    public @Nullable String nome(@Nullable String nome) {
         return seNaoNulo(nome, Formatador::primeiroEUltimoNome);
     }
 
     @Override
-    public String estadoProcesso(String codigo) {
+    public String estadoProcesso(@Nullable String codigo) {
         return codigo == null ? Rotulos.SEM_PROCESSO : ESTADOS_ABREVIADOS.getOrDefault(codigo, Rotulos.estado(codigo));
     }
 
+    @Contract("!null -> !null")
     @Override
-    public String tipoProcesso(String codigo) {
+    public @Nullable String tipoProcesso(@Nullable String codigo) {
         return seNaoNulo(codigo, c -> TIPOS_ABREVIADOS.getOrDefault(c, Rotulos.tipo(c)));
     }
 

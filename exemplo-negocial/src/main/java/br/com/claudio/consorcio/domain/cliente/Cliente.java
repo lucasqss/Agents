@@ -1,14 +1,15 @@
 package br.com.claudio.consorcio.domain.cliente;
 
 import br.com.claudio.consorcio.domain.DominioException;
+import org.jspecify.annotations.Nullable;
 
-public class Cliente {
+public final class Cliente {
 
-    private final Long id;
+    private final @Nullable Long id;
     private String nome;
     private String cpf;
 
-    private Cliente(Long id, String nome, String cpf) {
+    private Cliente(@Nullable Long id, String nome, String cpf) {
         this.id = id;
         alterar(nome, cpf);
     }
@@ -34,7 +35,7 @@ public class Cliente {
         this.cpf = cpf.strip();
     }
 
-    public Long id() {
+    public @Nullable Long id() {
         return id;
     }
 

@@ -4,6 +4,7 @@ import br.com.claudio.consorcio.domain.cliente.Cliente;
 import br.com.claudio.consorcio.domain.cliente.ClienteRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 @ApplicationScoped
 public class ClienteRepositoryAdapter implements ClienteRepository {
@@ -32,7 +33,7 @@ public class ClienteRepositoryAdapter implements ClienteRepository {
     }
 
     @Override
-    public boolean existeCpf(String cpf, Long ignorarId) {
+    public boolean existeCpf(String cpf, @Nullable Long ignorarId) {
         return dados.contarPorCpf(cpf, ignorarId) > 0;
     }
 

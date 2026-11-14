@@ -5,6 +5,7 @@ import br.com.claudio.consorcio.domain.cliente.Cliente;
 import br.com.claudio.consorcio.domain.cliente.ClienteRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import java.util.Objects;
 
 /** Padrão: Service Layer [PoEAA]. Cria um cliente, com CPF único. */
 @ApplicationScoped
@@ -22,6 +23,6 @@ public class CriarClienteUseCase {
         if (clientes.existeCpf(cliente.cpf(), null)) {
             throw new ConflitoException("Já existe cliente com o CPF " + cliente.cpf());
         }
-        return clientes.salvar(cliente).id();
+        return Objects.requireNonNull(clientes.salvar(cliente).id());
     }
 }

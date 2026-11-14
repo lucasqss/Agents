@@ -14,6 +14,7 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Padrão: Service Layer [PoEAA]. Aplica ao processo uma ação que só muda o estado, registra-a no
@@ -41,7 +42,7 @@ public class ExecutarAcaoProcessoUseCase {
     }
 
     @Transactional
-    public EstadoProcesso executar(Long id, Autor autor, AcaoProcesso acao, String observacao) {
+    public EstadoProcesso executar(Long id, Autor autor, AcaoProcesso acao, @Nullable String observacao) {
         ProcessoPagamento processo = processos.buscarPorId(id)
                 .orElseThrow(() -> new NaoEncontradoException("Processo", id));
         if (processo.exigeClienteDaCota(acao)) {

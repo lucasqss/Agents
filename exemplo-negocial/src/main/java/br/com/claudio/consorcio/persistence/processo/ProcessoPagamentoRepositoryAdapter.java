@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /** Padrão: Repository [PoEAA]; implementa a Separated Interface do domínio sobre o Jakarta Data. */
 @ApplicationScoped
@@ -86,7 +87,7 @@ public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepo
     }
 
     /** Grava a proposta pendente e apaga a que deixou de valer (concordou, discordou ou cancelou). */
-    private void trocarPropostaSeMudou(Long processoId, AlteracaoProposta desejada) {
+    private void trocarPropostaSeMudou(Long processoId, @Nullable AlteracaoProposta desejada) {
         AlteracaoProposta gravada = lerProposta(processoId);
         if (Objects.equals(gravada, desejada)) {
             return;
@@ -104,7 +105,7 @@ public class ProcessoPagamentoRepositoryAdapter implements ProcessoPagamentoRepo
         }
     }
 
-    private AlteracaoProposta lerProposta(Long processoId) {
+    private @Nullable AlteracaoProposta lerProposta(Long processoId) {
         return dados.buscarProposta(processoId)
                 .map(p -> ProcessoPagamentoMapper.propostaParaDominio(p, dados.buscarFavorecidosPropostos(processoId)))
                 .orElse(null);

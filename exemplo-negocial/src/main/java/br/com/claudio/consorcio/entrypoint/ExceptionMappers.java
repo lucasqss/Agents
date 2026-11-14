@@ -22,6 +22,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.Comparator;
 import java.util.List;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
+import org.jspecify.annotations.Nullable;
 
 /** Traduz as exceções de validação, do domínio, da aplicação e das integrações para status HTTP. */
 public class ExceptionMappers {
@@ -148,7 +149,7 @@ public class ExceptionMappers {
      * Caminho do campo a partir do parâmetro: "criar.dados.cpf" vira "cpf"; item de lista mantém o índice
      * ("favorecidos[1].documento"); corpo ausente vira "dados".
      */
-    private static String campo(ConstraintViolation<?> violacao) {
+    private static @Nullable String campo(ConstraintViolation<?> violacao) {
         StringBuilder caminho = new StringBuilder();
         String ultimo = null;
         boolean aposParametro = false;

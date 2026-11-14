@@ -6,6 +6,8 @@ import br.com.claudio.consorcio.entrypoint.apresentacao.Formatador;
 import br.com.claudio.consorcio.entrypoint.apresentacao.PadraoApresentacao;
 import br.com.claudio.consorcio.entrypoint.apresentacao.Rotulos;
 import java.math.BigDecimal;
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Padrão do terminal de autoatendimento (fictício): maiúsculas sem acento (fonte limitada do terminal),
@@ -20,29 +22,33 @@ public final class PadraoTaa implements PadraoApresentacao {
     private PadraoTaa() {
     }
 
+    @Contract("!null -> !null")
     @Override
-    public String moeda(BigDecimal valor) {
+    public @Nullable String moeda(@Nullable BigDecimal valor) {
         return seNaoNulo(valor, v -> Formatador.moeda(v, ""));
     }
 
+    @Contract("!null -> !null")
     @Override
-    public String cpf(String cpf) {
+    public @Nullable String cpf(@Nullable String cpf) {
         return seNaoNulo(cpf, c -> Formatador.cpf(c, "***.***.###-##"));
     }
 
+    @Contract("!null -> !null")
     @Override
-    public String nome(String nome) {
+    public @Nullable String nome(@Nullable String nome) {
         return seNaoNulo(nome, n -> Formatador.limitar(Formatador.maiusculoSemAcento(n), MAXIMO_NOME));
     }
 
     /** Reaproveita o catálogo base e aplica a regra do terminal. */
     @Override
-    public String estadoProcesso(String codigo) {
+    public String estadoProcesso(@Nullable String codigo) {
         return Formatador.maiusculoSemAcento(Rotulos.estado(codigo));
     }
 
+    @Contract("!null -> !null")
     @Override
-    public String tipoProcesso(String codigo) {
+    public @Nullable String tipoProcesso(@Nullable String codigo) {
         return seNaoNulo(codigo, c -> Formatador.maiusculoSemAcento(Rotulos.tipo(c)));
     }
 

@@ -8,6 +8,7 @@ import jakarta.data.repository.Update;
 import java.util.Optional;
 import org.hibernate.LockMode;
 import org.hibernate.StatelessSession;
+import org.jspecify.annotations.Nullable;
 
 @Repository
 interface CotaDataRepository {
@@ -32,7 +33,7 @@ interface CotaDataRepository {
     void excluir(Long id);
 
     @Query("select count(c) from CotaEntity c where c.numero = :numero and (:ignorarId is null or c.id <> :ignorarId)")
-    long contarPorNumero(String numero, Long ignorarId);
+    long contarPorNumero(String numero, @Nullable Long ignorarId);
 
     @Query("select count(c) from CotaEntity c where c.clienteId = :clienteId")
     long contarPorCliente(Long clienteId);

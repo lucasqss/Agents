@@ -3,15 +3,16 @@ package br.com.claudio.consorcio.domain.cota;
 import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.DominioException;
 import br.com.claudio.consorcio.domain.PermissaoNegadaException;
+import org.jspecify.annotations.Nullable;
 
-public class Cota {
+public final class Cota {
 
-    private final Long id;
+    private final @Nullable Long id;
     private String numero;
     private Dinheiro valorCredito;
     private Long clienteId;
 
-    private Cota(Long id, String numero, Dinheiro valorCredito, Long clienteId) {
+    private Cota(@Nullable Long id, String numero, Dinheiro valorCredito, Long clienteId) {
         this.id = id;
         alterar(numero, valorCredito, clienteId);
     }
@@ -57,13 +58,13 @@ public class Cota {
      * Só o cliente da cota age por ela (R18): recusa quem não é o cliente dono. A comparação é pelo cadastro do cliente,
      * nunca pelo nome do usuário; {@code clienteId} nulo (pessoa sem cadastro de cliente) é recusado.
      */
-    public void exigirDoCliente(Long clienteId) {
+    public void exigirDoCliente(@Nullable Long clienteId) {
         if (clienteId == null || !clienteId.equals(this.clienteId)) {
             throw new PermissaoNegadaException("Só o cliente da cota " + numero + " pode agir por ela");
         }
     }
 
-    public Long id() {
+    public @Nullable Long id() {
         return id;
     }
 

@@ -35,6 +35,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Criação do processo e um endpoint por ação. Cada endpoint declara com {@code @RolesAllowed} os papéis do quadro "Quem
@@ -81,7 +82,7 @@ public class ProcessoResource {
     /** Corpo opcional das ações: um texto livre que fica no histórico. */
     public record Observacao(@Size(max = Transicao.TAMANHO_MAXIMO_DA_OBSERVACAO) String observacao) {
 
-        static String texto(Observacao corpo) {
+        static @Nullable String texto(@Nullable Observacao corpo) {
             return corpo == null ? null : corpo.observacao();
         }
     }

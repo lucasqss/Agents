@@ -13,6 +13,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Padrão: Service Layer [PoEAA]. Cria um processo novo, dividido entre os favorecidos, para uma cota sem processo em
@@ -44,6 +45,6 @@ public class CriarProcessoUseCase {
             throw new ConflitoException("Cota " + cotaId + " já possui um processo em andamento");
         }
         cota.exigirCreditoPara(processo.valor(), processos.somarValorPagoPorCota(cotaId));
-        return processos.salvar(processo).id();
+        return Objects.requireNonNull(processos.salvar(processo).id());
     }
 }

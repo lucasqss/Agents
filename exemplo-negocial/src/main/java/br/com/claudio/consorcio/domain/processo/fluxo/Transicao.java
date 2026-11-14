@@ -3,6 +3,7 @@ package br.com.claudio.consorcio.domain.processo.fluxo;
 import br.com.claudio.consorcio.domain.Dinheiro;
 import br.com.claudio.consorcio.domain.DominioException;
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Registro de uma mudança de estado: de onde, para onde, por qual ação, quando, por quem (R19: o usuário, ou
@@ -11,7 +12,7 @@ import java.time.Instant;
  * nas demais, os dois são nulos.
  */
 public record Transicao(EstadoProcesso de, EstadoProcesso para, AcaoProcesso acao, Instant quando, String autor,
-        String observacao, Dinheiro valorAnterior, Dinheiro valorNovo) {
+        @Nullable String observacao, @Nullable Dinheiro valorAnterior, @Nullable Dinheiro valorNovo) {
 
     public static final int TAMANHO_MAXIMO_DA_OBSERVACAO = 500;
 
@@ -37,7 +38,7 @@ public record Transicao(EstadoProcesso de, EstadoProcesso para, AcaoProcesso aca
 
     /** Transição que não mexe no valor. */
     public Transicao(EstadoProcesso de, EstadoProcesso para, AcaoProcesso acao, Instant quando, String autor,
-            String observacao) {
+            @Nullable String observacao) {
         this(de, para, acao, quando, autor, observacao, null, null);
     }
 }
