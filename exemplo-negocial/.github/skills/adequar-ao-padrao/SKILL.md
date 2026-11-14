@@ -38,6 +38,7 @@ Nomes como `cota`, `cliente`, `processo` e `tesouraria` nos exemplos são ilustr
 | Resource que recebe ou devolve entidade | [entidade-na-api](references/entidade-na-api.md) |
 | `@RegisterRestClient` usado direto por qualquer classe | [client-solto-para-gateway](references/client-solto-para-gateway.md) |
 | Lombok, MapStruct, SQL nativo, herança JPA | [remover-proibidos](references/remover-proibidos.md) |
+| Build sem Enforcer, NullAway, contrato REST ou PITest | [barreiras-de-qualidade](references/barreiras-de-qualidade.md) (a linha de base do contrato vem **antes** da primeira refatoração) |
 
 ## Ao terminar cada camada, relate
 

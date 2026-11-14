@@ -6,6 +6,7 @@ import br.com.claudio.consorcio.persistence.processo.ProcessoResumo;
 import jakarta.data.page.Page;
 import jakarta.data.page.PageRequest;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.util.Locale;
 import org.jspecify.annotations.Nullable;
 
 @ApplicationScoped
@@ -29,6 +30,6 @@ public class ListarProcessosUseCase {
     }
 
     private static @Nullable String vazioComoNulo(String valor) {
-        return valor == null || valor.isBlank() ? null : valor.strip().toUpperCase();
+        return valor == null || valor.isBlank() ? null : valor.strip().toUpperCase(Locale.ROOT);
     }
 }

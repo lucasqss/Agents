@@ -80,7 +80,7 @@ E, no mesmo pom, a propriedade e o perfil:
 Dependências de teste:
 
 ```xml
-<dependency><groupId>io.quarkus</groupId><artifactId>quarkus-junit5</artifactId><scope>test</scope></dependency>
+<dependency><groupId>io.quarkus</groupId><artifactId>quarkus-junit</artifactId><scope>test</scope></dependency>
 <dependency><groupId>io.rest-assured</groupId><artifactId>rest-assured</artifactId><scope>test</scope></dependency>
 <dependency>
     <groupId>org.wiremock</groupId>

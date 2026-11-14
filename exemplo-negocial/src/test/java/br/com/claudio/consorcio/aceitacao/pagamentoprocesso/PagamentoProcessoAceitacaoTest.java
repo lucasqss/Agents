@@ -1205,7 +1205,7 @@ class PagamentoProcessoAceitacaoTest {
     // Oráculo dos dados vigentes: ModeloPagamentoProcesso.ProcessoEsperado.
 
     /** Processo de uma cota própria, com o oráculo dos seus dados vigentes. */
-    private record Acompanhado(long cota, long processo, ProcessoEsperado esperado, String tipo) {
+    record Acompanhado(long cota, long processo, ProcessoEsperado esperado, String tipo) {
     }
 
     /** Abre com o valor padrão e dois favorecidos conhecidos, na cota padrão. */
@@ -2986,13 +2986,6 @@ class PagamentoProcessoAceitacaoTest {
                 equalTo(situacao));
     }
 
-    private static long processoAprovado() {
-        long processo = abrirProcesso(novaCota(), SERVICO);
-        executar(processo, INICIAR_ANALISE).statusCode(200);
-        executar(processo, CONCLUIR_ANALISE).statusCode(200).body("estado", equalTo(APROVADO));
-        return processo;
-    }
-
     private static long processoAprovado(String tipo) {
         return processoEmCotaNova(tipo, APROVADO);
     }
@@ -3077,23 +3070,13 @@ class PagamentoProcessoAceitacaoTest {
                 .filter(item -> !TENTAR_PAGAMENTO.equals(item.get("acao"))).map(item -> (String) item.get("acao")).toList();
     }
 
-    /** Como {@link #acoesColapsadas}, só do que veio depois das primeiras {@code antes} entradas. */
+    /**
+     * Histórico em ordem, só do que veio depois das primeiras {@code antes} entradas, com as tentativas seguidas da
+     * rotina reduzidas a uma (o número delas não é certo).
+     */
     private static List<String> acoesColapsadasDesde(long processo, int antes) {
         List<String> acoes = new ArrayList<>();
         for (Map<String, Object> item : consultarHistorico(processo).stream().skip(antes).toList()) {
-            String acao = (String) item.get("acao");
-            if (TENTAR_PAGAMENTO.equals(acao) && !acoes.isEmpty() && TENTAR_PAGAMENTO.equals(acoes.getLast())) {
-                continue;
-            }
-            acoes.add(acao);
-        }
-        return acoes;
-    }
-
-    /** Histórico em ordem, com as tentativas seguidas da rotina reduzidas a uma (o número delas não é certo). */
-    private static List<String> acoesColapsadas(long processo) {
-        List<String> acoes = new ArrayList<>();
-        for (Map<String, Object> item : consultarHistorico(processo)) {
             String acao = (String) item.get("acao");
             if (TENTAR_PAGAMENTO.equals(acao) && !acoes.isEmpty() && TENTAR_PAGAMENTO.equals(acoes.getLast())) {
                 continue;

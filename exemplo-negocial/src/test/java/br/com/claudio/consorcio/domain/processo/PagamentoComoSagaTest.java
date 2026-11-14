@@ -197,6 +197,16 @@ class PagamentoComoSagaTest {
     }
 
     @Test
+    void motivoDaTesourariaNoTamanhoMaximoFicaInteiro() {
+        ProcessoPagamento processo = solicitado(TipoProcesso.SERVICO);
+        String motivo = "x".repeat(Transicao.TAMANHO_MAXIMO_DA_OBSERVACAO);
+
+        processo.recusarPagamento(motivo, AGORA);
+
+        assertEquals(motivo, processo.novasTransicoes().getLast().observacao());
+    }
+
+    @Test
     void novaSolicitacaoDepoisDaRecusaTemIdentificacaoNova() {
         ProcessoPagamento processo = solicitado(TipoProcesso.SERVICO);
         processo.recusarPagamento("conta inválida", AGORA);

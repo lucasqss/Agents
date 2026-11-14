@@ -98,7 +98,7 @@ class PapeisEAutoriaAceitacaoTest {
 
     // ---- Auxiliares ----
 
-    private record Preparado(long cota, long processo) {
+    record Preparado(long cota, long processo) {
     }
 
     /** Tudo o que o negócio enxerga de um processo e da cota, para provar que uma recusa não mudou nada. */

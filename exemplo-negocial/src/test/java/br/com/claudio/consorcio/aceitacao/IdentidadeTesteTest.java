@@ -31,11 +31,11 @@ class IdentidadeTesteTest {
     }
 
     private static JsonPath payload(String token) {
-        return new JsonPath(new String(Base64.getUrlDecoder().decode(token.split("\\.")[1]), StandardCharsets.UTF_8));
+        return new JsonPath(new String(Base64.getUrlDecoder().decode(token.split("\\.", -1)[1]), StandardCharsets.UTF_8));
     }
 
     private static boolean assinaturaConfere(String token, PublicKey chave) throws Exception {
-        String[] partes = token.split("\\.");
+        String[] partes = token.split("\\.", -1);
         Signature assinatura = Signature.getInstance("SHA256withRSA");
         assinatura.initVerify(chave);
         assinatura.update((partes[0] + "." + partes[1]).getBytes(StandardCharsets.US_ASCII));
@@ -53,7 +53,7 @@ class IdentidadeTesteTest {
         assertEquals(List.of("backoffice"), claims.getList("groups"));
         assertNull(claims.get("clienteId"));
         assertTrue(claims.getLong("exp") > Instant.now().getEpochSecond() + 3600);
-        assertEquals("RS256", new JsonPath(new String(Base64.getUrlDecoder().decode(token.split("\\.")[0]),
+        assertEquals("RS256", new JsonPath(new String(Base64.getUrlDecoder().decode(token.split("\\.", -1)[0]),
                 StandardCharsets.UTF_8)).getString("alg"));
         assertTrue(assinaturaConfere(token, IdentidadeTeste.chavePublica()));
         assertFalse(assinaturaConfere(token, IdentidadeTeste.chavePublicaDeOutroEmissor()));

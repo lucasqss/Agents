@@ -134,6 +134,17 @@ class AutoriaEPapeisDoProcessoTest {
         }
 
         @Test
+        void recusaDizQuaisPapeisPodem() {
+            ProcessoPagamento processo = novo(TipoProcesso.SERVICO, ATE_A_ALCADA);
+
+            assertEquals("Para iniciar a análise de um processo no estado ABERTO é preciso ter o papel backoffice",
+                    assertThrows(PermissaoNegadaException.class, () -> fazer(processo, CLIENTE, INICIAR_ANALISE))
+                            .getMessage());
+            assertEquals("Para cancelar um processo no estado ABERTO é preciso ter o papel aprovador ou backoffice",
+                    assertThrows(PermissaoNegadaException.class, () -> fazer(processo, CLIENTE, CANCELAR)).getMessage());
+        }
+
+        @Test
         void usuarioSemPapelNenhumEhRecusado() {
             ProcessoPagamento processo = novo(TipoProcesso.SERVICO, ATE_A_ALCADA);
             Autor visitante = new Autor("visitante", Set.of(), null);

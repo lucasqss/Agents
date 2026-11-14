@@ -155,6 +155,26 @@ class FluxoProcessoTest {
     }
 
     @Test
+    void linhaDePessoaPrecisaDePapelELinhaDaRotinaNaoTem() {
+        IllegalArgumentException semPapel = assertThrows(IllegalArgumentException.class,
+                () -> FluxoProcesso.comum().transicao(ABERTO, INICIAR_ANALISE, EM_ANALISE));
+        assertEquals("Ação de pessoa precisa de ao menos um papel: INICIAR_ANALISE", semPapel.getMessage());
+
+        IllegalArgumentException comPapel = assertThrows(IllegalArgumentException.class, () -> FluxoProcesso.comum()
+                .transicao(PAGAMENTO_SOLICITADO, CONFIRMAR_PAGAMENTO, PAGO, Papel.TESOURARIA));
+        assertEquals("Ação da rotina não tem papel: CONFIRMAR_PAGAMENTO", comPapel.getMessage());
+    }
+
+    /** R17 fica na tabela: só a aprovação na alçada exige pessoa diferente da que concluiu a análise. */
+    @Test
+    void segundaPessoaSoNaAprovacaoNaAlcada() {
+        assertTrue(comum.exigeOutraPessoaQueConcluiuAAnalise(AGUARDANDO_ALCADA, AcaoProcesso.APROVAR_NA_ALCADA));
+        assertEquals(Set.of(Papel.APROVADOR), comum.papeisDe(AGUARDANDO_ALCADA, AcaoProcesso.APROVAR_NA_ALCADA));
+        assertFalse(comum.exigeOutraPessoaQueConcluiuAAnalise(AGUARDANDO_ALCADA, REPROVAR));
+        assertFalse(comum.exigeOutraPessoaQueConcluiuAAnalise(EM_ANALISE, CONCLUIR_ANALISE));
+    }
+
+    @Test
     void estadoFinalNaoTemSaida() {
         assertThrows(IllegalArgumentException.class,
                 () -> FluxoProcesso.comum().transicao(PAGO, INICIAR_ANALISE, EM_ANALISE));

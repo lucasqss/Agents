@@ -20,6 +20,7 @@ public final class Formatador {
 
     public static final Locale PT_BR = Locale.of("pt", "BR");
 
+
     private static final char ESPACO_NAO_SEPARAVEL = ' ';
     private static final BigDecimal MIL = BigDecimal.valueOf(1_000);
     private static final BigDecimal MILHAO = BigDecimal.valueOf(1_000_000);
@@ -56,7 +57,8 @@ public final class Formatador {
         }
         StringBuilder resultado = new StringBuilder();
         int i = 0;
-        for (char c : mascara.toCharArray()) {
+        for (int posicao = 0; posicao < mascara.length(); posicao++) {
+            char c = mascara.charAt(posicao);
             switch (c) {
                 case '#' -> resultado.append(digitos.charAt(i++));
                 case '*' -> { resultado.append('*'); i++; }
@@ -73,7 +75,7 @@ public final class Formatador {
 
     /** Primeiro e último nome: "Júlia Araújo Lima" vira "Júlia Lima". */
     public static String primeiroEUltimoNome(String nome) {
-        String[] partes = nome.strip().split("\\s+");
+        String[] partes = nome.strip().split("\\s+", -1);
         return partes.length == 1 ? partes[0] : partes[0] + " " + partes[partes.length - 1];
     }
 

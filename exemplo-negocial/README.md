@@ -258,9 +258,9 @@ O ArchUnit detecta o erro no build. Estas peças evitam que ele aconteça e impe
 | Orientar | Como trazer um projeto legado para o padrão: `/adequar-ao-padrao` | `.github/skills/adequar-ao-padrao/` |
 | Orientar | Testes de aceitação pelos endpoints: `/teste-aceitacao-modelos` a partir do requisito, `/teste-aceitacao-legado` a partir do código existente | `.github/skills/teste-aceitacao-modelos/`, `.github/skills/teste-aceitacao-legado/` |
 | Orientar | O papel e as proibições de cada pacote, lidos pela IA ao abrir a pasta | `package-info.java` |
-| Detectar | Regras ArchUnit, testes de contrato, HQL validado na compilação | `src/test/...` |
+| Detectar | Enforcer, ErrorProne + NullAway e HQL validado na compilação; regras ArchUnit, testes de propriedade e de contrato REST no teste ([barreiras](#barreiras-de-qualidade-no-build)) | `pom.xml`, `src/test/...` |
 | Bloquear | Donos das partes sensíveis | `.github/CODEOWNERS` |
-| Bloquear | `./mvnw verify` na esteira corporativa (a esteira de versão usa `./mvnw verify -Pversao`) | fora deste repositório |
+| Bloquear | `./mvnw verify` na esteira corporativa; `./mvnw verify -Pauditoria` a cada pull request; a esteira de versão usa `./mvnw verify -Pversao` | fora deste repositório |
 
 **Neste repositório, a pasta `.github` é um modelo:** o GitHub só lê `.github` na raiz do repositório. Ao criar um projeto a partir deste exemplo, ela vai para a raiz, junto com o `AGENTS.md`.
 
@@ -276,7 +276,7 @@ Ficam na ordem do ciclo do Maven: a falha barata aborta o build antes de subir b
 | Fase | Ferramenta | O que barra |
 |---|---|---|
 | `validate` | Maven Enforcer | JDK abaixo de 25 e dependência proibida (Lombok, MapStruct, Panache) |
-| `compile` | ErrorProne + NullAway | Erros semânticos e uso de nulo não declarado. Nulo permitido se declara com `org.jspecify.annotations.Nullable` (no domínio também: é só anotação); `@Contract("!null -> !null")` diz que valor presente devolve valor |
+| `compile` | ErrorProne + NullAway | Erros semânticos, uso de nulo não declarado e qualquer aviso (`-Werror`). Nulo permitido se declara com `org.jspecify.annotations.Nullable` (no domínio também: é só anotação); `@Contract("!null -> !null")` diz que valor presente devolve valor |
 | `test` | jqwik (`*PropriedadesTest`) | Invariante quebrada para algum valor gerado: rateio que não fecha a soma, caminho do fluxo que paga acima da alçada sem a aprovação na alçada. A falha mostra o menor exemplo |
 | `test` | `ContratoRestTest` | Campo de resposta publicado removido, renomeado ou com tipo trocado, comparado com `docs/api/openapi-base.json` |
 | `verify` | openapi-diff | As demais quebras de contrato contra a mesma linha de base: endpoint removido, campo novo obrigatório na requisição, enum reduzido, tipo trocado. Relatório em `target/openapi/diff.md` |
@@ -319,14 +319,14 @@ Erros: 401 e 403 de identidade (acima), 400 para entrada fora do formato ou viol
 
 ## Como rodar
 
-Requisitos: JDK 25 (`sdk env install` com SDKMAN) e Docker. O Dev Services sobe o PostgreSQL em dev e nos testes.
+Requisitos: JDK 25 (`sdk env install` com SDKMAN) e Docker. O Dev Services sobe o PostgreSQL em dev e nos testes. O `.mvn/jvm.config` abre ao ErrorProne os pacotes internos do javac; quem rodar `mvn` sem o wrapper precisa estar nesta pasta para que ele seja lido.
 
 ```bash
 ./mvnw quarkus:dev            # API em http://localhost:8080 e Swagger UI em /q/swagger-ui
 ./mvnw test                   # testes de domínio, ArchUnit e @QuarkusTest
 ./mvnw verify                 # domínio, ArchUnit e @QuarkusTest (inclusive aceitação) + empacotamento
 ./mvnw verify -Pversao        # o anterior + *IT contra o artefato empacotado (geração de versão fechada)
-./mvnw verify -Pauditoria     # o anterior + teste de mutação (PITest); alguns minutos
+./mvnw verify -Pauditoria     # o anterior + teste de mutação (PITest); alguns minutos, a cada pull request
 docker compose up --build     # app empacotada + PostgreSQL (rode ./mvnw package antes)
 ```
 

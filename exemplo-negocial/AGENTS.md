@@ -37,3 +37,5 @@ Conforme o tipo da tarefa:
 - Classe do catálogo corporativo (dependência Maven de outro sistema) fora de `gateway/` e `entrypoint/`. Não edite `ClassesExternas.java` em `arquitetura/` para o build passar.
 - Renomear ou remover campo de um `*Response` de canal. Só mudanças aditivas; quebra vira `/v2`.
 - Formatação fora do Assembler do canal.
+- `@SuppressWarnings("NullAway")` ou mudar a configuração do NullAway, do ErrorProne ou do Enforcer para o build passar. Nulo permitido se declara com `@Nullable` (jspecify).
+- Atualizar `docs/api/openapi-base.json` sem que a mudança da API seja aditiva.

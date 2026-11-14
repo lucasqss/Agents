@@ -11,6 +11,8 @@ public enum TipoProcesso {
     IMOBILIARIO(FluxoImobiliario.definir()),
     SERVICO(FluxoServico.definir());
 
+    // FluxoProcesso é imutável (tabela fechada em mapas não modificáveis), mas o ErrorProne não tem como saber disso.
+    @SuppressWarnings("ImmutableEnumChecker")
     private final FluxoProcesso fluxo;
 
     TipoProcesso(FluxoProcesso fluxo) {

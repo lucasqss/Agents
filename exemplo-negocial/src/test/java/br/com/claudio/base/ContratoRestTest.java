@@ -21,7 +21,8 @@ import org.junit.jupiter.api.Test;
  * Nenhum campo de resposta publicado some ou muda de tipo (AGENTS.md: só mudanças aditivas; quebra vira /v2).
  * Compara o OpenAPI atual com a linha de base versionada em {@code docs/api/openapi-base.json}. Complementa o
  * openapi-diff da fase verify, que só trata como quebra a remoção de campo marcado como obrigatório, e o Quarkus não
- * marca os campos dos records de resposta. Mudança aditiva aceita: atualize a linha de base (ver README).
+ * marca os campos dos records de resposta. Mudança aditiva aceita: atualize a linha de base no mesmo commit, com
+ * {@code ./mvnw package -DskipTests && cp target/openapi/openapi.json docs/api/openapi-base.json}.
  */
 @QuarkusTest
 class ContratoRestTest {

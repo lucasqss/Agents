@@ -60,7 +60,7 @@ final class Api {
         if ("/processos".equals(caminho)) {
             return clienteDaCota(cotaDoCorpo(corpo));
         }
-        String[] partes = caminho.split("/");
+        String[] partes = caminho.split("/", -1);
         if (partes.length != 4 || !"processos".equals(partes[1])) {
             return IdentidadeTeste.ANA;
         }

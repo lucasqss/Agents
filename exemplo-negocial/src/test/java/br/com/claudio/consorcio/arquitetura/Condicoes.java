@@ -33,7 +33,7 @@ final class Condicoes {
      * "x.entrypoint.mobile.cota" e marcador "entrypoint", devolve "mobile".
      */
     static String segmentoApos(String pacote, String marcador) {
-        String[] partes = pacote.split("\\.");
+        String[] partes = pacote.split("\\.", -1);
         for (int i = 0; i + 1 < partes.length; i++) {
             if (partes[i].equals(marcador)) {
                 return partes[i + 1];

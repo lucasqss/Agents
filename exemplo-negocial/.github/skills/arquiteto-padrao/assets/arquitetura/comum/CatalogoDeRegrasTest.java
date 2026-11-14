@@ -7,6 +7,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -61,8 +62,8 @@ class CatalogoDeRegrasTest {
                 } else if (!prefixo.equals(m.group(1))) {
                     erros.add(onde + ": prefixo " + m.group(1) + " diferente do resto do arquivo (" + prefixo + ")");
                 }
-                if (!campo.getName().startsWith(m.group(1).toLowerCase() + m.group(2))) {
-                    erros.add(onde + ": o nome do campo deve começar com " + m.group(1).toLowerCase() + m.group(2));
+                if (!campo.getName().startsWith(m.group(1).toLowerCase(Locale.ROOT) + m.group(2))) {
+                    erros.add(onde + ": o nome do campo deve começar com " + m.group(1).toLowerCase(Locale.ROOT) + m.group(2));
                 }
             }
         }

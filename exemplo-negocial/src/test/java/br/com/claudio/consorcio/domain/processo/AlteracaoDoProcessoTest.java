@@ -211,6 +211,16 @@ class AlteracaoDoProcessoTest {
         }
 
         @Test
+        void motivoNoTamanhoMaximoEhAceito() {
+            ProcessoPagamento processo = emAnalise();
+            String motivo = "x".repeat(Transicao.TAMANHO_MAXIMO_DA_OBSERVACAO);
+
+            processo.proporAlteracao(ANA, NOVO_VALOR, NOVOS, motivo, AGORA);
+
+            assertEquals(motivo, processo.propostaPendente().orElseThrow().motivo());
+        }
+
+        @Test
         void propostaTemAsMesmasInvariantesDoConjunto() {
             ProcessoPagamento processo = emAnalise();
 

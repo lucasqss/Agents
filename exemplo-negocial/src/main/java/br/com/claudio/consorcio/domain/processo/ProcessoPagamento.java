@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -290,7 +291,7 @@ public final class ProcessoPagamento {
         Set<Papel> papeis = tipo.fluxo().papeisDe(estado, acao);
         if (!autor.temAlgumDosPapeis(papeis)) {
             throw new PermissaoNegadaException("Para " + acao.descricao() + " um processo no estado " + estado
-                    + " é preciso ter o papel " + papeis.stream().map(p -> p.name().toLowerCase()).sorted()
+                    + " é preciso ter o papel " + papeis.stream().map(p -> p.name().toLowerCase(Locale.ROOT)).sorted()
                             .collect(Collectors.joining(" ou ")));
         }
         if (tipo.fluxo().exigeOutraPessoaQueConcluiuAAnalise(estado, acao)

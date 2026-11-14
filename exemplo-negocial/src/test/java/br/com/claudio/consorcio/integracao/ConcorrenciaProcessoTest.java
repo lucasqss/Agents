@@ -37,8 +37,6 @@ import org.junit.jupiter.api.Test;
 @QuarkusTest
 class ConcorrenciaProcessoTest {
 
-    private static final Instant AGORA = Instant.now();
-
     @Inject
     ProcessoPagamentoRepository processos;
 
@@ -123,7 +121,7 @@ class ConcorrenciaProcessoTest {
 
         acao(id, "iniciar-analise").statusCode(200);
 
-        leituraAntiga.executar(AutoresDeTeste.ANA, AcaoProcesso.CANCELAR, AGORA, "desistência", Dinheiro.de("50000.00"));
+        leituraAntiga.executar(AutoresDeTeste.ANA, AcaoProcesso.CANCELAR, Instant.now(), "desistência", Dinheiro.de("50000.00"));
         assertThrows(AlteracaoConcorrenteException.class,
                 () -> QuarkusTransaction.requiringNew().run(() -> processos.salvar(leituraAntiga)));
         EstadoProcesso gravado = QuarkusTransaction.requiringNew()

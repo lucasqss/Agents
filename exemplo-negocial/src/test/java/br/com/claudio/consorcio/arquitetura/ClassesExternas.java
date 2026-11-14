@@ -85,7 +85,7 @@ final class ClassesExternas {
                     .filter(nome -> nome.startsWith("META-INF/maven/") && nome.endsWith("/pom.properties"))
                     .toList();
             if (!descritores.isEmpty()) {
-                return descritores.stream().anyMatch(nome -> groupIds.contains(nome.split("/")[2]));
+                return descritores.stream().anyMatch(nome -> groupIds.contains(nome.split("/", -1)[2]));
             }
         } catch (Exception e) {
             return false;

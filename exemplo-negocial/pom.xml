@@ -28,6 +28,8 @@
         <enforcer-plugin.version>3.7.0</enforcer-plugin.version>
         <errorprone.version>2.52.0</errorprone.version>
         <nullaway.version>0.14.3</nullaway.version>
+        <!-- Pacotes que o NullAway confere (vírgula separa). Em legado, comece por um pacote e vá acrescentando (skill adequar-ao-padrao) -->
+        <nullaway.pacotes>br.com.claudio</nullaway.pacotes>
         <jspecify.version>1.0.0</jspecify.version>
         <jetbrains-annotations.version>26.1.0</jetbrains-annotations.version>
         <jqwik.version>1.10.2</jqwik.version>
@@ -35,7 +37,7 @@
         <pitest.version>1.30.2</pitest.version>
         <pitest-junit5.version>1.2.3</pitest-junit5.version>
         <!-- Porcentagem mínima de mutantes mortos no -Pauditoria (medida na adoção, arredondada para baixo) -->
-        <pitest.limite>75</pitest.limite>
+        <pitest.limite>77</pitest.limite>
 
         <!-- Os *IT repetem os testes de aceitação contra o pacote final e rodam só na geração de versão (-Pversao) -->
         <skipITs>true</skipITs>
@@ -130,7 +132,7 @@
         <!-- Testes -->
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit5</artifactId>
+            <artifactId>quarkus-junit</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -237,8 +239,9 @@
                             <compilerArgs>
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
+                                <arg>-Werror</arg>
                                 <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/generated-sources/.* -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=br.com.claudio -XepOpt:NullAway:CheckContracts=true -XepOpt:NullAway:ExcludedClassAnnotations=jakarta.persistence.Entity,jakarta.persistence.Embeddable -XepOpt:NullAway:ExcludedFieldAnnotations=jakarta.inject.Inject,org.eclipse.microprofile.config.inject.ConfigProperty,org.eclipse.microprofile.rest.client.inject.RestClient</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/generated-sources/.* -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=${nullaway.pacotes} -XepOpt:NullAway:CheckContracts=true -XepOpt:NullAway:ExcludedClassAnnotations=jakarta.persistence.Entity,jakarta.persistence.Embeddable -XepOpt:NullAway:ExcludedFieldAnnotations=jakarta.inject.Inject,org.eclipse.microprofile.config.inject.ConfigProperty,org.eclipse.microprofile.rest.client.inject.RestClient</arg>
                             </compilerArgs>
                         </configuration>
                     </execution>
@@ -249,6 +252,7 @@
                             <compilerArgs>
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
+                                <arg>-Werror</arg>
                                 <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/generated-test-sources/.* -Xep:NullAway:OFF</arg>
                             </compilerArgs>
                         </configuration>
@@ -333,7 +337,10 @@
         <!-- Auditoria pesada (mvn verify -Pauditoria): teste de mutação do PITest no domínio e nos use cases. O PITest altera o
              bytecode (troca > por >=, apaga uma chamada, inverte um if...) e roda os testes: mutante que sobrevive aponta teste
              que passa sem afirmar a regra. Só os testes puros (sem Quarkus) entram, para caber em minutos.
-             Relatório em target/pit-reports/index.html. O limite impede regressão: suba-o quando a cobertura de mutação subir. -->
+             Relatório em target/pit-reports/index.html. O limite impede regressão: suba-o quando a cobertura de mutação subir.
+             Os mutantes "sem cobertura" são, em geral, use cases testados só via @QuarkusTest (fora daqui). Os dois sobreviventes
+             conhecidos, FluxoServico.definir e FluxoImobiliario.definir, são falso positivo: a tabela é montada uma vez, na
+             inicialização do enum TipoProcesso, antes de o PITest aplicar o mutante. -->
         <profile>
             <id>auditoria</id>
             <build>
