@@ -1,4 +1,4 @@
-package br.com.claudio.consorcio.integracao;
+package br.com.claudio.consorcio.componente;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

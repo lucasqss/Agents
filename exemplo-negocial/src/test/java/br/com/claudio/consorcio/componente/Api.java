@@ -1,4 +1,4 @@
-package br.com.claudio.consorcio.integracao;
+package br.com.claudio.consorcio.componente;
 
 import br.com.claudio.consorcio.aceitacao.IdentidadeTeste;
 import br.com.claudio.consorcio.aceitacao.IdentidadeTeste.Pessoa;

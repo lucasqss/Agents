@@ -1,6 +1,6 @@
-package br.com.claudio.consorcio.integracao;
+package br.com.claudio.consorcio.componente;
 
-import static br.com.claudio.consorcio.integracao.Api.given;
+import static br.com.claudio.consorcio.componente.Api.given;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;

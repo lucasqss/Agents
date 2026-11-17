@@ -6,7 +6,7 @@ Dependência: `org.wiremock:wiremock-standalone` em escopo de teste (empacotado,
 
 ## O recurso
 
-`src/test/java/<pacote-base>/integracao/<Sistema>Simulado.java`
+`src/test/java/<pacote-base>/componente/<Sistema>Simulado.java`
 
 ```java
 public class AntifraudeSimulado implements QuarkusTestResourceLifecycleManager {

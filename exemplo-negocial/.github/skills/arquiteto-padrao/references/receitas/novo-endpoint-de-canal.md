@@ -9,5 +9,5 @@ Entradas necessárias: o canal (web, mobile, taa ou um canal novo), o agregado p
    - `XCanalResource` em `/<canal>/v1/...` com `@Tag(name = "Canal <canal>")`.
 3. Formato que ainda não existe: acrescente o método em `entrypoint/apresentacao/PadraoApresentacao.java` e implemente em **todos** os canais; acrescente a linha em `src/test/java/<pacote raiz>/entrypoint/apresentacao/PadroesDeCanalTest.java`. Crie esses arquivos se ainda não existirem.
 4. Canal novo: crie `entrypoint/<canal>/Padrao<Canal>.java`.
-5. Teste de contrato em `src/test/java/<pacote raiz>/integracao/CanaisContratoTest.java` (crie se ainda não existir): conjunto exato de campos e textos formatados.
+5. Teste de contrato em `src/test/java/<pacote raiz>/componente/CanaisContratoTest.java` (crie se ainda não existir): conjunto exato de campos e textos formatados.
 6. Rode `./mvnw verify`.

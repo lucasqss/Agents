@@ -1,4 +1,4 @@
-package br.com.claudio.consorcio.integracao;
+package br.com.claudio.consorcio.componente;
 
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;

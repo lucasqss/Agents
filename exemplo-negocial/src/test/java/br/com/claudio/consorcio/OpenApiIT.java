@@ -1,4 +1,4 @@
-package br.com.claudio.base;
+package br.com.claudio.consorcio;
 
 import br.com.claudio.consorcio.aceitacao.TesourariaStubResource;
 import io.quarkus.test.common.WithTestResource;

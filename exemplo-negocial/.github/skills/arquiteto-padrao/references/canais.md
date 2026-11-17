@@ -83,4 +83,4 @@ Se a pasta ainda não existir, crie-a na primeira tela de canal ([exemplo](exemp
 
 - `Formatador` (funções básicas, locale pt-BR explícito, sem o espaço U+00A0) e `Rotulos` (catálogo por extenso) são comuns e não conhecem canais.
 - Cada canal tem `entrypoint/<canal>/Padrao<Canal> implements PadraoApresentacao`. Formato novo entra na interface, e todos os canais implementam.
-- Todo formato novo ganha linha em `src/test/java/<pacote raiz>/entrypoint/apresentacao/PadroesDeCanalTest.java`; todo endpoint de canal, teste de contrato em `src/test/java/<pacote raiz>/integracao/CanaisContratoTest.java` com os nomes exatos dos campos. Crie esses arquivos se ainda não existirem.
+- Todo formato novo ganha linha em `src/test/java/<pacote raiz>/entrypoint/apresentacao/PadroesDeCanalTest.java`; todo endpoint de canal, teste de contrato em `src/test/java/<pacote raiz>/componente/CanaisContratoTest.java` com os nomes exatos dos campos. Crie esses arquivos se ainda não existirem.

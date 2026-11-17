@@ -5,7 +5,7 @@
 | Nível | Skill | Prova | Onde |
 |---|---|---|---|
 | Unidade | `teste-unidade` | regra de negócio (toda transição, toda recusa, todo limite), Value Object, tabela de fluxo, caso de uso com repositório em memória, mapper, assembler, propriedades (jqwik), mutação (PITest) | `src/test/java/.../domain/`, `application/`, `entrypoint/apresentacao/` |
-| Componente | `teste-componente` | persistência, formato da entrada (`400`), identidade (`401`/`403` por endpoint), tradução de erro (`404`/`409`/`503`), concorrência, integração simulada, contrato REST, campos de canal | `src/test/java/.../integracao/` |
+| Componente | `teste-componente` | persistência, formato da entrada (`400`), identidade (`401`/`403` por endpoint), tradução de erro (`404`/`409`/`503`), concorrência, integração simulada, contrato REST, campos de canal | `src/test/java/.../componente/` |
 | Aceitação | `teste-aceitacao` | cenários de negócio (massa e cenários em YAML), pelo Karate, no par `*Test`/`*IT` | `src/test/resources/aceitacao/<capacidade>/` |
 
 Todas as três entrevistam o dev antes de escrever e só seguem com o plano de cobertura confirmado.

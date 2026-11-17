@@ -46,7 +46,7 @@ Em 4 e 5 a tabela confere primeiro se a linha existe (409) e depois quem pede (4
 
 - Nova dependência `io.quarkus:quarkus-smallrye-jwt` (main). Nenhuma outra: os testes geram os tokens com o JDK.
 - **Chaves.** Em `src/test/resources/aceitacao/chaves/` há um par de chaves de **teste**, no repositório só para os testes assinarem e a aplicação de teste confiar (`%test.mp.jwt.verify.publickey.location`); ele não vale em nenhum outro lugar. Para desenvolvimento local há outro par (`src/main/resources/jwt/publica-desenvolvimento.pem` e `docs/dev/privada-desenvolvimento.pem`, usado por `scripts/token-dev.sh`); também não vale fora do desenvolvimento. **Produção** configura a chave pública e o emissor do provedor (`MP_JWT_VERIFY_PUBLICKEY_LOCATION`, `MP_JWT_VERIFY_ISSUER`); sem a chave a aplicação não autentica ninguém (não há valor padrão em produção).
-- Todo teste fora de `aceitacao/` que chama a API envia token (`integracao/Api` escolhe o papel certo por pedido).
+- Todo teste fora de `aceitacao/` que chama a API envia token (`componente/Api` escolhe o papel certo por pedido).
 - Pedido recusado por papel, dono ou R17 não muda nada e não entra no histórico.
 - Processos e histórico anteriores à fatia não têm autor (`'desconhecido'`) nem a pessoa da última conclusão: R17 só vale a partir da próxima conclusão de análise.
 - A comparação de R17 é por usuário (`sub`): uma pessoa com duas contas escapa dela. Tolerância de relógio na expiração e variações do emissor ficam com os padrões do `smallrye-jwt`.

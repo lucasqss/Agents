@@ -1,6 +1,6 @@
-package br.com.claudio.consorcio.integracao;
+package br.com.claudio.consorcio.componente;
 
-import static br.com.claudio.consorcio.integracao.Api.acao;
+import static br.com.claudio.consorcio.componente.Api.acao;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

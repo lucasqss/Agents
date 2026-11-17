@@ -105,7 +105,7 @@ src/main/java/org/acme/consorcio/
 | `entrypoint/mobile/cota/ExtratoCotaMobileResponse.java` | contrato do front |
 | `entrypoint/mobile/cota/CotaMobileAssembler.java` | monta e formata |
 | `entrypoint/mobile/cota/CotaMobileResource.java` | endpoint novo |
-| `src/test/java/.../integracao/CanaisContratoTest.java` (crie se ainda não existir) | nomes exatos dos campos |
+| `src/test/java/.../componente/CanaisContratoTest.java` (crie se ainda não existir) | nomes exatos dos campos |
 
 Repare que a leitura não passa por `domain/`.
 

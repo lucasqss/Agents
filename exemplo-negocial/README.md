@@ -271,7 +271,7 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 
 ### Testes por nível
 
-Cada comportamento é provado no nível mais baixo que consegue prová-lo ([índice](.github/skills/arquiteto-padrao/references/testes.md)): regra de negócio na **unidade** (`domain/`, `application/`), serviço montado no **componente** (`integracao/`) e cenários de negócio na **aceitação**, com massa e cenários em YAML executados pelo Karate (skill `teste-aceitacao`).
+Cada comportamento é provado no nível mais baixo que consegue prová-lo ([índice](.github/skills/arquiteto-padrao/references/testes.md)): regra de negócio na **unidade** (`domain/`, `application/`), serviço montado no **componente** (`componente/`) e cenários de negócio na **aceitação**, com massa e cenários em YAML executados pelo Karate (skill `teste-aceitacao`).
 
 **Migração pendente:** os testes de aceitação deste exemplo (`src/test/java/.../aceitacao/`) ainda estão no formato anterior, em Java com RestAssured e matrizes exaustivas por HTTP (cerca de 1290 testes, a maior parte do tempo do build). Eles serão migrados para o formato das skills: as matrizes descem para a unidade e os cenários de negócio viram `cenarios.yaml`. Até lá, não os use como modelo; o modelo é `.github/skills/teste-aceitacao/assets/`.
 

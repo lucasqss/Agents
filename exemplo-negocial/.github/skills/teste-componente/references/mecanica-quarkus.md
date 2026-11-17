@@ -19,7 +19,7 @@ class ValidacaoEntradaTest {
 
 - A aplicação sobe uma vez e é reaproveitada pelos testes com a mesma configuração. Um `@TestProfile` diferente reinicia a aplicação: use pouco.
 - RestAssured já aponta para a porta de teste (`quarkus.http.test-port`, padrão `8081`). Dois builds na mesma máquina disputam a porta; rode com `-Dquarkus.http.test-port=0` nesse caso.
-- Centralize a montagem repetida (criar conta, criar pedido, dar um valor único) numa classe de apoio do pacote, como a `Api` do exemplo (`integracao/Api.java`).
+- Centralize a montagem repetida (criar conta, criar pedido, dar um valor único) numa classe de apoio do pacote, como a `Api` do exemplo (`componente/Api.java`).
 
 ## Banco
 
@@ -43,7 +43,7 @@ Um caso por tradução, no formato de erro padrão (`{ "mensagem": ..., "campos"
 
 ## Concorrência
 
-Dispare as operações juntas, com uma barreira (`CyclicBarrier`) para que cheguem ao mesmo tempo, e confira que o efeito aconteceu **uma vez**: um `200` e os demais `409`, e o estado final coerente lido por outro endpoint. Modelo: `integracao/ConcorrenciaAlteracaoTest.java` e `ConcorrenciaProcessoTest.java` no exemplo.
+Dispare as operações juntas, com uma barreira (`CyclicBarrier`) para que cheguem ao mesmo tempo, e confira que o efeito aconteceu **uma vez**: um `200` e os demais `409`, e o estado final coerente lido por outro endpoint. Modelo: `componente/ConcorrenciaAlteracaoTest.java` e `ConcorrenciaProcessoTest.java` no exemplo.
 
 ## Canal
 

@@ -14,7 +14,7 @@ Os exemplos usam `pedido`, `conta` e `antifraude` como ilustração: não procur
 1. **Entreviste o dev** seguindo o [roteiro](references/entrevista.md): o que mudou no serviço (endpoint, tabela, integração, papel), o que já está coberto e o que preocupa.
 2. **Monte o plano de cobertura** no formato abaixo.
 3. **Pare e aguarde a confirmação do dev.**
-4. Escreva os testes em `src/test/java/.../integracao/` (um arquivo por assunto: `ValidacaoEntradaTest`, `ConcorrenciaPedidoTest`, `IdentidadePedidoTest`).
+4. Escreva os testes em `src/test/java/.../componente/` (um arquivo por assunto: `ValidacaoEntradaTest`, `ConcorrenciaPedidoTest`, `IdentidadePedidoTest`).
 5. Rode `./mvnw verify`.
 6. Relate o que foi coberto, o que ficou para outro nível e as dúvidas.
 

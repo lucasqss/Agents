@@ -1,4 +1,4 @@
-package br.com.claudio.base;
+package br.com.claudio.consorcio;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.anyOf;

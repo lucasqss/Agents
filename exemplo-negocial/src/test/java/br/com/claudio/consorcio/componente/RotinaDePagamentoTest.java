@@ -1,7 +1,7 @@
-package br.com.claudio.consorcio.integracao;
+package br.com.claudio.consorcio.componente;
 
-import static br.com.claudio.consorcio.integracao.Api.historico;
-import static br.com.claudio.consorcio.integracao.Api.given;
+import static br.com.claudio.consorcio.componente.Api.historico;
+import static br.com.claudio.consorcio.componente.Api.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import br.com.claudio.consorcio.application.processo.ExecutarRotinaDePagamentoUseCase;
-import br.com.claudio.consorcio.integracao.TesourariaFake.Modo;
+import br.com.claudio.consorcio.componente.TesourariaFake.Modo;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import java.util.List;

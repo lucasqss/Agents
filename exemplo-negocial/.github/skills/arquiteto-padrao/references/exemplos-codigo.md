@@ -492,7 +492,7 @@ No caso de uso: `OrdemRegistrada ordem = tesouraria.registrarPagamento(...)`, e 
 
 ## Service Stub para testes
 
-`src/test/java/<pacote raiz>/integracao/<Sistema>Fake.java`. A própria aplicação serve o stub nos testes com `@QuarkusTest`. Para testes de aceitação ele não serve, porque não entra no artefato empacotado: use o simulador WireMock da skill `teste-aceitacao`.
+`src/test/java/<pacote raiz>/componente/<Sistema>Fake.java`. A própria aplicação serve o stub nos testes com `@QuarkusTest`. Para testes de aceitação ele não serve, porque não entra no artefato empacotado: use o simulador WireMock da skill `teste-aceitacao`.
 
 ```java
 /** Padrão: Service Stub [PoEAA]. */
