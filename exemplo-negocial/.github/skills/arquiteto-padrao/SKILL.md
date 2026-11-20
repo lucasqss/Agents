@@ -1,6 +1,6 @@
 ---
 name: arquiteto-padrao
-description: Padrão de arquitetura e de pastas dos projetos Java 25 + Quarkus 3.33 (componentes Negocial, ACL e BFF), com camadas no topo e agregados dentro delas. Use ao criar ou alterar componente, tradução de sistema externo (ACL), tela ou composição de canal (BFF), classe, caso de uso, regra de negócio, entidade, repositório Jakarta Data, consulta, integração externa, endpoint, canal, migration ou regra ArchUnit, ou ao decidir em qual pasta algo deve ficar. Para escrever testes, use as skills teste-unidade (regra de negócio, exaustiva), teste-componente (serviço montado) e teste-aceitacao (cenários de negócio em YAML, executados pelo Karate).
+description: Padrão de arquitetura e de pastas dos projetos Java 25 + Quarkus 3.33 (componentes Negocial, ACL e BFF), com camadas no topo e agregados dentro delas. Use ao criar ou alterar componente, tradução de sistema externo (ACL), tela ou composição de canal (BFF), classe, caso de uso, regra de negócio, entidade, repositório Jakarta Data, consulta, integração externa, endpoint, canal, migration ou regra ArchUnit, ou ao decidir em qual pasta algo deve ficar. Para escrever testes, use as skills teste-unidade (regra de negócio, exaustiva), teste-componente (serviço montado) e teste-aceitacao (especificações em português, executadas pelo Cucumber).
 ---
 
 # Arquiteto-padrão

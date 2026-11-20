@@ -1,6 +1,6 @@
 # Testes exploratórios
 
-Os cenários em `cenarios.yaml` cobrem o que o analista definiu. A sessão exploratória procura o que ninguém especificou. Quem explora projeta e executa ao mesmo tempo, guiado pelo que acabou de observar.
+As especificações (`.feature`) cobrem o que o analista definiu. A sessão exploratória procura o que ninguém especificou. Quem explora projeta e executa ao mesmo tempo, guiado pelo que acabou de observar.
 
 ## Como fazer
 

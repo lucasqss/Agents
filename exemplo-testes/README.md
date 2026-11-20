@@ -70,6 +70,8 @@ Funcionalidade: Alçada de aprovação
 
 O Cucumber está no lugar do Karate porque as palavras-chave do Karate são fixas em inglês (`# language: pt` não é aceito pelo parser dele) e os passos são a DSL dele, não frases do negócio.
 
+Por que texto versionado e não planilhas de massa e cenários (como num motor Citrus), e como levar planilhas existentes para cá: [ADR 001](docs/adr/ADR_001_aceitacao_em_texto_versionado.md).
+
 ## IDs reprodutíveis na aceitação
 
 Toda execução da aceitação (`*Test` e `*IT`) sobe **um PostgreSQL novo** e o prepara antes de a aplicação subir (`aceitacao/BancoDaAceitacao.java`):

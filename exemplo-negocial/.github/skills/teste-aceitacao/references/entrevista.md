@@ -13,11 +13,11 @@ Poucas perguntas por vez. O dev traz o que o analista definiu; o que nenhum dos 
 
 - Que cadastro os cenários precisam (clientes, contas, produtos)? Quais atributos importam para o resultado (limite, situação, tipo)?
 - Que sistemas externos aparecem? Para cada um, quais respostas os cenários precisam (aprova, recusa, fora do ar)?
-- Há valores que se repetem em muitos cenários e merecem uma chave de massa própria ("cliente padrão")?
+- Há valores que se repetem em muitos cenários e merecem um registro próprio na massa SQL?
 
 ## O que fica em outro nível
 
-- As variações exaustivas da regra (cada limite, cada situação) já estão na unidade? Se não, elas vão para a `teste-unidade`, não para `cenarios.yaml`.
+- As variações exaustivas da regra (cada limite, cada situação) já estão na unidade? Se não, elas vão para a `teste-unidade`, não para as especificações.
 - Erros técnicos (formato, `401`/`403`, sistema fora do ar com timeout) estão no componente?
 
 ## Encerramento

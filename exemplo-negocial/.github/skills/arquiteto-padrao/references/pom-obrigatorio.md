@@ -89,13 +89,40 @@ Inclua só as dos recursos que o componente usa. Um componente sem sistema exter
 </dependency>
 <!-- Testes de propriedade (*PropriedadesTest) -->
 <dependency><groupId>net.jqwik</groupId><artifactId>jqwik</artifactId><version>${jqwik.version}</version><scope>test</scope></dependency>
-<!-- Aceitação (skill teste-aceitacao): Karate, leitura da massa YAML no lado Java e simulador de sistema externo -->
-<dependency><groupId>com.fasterxml.jackson.dataformat</groupId><artifactId>jackson-dataformat-yaml</artifactId><scope>test</scope></dependency>
-<dependency><groupId>io.karatelabs</groupId><artifactId>karate-junit5</artifactId><version>1.5.2</version><scope>test</scope></dependency>
+<!-- Aceitação (skill teste-aceitacao): especificações em português executadas pelo Cucumber; banco próprio por Testcontainers;
+     simulador de sistema externo -->
+<dependency><groupId>io.cucumber</groupId><artifactId>cucumber-java</artifactId><version>7.34.9</version><scope>test</scope></dependency>
+<dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-postgresql</artifactId><scope>test</scope></dependency>
 <dependency><groupId>org.wiremock</groupId><artifactId>wiremock-standalone</artifactId><version>3.13.2</version><scope>test</scope></dependency>
 ```
 
-O Karate 1.5.2 foi verificado com Java 25, Quarkus 3.33 e o Enforcer ligado. O mock server dele não funciona com o Quarkus (conflito de Netty): o simulador de sistema externo é o WireMock ([karate](../../teste-aceitacao/references/karate.md)).
+O Cucumber 7.34.9 foi verificado com Java 25, Quarkus 3.33 e o Enforcer ligado (no `exemplo-testes`).
+
+A aceitação roda em **execução própria** do surefire e do failsafe, numa JVM sem nenhum outro teste (a configuração que um recurso de teste devolve no `*IT` vale para todos os jars que sobem depois na mesma JVM). As execuções respeitam `skipITs`:
+
+```xml
+<!-- maven-surefire-plugin -->
+<executions>
+    <execution><id>default-test</id><configuration><excludes><exclude>**/aceitacao/**</exclude></excludes></configuration></execution>
+    <execution><id>aceitacao</id><goals><goal>test</goal></goals>
+        <configuration><includes><include>**/aceitacao/*Test.java</include></includes></configuration></execution>
+</executions>
+<!-- maven-failsafe-plugin: integracao e aceitacao-it com summaryFile próprio; verificar lê os dois -->
+<executions>
+    <execution><id>integracao</id><goals><goal>integration-test</goal></goals><configuration>
+        <excludes><exclude>**/aceitacao/**</exclude></excludes>
+        <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-integracao.xml</summaryFile></configuration></execution>
+    <execution><id>aceitacao-it</id><goals><goal>integration-test</goal></goals><configuration>
+        <includes><include>**/aceitacao/*IT.java</include></includes>
+        <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-aceitacao.xml</summaryFile></configuration></execution>
+    <execution><id>verificar</id><goals><goal>verify</goal></goals><configuration><summaryFiles>
+        <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-integracao.xml</summaryFile>
+        <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-aceitacao.xml</summaryFile>
+    </summaryFiles></configuration></execution>
+</executions>
+```
+
+Para o relatório trazer o nome de cada cenário (e não `cenarios()[3]`), configure nos dois plugins o `statelessTestsetReporter` `org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter` com `usePhrasedTestCaseMethodName` ligado. O `pom.xml` completo está no `exemplo-testes`.
 
 Com identidade, a configuração segue o ADR do projeto: emissor (`mp.jwt.verify.issuer`) e chave pública (`mp.jwt.verify.publickey.location`) por propriedade, **sem valor padrão em `%prod`** (a aplicação não sobe sem a chave do provedor). A chave de teste fica em `src/test/resources` e só vale no perfil `%test`.
 
