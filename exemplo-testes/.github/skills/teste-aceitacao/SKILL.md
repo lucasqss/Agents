@@ -1,76 +1,75 @@
 ---
 name: teste-aceitacao
-description: Use ao criar, alterar ou revisar testes de aceitação com cenários de negócio em YAML, executados pelo Karate contra os endpoints HTTP no par *Test (@QuarkusTest) e *IT (@QuarkusIntegrationTest), sobre um banco novo a cada execução com massa de IDs fixos (reprodutível em todo build). Serve para transformar os cenários que o analista de negócio define em testes de build. Não use para regra exaustiva (teste-unidade) nem para erro técnico ou integração do serviço montado (teste-componente).
+description: Use ao criar, alterar ou revisar testes de aceitação escritos como especificações em português (Gherkin, # language: pt) que o negócio lê e valida, executadas pelo Cucumber contra os endpoints HTTP no par *Test (@QuarkusTest) e *IT (@QuarkusIntegrationTest), sobre um banco novo a cada execução com massa de IDs fixos. Serve para transformar as regras que o analista define em especificações executáveis no build. Não use para regra exaustiva (teste-unidade) nem para erro técnico ou integração do serviço montado (teste-componente).
 ---
 
-# Teste de aceitação por cenários de negócio
+# Teste de aceitação: especificações em português
 
-Cenários de negócio, de ponta a ponta, pelos endpoints HTTP. O analista define o cenário; o dev o escreve como **um item em `cenarios.yaml`**. O Karate lê o arquivo e executa: cenário novo é um item novo, sem código novo. O analista revisa no pull request, onde o diff mostra só o cenário que mudou.
+A especificação **é** o teste. O analista lê e valida o `.feature` (em português, nas palavras do negócio); o build o executa contra a API. Um arquivo por regra (ou grupo de regras), numerado para fixar a ordem: `01-abertura.feature`, `04-alcada.feature`.
 
-**Orçamento: 1 a 3 cenários por regra** (o caminho feliz, a recusa principal, o efeito conferido). A matriz exaustiva é da `teste-unidade`.
+```gherkin
+# language: pt
+@R4
+Funcionalidade: Alçada de aprovação
+  Até a alçada (R$ 50.000,00), inclusive, o processo é aprovado direto.
 
-## IDs reprodutíveis: a massa SQL
+  Esquema do Cenário: <cenário> Concluir a análise de um serviço de <valor> leva a "<situação>"
+    Dado o processo <processo> da massa, de serviço, na situação "Em análise", com valor de <valor>
+    Quando "ana" concluir a análise
+    Então o processo fica "<situação>"
 
-Cada execução (no `*Test` e no `*IT`) sobe um **PostgreSQL novo** (`BancoDaAceitacao`), aplica as migrations de produção e, por cima, `src/test/resources/db/massa/R__massa_aceitacao.sql`. A massa grava os registros com **IDs fixos** e reinicia as sequências em **1000**. Por isso, em todo build:
+    Exemplos:
+      | cenário | processo | valor     | situação          |
+      | 4.1     | 5        | 50.000,00 | Aprovado          |
+      | 4.2     | 6        | 50.000,01 | Aguardando alçada |
+```
 
-- o cenário cita o registro da massa pelo ID (`processo: 3`) e começa direto na situação que precisa, sem percorrer o fluxo;
-- o que os cenários criam ganha 1000, 1001... **na ordem do arquivo**, e o cenário pode conferir o ID (`espera: { id: 1000 }`).
-
-Detalhes e armadilhas: [IDs fixos](references/ids-fixos.md).
+**Orçamento: 1 a 3 cenários por regra** (o caminho feliz, a recusa principal, o efeito conferido). A matriz exaustiva é da `teste-unidade`. Várias combinações da mesma regra cabem num `Esquema do Cenário` com `Exemplos`, que o negócio lê como tabela.
 
 ## Passo a passo
 
-1. **Entreviste o dev** seguindo o [roteiro](references/entrevista.md): quais cenários o analista definiu, de que situação cada um parte, o que já está coberto nos outros níveis.
-2. **Monte o plano** no formato abaixo.
-3. **Pare e aguarde a confirmação do dev.**
-4. Para cada cenário que parte de uma situação pronta, **uma linha nova na massa SQL** com o próximo ID livre (abaixo de 1000). Depois, o item em `cenarios.yaml`. Ação nova vira uma cena nova em `passos.feature` ([Karate](references/karate.md)).
-5. Rode `./mvnw verify` (o `*Test` e o `*IT` rodam no mesmo comando).
-6. Faça uma [sessão exploratória](references/exploratorios.md) por capacidade nova.
-7. Relate cenários, divergências e dúvidas.
-
-## Formato do plano
-
-1. **Cenários:** `cenario`, `regra`, `descricao`, `tipo` (positivo ou negativo) e os passos, em linguagem de negócio.
-2. **Massa:** de qual registro (ID e situação) cada cenário parte, e as linhas novas do SQL.
-3. **Fica para outro nível:** variações exaustivas (unidade), erros técnicos e integração (componente).
-4. **Dúvidas:** com a pergunta exata. Nenhuma dúvida vira resultado esperado.
+1. **Entreviste o dev** seguindo o [roteiro](references/entrevista.md): quais regras e cenários o analista definiu, de que situação cada um parte, o que já está coberto nos outros níveis.
+2. **Escreva a especificação primeiro**, só com frases do vocabulário ([como escrever](references/escrita.md)), e **leve ao analista antes de implementar**: o esperado é dele.
+3. **Pare e aguarde a confirmação do dev** (e, por ele, do negócio).
+4. Para cada cenário que parte de uma situação pronta, **uma linha nova na massa SQL** com o próximo ID livre ([IDs fixos](references/ids-fixos.md)).
+5. Frase nova só se o vocabulário não der conta: um método em `aceitacao/passos/`, e o termo novo em `Vocabulario`.
+6. Rode `./mvnw verify` (o `*Test` e o `*IT` rodam no mesmo comando).
+7. Faça uma [sessão exploratória](references/exploratorios.md) por capacidade nova.
+8. Relate cenários, divergências e dúvidas.
 
 ## Estrutura
 
 ```
 src/test/resources/
-  karate-config.js                     URL da aplicação em teste (do runner)
-  db/massa/R__massa_aceitacao.sql      massa com IDs fixos; sequências reiniciadas em 1000
-  aceitacao/<capacidade>/
-    <capacidade>.feature               lê e valida os cenários; um teste por cenário
-    passos.feature                     uma cena por ação (@abrir, @executar...): o passo vira requisição
-    cenarios.yaml                      um item por cenário, com a lista de passos
+  db/massa/R__massa_aceitacao.sql       massa com IDs fixos; o 1 é a sentinela; sequências reiniciadas em 1000
+  aceitacao/NN-<regra>.feature          as especificações, em português, numeradas (ordem de execução)
 src/test/java/<pacote raiz>/aceitacao/
-  BancoDaAceitacao.java, Cenarios.java genéricos (assets/java)
-  AceitacaoSequencialTest.java         barra a execução paralela do JUnit
-  <Capacidade>AceitacaoTest.java       runner Karate, @QuarkusTest @WithTestResource(BancoDaAceitacao.class)
-  <Capacidade>AceitacaoIT.java         herda vazio, @QuarkusIntegrationTest
+  ProcessoAceitacaoTest.java            runner: @QuarkusTest + @WithTestResource(BancoDaAceitacao), um teste JUnit por cenário
+  ProcessoAceitacaoIT.java              herda vazio, @QuarkusIntegrationTest
+  BancoDaAceitacao.java, Resultados.java, AceitacaoSequencialTest.java   genéricos (assets/java)
+  passos/Vocabulario.java               termos do negócio <-> códigos da API (situação, ação, tipo, valor)
+  passos/PassosDoProcesso.java          as frases (Dado/Quando/Então) em Java com RestAssured
 ```
 
-Modelo completo neste projeto: `aceitacao/processo/` e `ProcessoAceitacaoTest`. Sistema externo simulado por WireMock a partir de massa YAML: `assets/exemplo-pedidos/` ([dados](references/dados.md)).
+Modelo completo neste projeto. Relatórios: `target/cucumber/<Runner>.html` (cada cenário, cada passo) e os relatórios do surefire/failsafe, com o nome do cenário em cada teste.
 
 ## Regras
 
-1. **Só HTTP.** Nada de `@Inject` nem import de classe de produção. A massa entra pelo SQL; o resto, pelos endpoints.
-2. **Um registro da massa por cenário.** Dois cenários sobre o mesmo ID ficam dependentes da ordem. `Cenarios.validar` barra antes de rodar.
-3. **ID da massa abaixo de 1000; ID gerado só se confere quando é o ponto do cenário.** Cenário novo que cria registro antes de outro muda o número dos seguintes.
-4. **Confira o efeito por outro endpoint** depois de cada passo (a situação gravada, as ações disponíveis, o histórico), não só o status.
-5. **O esperado vem do analista, via dev**, não do código. Divergência é defeito: o cenário fica vermelho e é relatado. Não mude o esperado para passar.
-6. **Todo `*Test` tem o `*IT`** de corpo vazio, que herda. Os dois rodam os mesmos cenários sobre um banco novo, então esperam os mesmos IDs.
-7. **O recurso de teste só entrega o endereço do banco**: nada de desligar Flyway ou mudar comportamento por ali.
-8. **Sandbox garantido por construção:**
-   - a aceitação tem execução própria no surefire (`aceitacao`) e no failsafe (`aceitacao-it`), cada uma numa JVM só dela;
-   - roda em sequência (`Karate.run`, nunca `Runner.parallel`; o `AceitacaoSequencialTest` barra o paralelo do JUnit);
-   - começa pela sentinela: o processo 1 da massa, que nenhum cenário usa, conferido no `@setup`.
+1. **Palavras do negócio, não da API.** Nada de código de estado (`EM_ANALISE`), URL, status HTTP ou JSON na especificação. Termo novo entra no `Vocabulario`; termo escrito errado falha listando os válidos.
+2. **Só HTTP nos passos.** Nada de `@Inject` nem import de classe de produção. A massa entra pelo SQL; o resto, pelos endpoints.
+3. **Um registro da massa por cenário** (cada linha de `Exemplos` é um cenário). O passo `Dado o processo N da massa` barra o uso repetido, a sentinela e ID que não é da massa.
+4. **O `Dado` confere a massa** (tipo, situação, valor): se o SQL mudar, o cenário diz que a pré-condição não vale mais, em vez de falhar adiante sem explicação.
+5. **Confira o efeito por outro endpoint** depois de cada ação (`o processo fica`, `as ações disponíveis são`, `o histórico`), não só que a ação foi aceita.
+6. **O esperado vem do analista**, não do código. Divergência é defeito: o cenário fica vermelho e é relatado. Não mude o esperado para passar.
+7. **Todo `*Test` tem o `*IT`** de corpo vazio, que herda: o mesmo número de cenários nas duas fases, com os mesmos IDs.
+8. **Sandbox garantido por construção:** execução própria no surefire (`aceitacao`) e no failsafe (`aceitacao-it`), numa JVM só dela; em sequência (`--order lexical`, sem paralelo; o `AceitacaoSequencialTest` barra o paralelo do JUnit); começa pela sentinela, conferida pelo runner antes do primeiro cenário.
+9. **O recurso de teste só entrega o endereço do banco**: nada de desligar Flyway ou mudar comportamento por ali.
 
 ## Antes de terminar
 
-1. `./mvnw verify` verde; `target/surefire-reports` e `target/failsafe-reports` com o mesmo número de cenários.
-2. Relatório do Karate em `target/karate-reports/` (cada passo, requisição e resposta).
-3. Nenhum arquivo em `aceitacao/` importa classe de produção.
+1. `./mvnw verify` verde; o mesmo número de cenários no `*Test` e no `*IT`.
+2. Nenhum arquivo em `aceitacao/` importa classe de produção; nenhuma especificação traz código da API.
+3. O analista viu as especificações novas (diga isso no relato, ou que ainda falta).
 4. Relate defeitos, dúvidas abertas e o resultado da sessão exploratória.
+
+Por que Cucumber e não Karate, e como trocar o motor sem perder as especificações: [plano B](references/plano-b.md).

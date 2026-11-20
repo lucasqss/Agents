@@ -19,7 +19,7 @@
         <quarkus.platform.version>3.33.4</quarkus.platform.version>
 
         <archunit.version>1.4.1</archunit.version>
-        <karate.version>1.5.2</karate.version>
+        <cucumber.version>7.34.9</cucumber.version>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
 
@@ -135,11 +135,12 @@
             <version>${jqwik.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- Aceitação: cenários em YAML executados pelo Karate contra a API (no @QuarkusTest e no jar, *IT) -->
+        <!-- Aceitação: especificações em português (Gherkin, # language: pt) que o negócio lê e valida, executadas pelo
+             Cucumber contra a API (no @QuarkusTest e no jar, *IT). Os passos são Java com RestAssured. -->
         <dependency>
-            <groupId>io.karatelabs</groupId>
-            <artifactId>karate-junit5</artifactId>
-            <version>${karate.version}</version>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <version>${cucumber.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- Aceitação: banco próprio e novo a cada execução, com a massa de IDs fixos (BancoDaAceitacao) -->
@@ -247,7 +248,7 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- Testes unitários e @QuarkusTest (*Test) na fase test. A aceitação (Karate) roda numa execução própria, depois
+            <!-- Testes unitários e @QuarkusTest (*Test) na fase test. A aceitação (Cucumber) roda numa execução própria, depois
                  das demais e numa JVM só dela: nada do estado do Quarkus de outro teste chega ao banco de IDs fixos, e vice-versa. -->
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -275,6 +276,10 @@
                 </executions>
                 <configuration>
                     <argLine>@{argLine}</argLine>
+                    <!-- Relatório com o nome legível de cada teste (o cenário da aceitação, não "cenarios()[3]") -->
+                    <statelessTestsetReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
+                        <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
+                    </statelessTestsetReporter>
                     <!-- jqwik: relata só a propriedade que falhou (com o menor exemplo) e guarda os exemplos que falharam em target/.
                          Vai aqui, e não num junit-platform.properties, porque esse arquivo substituiria o do Quarkus (ordem dos testes). -->
                     <properties>
@@ -335,6 +340,10 @@
                 </executions>
                 <configuration>
                     <argLine>@{argLine}</argLine>
+                    <!-- Relatório com o nome legível de cada teste (o cenário da aceitação, não "cenarios()[3]") -->
+                    <statelessTestsetReporter implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
+                        <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
+                    </statelessTestsetReporter>
                     <systemPropertyVariables>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                         <maven.home>${maven.home}</maven.home>

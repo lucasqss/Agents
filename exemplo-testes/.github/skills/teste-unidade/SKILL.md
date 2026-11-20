@@ -1,6 +1,6 @@
 ---
 name: teste-unidade
-description: Use ao criar, alterar ou revisar testes de unidade em Java (JUnit 5, sem Quarkus) do domínio e dos casos de uso, ao cobrir uma regra de negócio, Value Object, tabela de estados/fluxo, tabela de decisão ou validação, ao escrever testes de propriedade com jqwik, ou ao matar mutantes sobreviventes do PITest. É o nível onde ficam as matrizes exaustivas. Para teste com o serviço montado (HTTP, banco, stubs) use teste-componente; para cenários de negócio em tabela use teste-aceitacao.
+description: Use ao criar, alterar ou revisar testes de unidade em Java do domínio (JUnit 5 puro, sem Quarkus) e dos casos de uso (@QuarkusTest com @InjectMock nas portas, sem banco), ao cobrir uma regra de negócio, Value Object, tabela de estados/fluxo, tabela de decisão ou validação, ao escrever testes de propriedade com jqwik, ou ao matar mutantes sobreviventes do PITest. É o nível onde ficam as matrizes exaustivas. Para teste com o serviço montado (HTTP, banco, stubs) use teste-componente; para cenários de negócio em tabela use teste-aceitacao.
 ---
 
 # Teste de unidade

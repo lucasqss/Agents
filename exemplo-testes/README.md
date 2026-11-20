@@ -36,12 +36,41 @@ Cada comportamento é provado no nível mais baixo que consegue prová-lo. Os de
 | Unidade: use case | `application/**` | `@QuarkusTest` + `@InjectMock` nas portas | A orquestração com a configuração real: alçada chega ao domínio, o que é gravado, o que não é |
 | Componente | `componente/*Test` | `@QuarkusTest` + RestAssured + PostgreSQL (Dev Services) | Persistência do estado e do histórico, `400` com os campos, `404`, `409`, formato único de erro |
 | Integração | `componente/*IT`, `aceitacao/*IT` | `@QuarkusIntegrationTest` herdando o `*Test` | O **jar empacotado** (perfil prod) se comporta igual |
-| Aceitação | `aceitacao/` + `src/test/resources/aceitacao/processo/` | Karate lendo `cenarios.yaml` | Cenários de negócio de ponta a ponta, que o analista revisa no diff |
+| Aceitação | `src/test/resources/aceitacao/*.feature` + `aceitacao/` | Cucumber com Gherkin **em português** | As regras de negócio de ponta a ponta, escritas como o negócio fala: o analista lê e valida a especificação |
 | Arquitetura | `arquitetura/` | ArchUnit (58 regras com ID e "Corrija:") | Camadas, nomes, domínio puro, nenhum ciclo |
 | Contrato | `ContratoRestTest` + openapi-diff | contra `docs/api/openapi-base.json` | Nenhum campo de resposta some ou muda de tipo |
 | Mutação | `-Pauditoria` | PITest no domínio, limite de 94% | Que os testes afirmam a regra, não só passam por ela |
 
-## IDs reprodutíveis no Karate
+## Especificações em português, validadas pelo negócio
+
+A aceitação é escrita em `src/test/resources/aceitacao/`, um arquivo por regra, com as palavras do negócio. O mesmo arquivo é o que o analista valida e o que o build executa:
+
+```gherkin
+# language: pt
+@R4
+Funcionalidade: Alçada de aprovação
+  Até a alçada (R$ 50.000,00), inclusive, o processo é aprovado direto.
+  Acima dela, aguarda a aprovação de quem tem alçada.
+
+  Esquema do Cenário: <cenário> Concluir a análise de um serviço de <valor> leva a "<situação>"
+    Dado o processo <processo> da massa, de serviço, na situação "Em análise", com valor de <valor>
+    Quando "ana" concluir a análise
+    Então o processo fica "<situação>"
+
+    Exemplos:
+      | cenário | processo | valor     | situação          |
+      | 4.1     | 5        | 50.000,00 | Aprovado          |
+      | 4.2     | 6        | 50.000,01 | Aguardando alçada |
+```
+
+- **Vocabulário único** (`aceitacao/passos/Vocabulario.java`): situações, ações, tipos e valores como o negócio os diz, ligados ao código da API. Um termo escrito errado falha listando os termos válidos.
+- **Frases reutilizáveis** (`aceitacao/passos/PassosDoProcesso.java`): uma regra nova costuma ser só um `.feature` novo, sem código.
+- **Relatórios:** `target/cucumber/ProcessoAceitacaoTest.html` (e `...IT.html`), com cada cenário e passo. Nos relatórios do surefire e do failsafe, cada teste tem o nome do cenário (`04-alcada.feature | 4.2 Concluir a análise...`).
+- **Como escrever:** [skill teste-aceitacao, como escrever](.github/skills/teste-aceitacao/references/escrita.md).
+
+O Cucumber está no lugar do Karate porque as palavras-chave do Karate são fixas em inglês (`# language: pt` não é aceito pelo parser dele) e os passos são a DSL dele, não frases do negócio.
+
+## IDs reprodutíveis na aceitação
 
 Toda execução da aceitação (`*Test` e `*IT`) sobe **um PostgreSQL novo** e o prepara antes de a aplicação subir (`aceitacao/BancoDaAceitacao.java`):
 
@@ -50,13 +79,13 @@ Toda execução da aceitação (`*Test` e `*IT`) sobe **um PostgreSQL novo** e o
 
 Por isso, em todo build e nas duas fases:
 
-- o cenário parte direto da situação que precisa: `processo: 3` é sempre o imobiliário aguardando vistoria;
-- o que os cenários criam ganha 1000, 1001... na ordem de `cenarios.yaml`, e o cenário pode conferir o ID (`espera: { id: 1000 }`).
+- o cenário parte direto da situação que precisa: o processo 3 é sempre o imobiliário aguardando vistoria (e o `Dado` confere isso);
+- o que os cenários abrem ganha 1000, 1001... na ordem dos arquivos (o prefixo numérico) e dos cenários, e o cenário pode conferir o número (`Então o processo é aberto com o número 1000`).
 
 Configuração mínima: uma classe genérica, um SQL e `@WithTestResource(BancoDaAceitacao.class)` no runner. Para manter:
 
 - **Situação nova:** uma linha no SQL com o próximo ID livre (abaixo de 1000).
-- **Um registro da massa por cenário.** `Cenarios.validar` barra, antes de qualquer requisição, ID repetido entre cenários e ID que não é da massa.
+- **Um registro da massa por cenário** (cada linha de `Exemplos` conta como um). O passo `Dado o processo N da massa` barra ID usado por outro cenário, a sentinela e ID que não é da massa.
 - **ID gerado só se confere onde ele é o ponto do cenário:** um cenário novo que cria registro antes de outro muda o número dos seguintes.
 - O recurso devolve **só o endereço do banco**.
 
@@ -68,8 +97,8 @@ A aceitação roda num sandbox, e o isolamento está garantido por construção,
 |---|---|---|
 | Banco próprio | `BancoDaAceitacao` sobe um PostgreSQL novo; o `@WithTestResource` vale só para a classe de aceitação | Os testes de componente (banco do Dev Services) consumirem IDs ou verem a massa |
 | JVM própria | Execuções separadas no `pom.xml`: `aceitacao` no surefire e `aceitacao-it` no failsafe, depois das demais | O estado do Quarkus passar de um teste para outro. No `*IT`, a configuração devolvida por um recurso de teste vale para todos os jars que sobem depois na mesma JVM |
-| Sentinela | O `@setup` do Karate confere o processo 1 (`COTA-SENTINELA`, que nenhum cenário usa) antes de qualquer cenário | Rodar os cenários sobre o banco errado. A falha diz "a aplicação não está sobre o banco da aceitação" |
-| Em sequência | `Karate.run` (não `Runner.parallel`) e o `AceitacaoSequencialTest`, que falha se a execução paralela do JUnit for ligada | IDs gerados que mudam a cada build |
+| Sentinela | O runner confere o processo 1 (`COTA-SENTINELA`, que nenhum cenário usa) antes do primeiro cenário | Rodar os cenários sobre o banco errado. A falha diz "a aplicação não está sobre o banco da aceitação" |
+| Em sequência | Cucumber com `--order lexical`, um cenário de cada vez, e o `AceitacaoSequencialTest`, que falha se a execução paralela do JUnit for ligada | IDs gerados que mudam a cada build |
 
 Verificado: o build passa também com a ordem invertida (`-Dsurefire.runOrder=reversealphabetical -Dfailsafe.runOrder=reversealphabetical`), com os mesmos IDs. Sem o `@WithTestResource`, a sentinela barra antes do primeiro cenário.
 
@@ -92,9 +121,9 @@ Para o agente de IA: `AGENTS.md` (sempre ativo), as skills em `.github/skills/` 
 
 Quebras feitas de propósito na criação deste modelo, e o que o build disse:
 
-- Sem o `@WithTestResource(BancoDaAceitacao.class)`, o Karate para no `@setup` com "A aplicação não está sobre o banco da aceitação" (sentinela), antes de qualquer cenário.
+- Sem o `@WithTestResource(BancoDaAceitacao.class)`, a aceitação para antes do primeiro cenário com "A aplicação não está sobre o banco da aceitação" (sentinela), antes de qualquer cenário.
 - `@ApplicationScoped` em `ProcessoPagamento` falha com `DOM-001: DOMÍNIO NÃO PODE DEPENDER DE FRAMEWORK`, junto com o "Corrija:".
 - Um imobiliário aprovado direto da análise (`CONCLUIR_ANALISE -> APROVADO`) é pego duas vezes:
   - `TabelaDosFluxosTest` falha com "Tabela do fluxo IMOBILIARIO diferente da especificada" e mostra a diferença;
   - `FluxosPropriedadesTest.vistoriaSoNoImobiliarioESempreAntesDeAprovar` também falha.
-- Um defeito de verdade nos passos do Karate (o motivo ia literal, `#(passo.motivo)`) foi pego pelo cenário 5.1, que confere o histórico.
+- Na especificação, um termo fora do vocabulário ("Aguardando alcada", sem cedilha) falha com a lista dos termos válidos. Um processo da massa usado por dois cenários falha dizendo qual cenário já o usa.

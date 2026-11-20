@@ -2,7 +2,7 @@
 
 Serviço Java 25 + Quarkus 3.33: o processo de pagamento, uma máquina de estados com um fluxo por tipo (serviço e imobiliário). O projeto existe para ser **modelo de testes e barreiras de build**: o comportamento e a estrutura são verificados a cada `./mvnw verify`, seja qual for o agente que mexer no código.
 
-**Use as skills:** `teste-unidade` para provar regra de negócio (as matrizes exaustivas ficam aqui); `teste-componente` para o serviço montado (persistência, validação, erros, contrato) e o `*IT` contra o jar; `teste-aceitacao` para cenários de negócio em YAML, executados pelo Karate sobre a massa de IDs fixos. Cada comportamento é provado no nível mais baixo que consegue prová-lo.
+**Use as skills:** `teste-unidade` para provar regra de negócio (as matrizes exaustivas ficam aqui); `teste-componente` para o serviço montado (persistência, validação, erros, contrato) e o `*IT` contra o jar; `teste-aceitacao` para as especificações em português (`.feature`), que o negócio valida e o Cucumber executa sobre a massa de IDs fixos. Cada comportamento é provado no nível mais baixo que consegue prová-lo.
 
 ## Como trabalhar
 
@@ -12,14 +12,14 @@ Serviço Java 25 + Quarkus 3.33: o processo de pagamento, uma máquina de estado
 4. **Verifique rodando.** Código que você não rodou não está pronto. Ao final de cada turno com mudança de código, o harness (`.github/hooks/`) roda a verificação rápida (arquitetura e domínio) e devolve a falha para você corrigir.
 5. **Relate o que é fato.** Diga o que mudou, o que você rodou e o resultado. Teste que falhou é relatado como falha.
 
-- **Regra de fluxo nova ou mudada** (estado, ação, transição, tipo): mude a tabela no domínio (`FluxoProcesso.comum()` ou o `Fluxo<Tipo>`) **e** a tabela escrita por extenso em `TabelaDosFluxosTest`, no mesmo commit. Ela é a especificação: se só o código mudou, o build falha mostrando a diferença. Depois, 1 a 3 cenários em `cenarios.yaml`.
+- **Regra de fluxo nova ou mudada** (estado, ação, transição, tipo): mude a tabela no domínio (`FluxoProcesso.comum()` ou o `Fluxo<Tipo>`) **e** a tabela escrita por extenso em `TabelaDosFluxosTest`, no mesmo commit. Ela é a especificação: se só o código mudou, o build falha mostrando a diferença. Depois, 1 a 3 cenários na especificação da regra (`src/test/resources/aceitacao/`), com o vocabulário que já existe.
 - **Correção de bug.** Primeiro reproduza com um teste que falha pelo motivo do bug, no nível mais baixo possível. Corrija na camada dona da regra. Os testes antigos continuam passando sem terem sido alterados.
 
 ## Antes de terminar qualquer tarefa
 
 1. Rode `./mvnw verify` (precisa de Docker: banco do Dev Services e o da aceitação).
 2. **Se uma regra ArchUnit falhar, corrija o código, nunca a regra.** Não edite, apague nem afrouxe nada em `src/test/java/**/arquitetura/` nem em `.github/hooks/`. A falha traz um ID e um "Corrija:". Se achar que a regra está errada, diga isso e pare.
-3. A aceitação roda isolada (banco próprio, JVM própria, em sequência). Não junte as execuções `aceitacao` e `aceitacao-it` às outras no `pom.xml`, não troque `Karate.run` por `Runner.parallel` e não use o processo 1 da massa (sentinela) em cenário.
+3. A aceitação roda isolada (banco próprio, JVM própria, em sequência). Não junte as execuções `aceitacao` e `aceitacao-it` às outras no `pom.xml`, não ligue execução paralela e não use o processo 1 da massa (sentinela) em cenário.
 4. Não edite migrations existentes. Mudança de schema é sempre um arquivo novo `V<n+1>__descricao.sql`. A massa da aceitação (`src/test/resources/db/massa/`) muda por linha nova, com o próximo ID livre abaixo de 1000.
 
 ## Proibido
@@ -30,6 +30,6 @@ Serviço Java 25 + Quarkus 3.33: o processo de pagamento, uma máquina de estado
 - `*Entity` com qualquer método além de getter e setter. Use case importar JPA, Jakarta Data ou `*Entity`.
 - Bean Validation fora do entrypoint.
 - Desligar, apagar ou afrouxar teste para o build passar (`@Disabled`, `skipTests`, esperado trocado pelo valor atual). Divergência entre teste e código é defeito a relatar.
-- Mudar o resultado esperado de um cenário de `cenarios.yaml` sem a confirmação do negócio.
+- Mudar o resultado esperado de um cenário de uma especificação (`.feature`) sem a confirmação do negócio, ou escrever nela código da API (estado em maiúsculas, URL, status HTTP).
 - `@SuppressWarnings("NullAway")` ou mudar a configuração do NullAway, do ErrorProne, do Enforcer ou o `pitest.limite` para o build passar.
 - Atualizar `docs/api/openapi-base.json` sem que a mudança da API seja aditiva.

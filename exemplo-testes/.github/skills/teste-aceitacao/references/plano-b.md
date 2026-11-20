@@ -1,11 +1,13 @@
-# Plano B: trocar o motor, manter os dados
+# Plano B: trocar o motor, manter as especificações
 
-O que tem valor de longo prazo são os **dados** (`cenarios.yaml` e `massa/*.yaml`): é o que o analista reconhece e o que cresce. O Karate é só quem as executa. Se ele deixar de servir, o motor muda e as tabelas ficam como estão.
+O que tem valor de longo prazo são as **especificações** (`.feature` em português), que o negócio reconhece e valida, e a **massa SQL** com IDs fixos. O Cucumber é só quem as executa: elas são Gherkin padrão, e outro motor que leia Gherkin as executa sem reescrita.
 
 | Situação | Motor |
 |---|---|
-| Só HTTP, como hoje | Karate (esta skill) |
-| Karate incompatível com uma versão nova do Java ou do Quarkus | Runner JUnit 5 próprio: um `@TestFactory` que lê os mesmos arquivos com `Massa.ler` e `Tabelas.validar`, gera um `DynamicTest` por cenário e executa cada `acao` com RestAssured |
-| Cenários com mensageria (filas, tópicos), arquivos ou protocolos legados | Citrus, que tem endpoints de mensageria e validação de mensagem; os mesmos arquivos alimentam os testes dele |
+| Só HTTP, como hoje | Cucumber + RestAssured (esta skill) |
+| Cenários com mensageria (filas, tópicos), arquivos ou protocolos legados | Mesmo Cucumber, com passos que publicam e leem mensagens; ou Citrus, se a validação de mensagem ficar pesada |
+| Cucumber incompatível com uma versão nova do Java ou do Quarkus | Runner JUnit 5 próprio lendo os mesmos `.feature` com o parser do Gherkin (`io.cucumber:gherkin`) e executando os passos |
 
-Em qualquer troca: os nomes dos campos, as chaves de massa e a regra "chave inexistente falha antes de rodar" não mudam, e o par `*Test`/`*IT` continua.
+Em qualquer troca: o vocabulário (termos do negócio), os IDs da massa, a sentinela e o par `*Test`/`*IT` não mudam.
+
+Por que não Karate: as palavras-chave dele são fixas em inglês (`# language: pt` não é aceito pelo parser do Karate 1.5.2) e os passos são a DSL dele, não frases do negócio.
