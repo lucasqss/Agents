@@ -7,7 +7,10 @@ Requisitos: JDK 25 (`sdk env install`) e Docker.
 ```bash
 ./mvnw verify                     # tudo: unidade, componente, arquitetura, aceitação e os *IT contra o jar
 ./mvnw verify -Pauditoria         # + teste de mutação (PITest) no domínio
+prototipo-telas/subir.sh          # a API em modo dev + telas de rascunho em http://localhost:5173
 ```
+
+As [telas de rascunho](prototipo-telas/) (HTML e JavaScript puro, sem build) servem para mostrar as jornadas ao negócio e para testar a API à mão. Ficam fora de `src/`, então não entram no jar; o serviço só libera CORS para elas no perfil `%dev`.
 
 ## O domínio em uma tela
 

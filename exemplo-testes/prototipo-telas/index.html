@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Processos de pagamento · rascunho</title>
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <a class="marca" href="#/">Processos de pagamento</a>
+    <span class="selo" title="Protótipo para conversar sobre as jornadas. Não é o produto final.">RASCUNHO</span>
+    <label class="quem">
+      Quem sou eu
+      <select id="persona"></select>
+    </label>
+  </header>
+
+  <main id="tela" aria-live="polite"></main>
+
+  <details class="bastidor" id="bastidor">
+    <summary>Por trás da tela: a última chamada à API</summary>
+    <pre id="ultima-chamada">Nenhuma chamada ainda.</pre>
+  </details>
+
+  <dialog id="dialogo-motivo">
+    <form method="dialog">
+      <h3 id="dialogo-titulo">Motivo</h3>
+      <p class="dica">Esta ação exige um motivo. Ele fica registrado no histórico do processo.</p>
+      <textarea id="dialogo-texto" rows="4" maxlength="500" placeholder="Escreva o motivo"></textarea>
+      <div class="botoes">
+        <button value="cancelar" class="secundario">Voltar</button>
+        <button value="confirmar" id="dialogo-confirmar">Confirmar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
