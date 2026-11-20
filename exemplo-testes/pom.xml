@@ -247,10 +247,32 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- Testes unitários e @QuarkusTest (*Test) na fase test -->
+            <!-- Testes unitários e @QuarkusTest (*Test) na fase test. A aceitação (Karate) roda numa execução própria, depois
+                 das demais e numa JVM só dela: nada do estado do Quarkus de outro teste chega ao banco de IDs fixos, e vice-versa. -->
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/aceitacao/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>aceitacao</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>**/aceitacao/*Test.java</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
                 <configuration>
                     <argLine>@{argLine}</argLine>
                     <!-- jqwik: relata só a propriedade que falhou (com o menor exemplo) e guarda os exemplos que falharam em target/.
@@ -267,16 +289,48 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
-            <!-- Testes de integração (*IT, @QuarkusIntegrationTest) contra o artefato empacotado, na fase verify -->
+            <!-- Testes de integração (*IT, @QuarkusIntegrationTest) contra o artefato empacotado, na fase verify.
+                 A aceitação tem execução (e JVM) própria: no *IT, a configuração que um recurso de teste devolve vale também
+                 para os jars que sobem depois na mesma JVM; separada, a do banco da aceitação não chega a nenhum outro *IT. -->
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
                 <executions>
                     <execution>
+                        <id>integracao</id>
                         <goals>
                             <goal>integration-test</goal>
+                        </goals>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/aceitacao/**</exclude>
+                            </excludes>
+                            <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-integracao.xml</summaryFile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>aceitacao-it</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>**/aceitacao/*IT.java</include>
+                            </includes>
+                            <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-aceitacao.xml</summaryFile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>verificar</id>
+                        <goals>
                             <goal>verify</goal>
                         </goals>
+                        <configuration>
+                            <summaryFiles>
+                                <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-integracao.xml</summaryFile>
+                                <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-aceitacao.xml</summaryFile>
+                            </summaryFiles>
+                        </configuration>
                     </execution>
                 </executions>
                 <configuration>

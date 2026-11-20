@@ -19,7 +19,8 @@ Serviço Java 25 + Quarkus 3.33: o processo de pagamento, uma máquina de estado
 
 1. Rode `./mvnw verify` (precisa de Docker: banco do Dev Services e o da aceitação).
 2. **Se uma regra ArchUnit falhar, corrija o código, nunca a regra.** Não edite, apague nem afrouxe nada em `src/test/java/**/arquitetura/` nem em `.github/hooks/`. A falha traz um ID e um "Corrija:". Se achar que a regra está errada, diga isso e pare.
-3. Não edite migrations existentes. Mudança de schema é sempre um arquivo novo `V<n+1>__descricao.sql`. A massa da aceitação (`src/test/resources/db/massa/`) muda por linha nova, com o próximo ID livre abaixo de 1000.
+3. A aceitação roda isolada (banco próprio, JVM própria, em sequência). Não junte as execuções `aceitacao` e `aceitacao-it` às outras no `pom.xml`, não troque `Karate.run` por `Runner.parallel` e não use o processo 1 da massa (sentinela) em cenário.
+4. Não edite migrations existentes. Mudança de schema é sempre um arquivo novo `V<n+1>__descricao.sql`. A massa da aceitação (`src/test/resources/db/massa/`) muda por linha nova, com o próximo ID livre abaixo de 1000.
 
 ## Proibido
 

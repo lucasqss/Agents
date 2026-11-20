@@ -46,7 +46,7 @@ Cada comportamento é provado no nível mais baixo que consegue prová-lo. Os de
 Toda execução da aceitação (`*Test` e `*IT`) sobe **um PostgreSQL novo** e o prepara antes de a aplicação subir (`aceitacao/BancoDaAceitacao.java`):
 
 1. aplica as migrations de produção (`db/migration`);
-2. aplica a massa `src/test/resources/db/massa/R__massa_aceitacao.sql`, que grava um processo pronto em cada situação, **com ID fixo** (1 a 10), e reinicia as sequências em **1000**.
+2. aplica a massa `src/test/resources/db/massa/R__massa_aceitacao.sql`, que grava um processo pronto em cada situação, **com ID fixo** (2 a 11; o 1 é a sentinela), e reinicia as sequências em **1000**.
 
 Por isso, em todo build e nas duas fases:
 
@@ -58,7 +58,20 @@ Configuração mínima: uma classe genérica, um SQL e `@WithTestResource(BancoD
 - **Situação nova:** uma linha no SQL com o próximo ID livre (abaixo de 1000).
 - **Um registro da massa por cenário.** `Cenarios.validar` barra, antes de qualquer requisição, ID repetido entre cenários e ID que não é da massa.
 - **ID gerado só se confere onde ele é o ponto do cenário:** um cenário novo que cria registro antes de outro muda o número dos seguintes.
-- O recurso devolve **só o endereço do banco**: no `*IT`, o que ele devolve vale também para os jars dos outros `*IT`.
+- O recurso devolve **só o endereço do banco**.
+
+### Por que não conflita com os outros testes
+
+A aceitação roda num sandbox, e o isolamento está garantido por construção, não pela ordem dos testes:
+
+| Garantia | Como | O que impede |
+|---|---|---|
+| Banco próprio | `BancoDaAceitacao` sobe um PostgreSQL novo; o `@WithTestResource` vale só para a classe de aceitação | Os testes de componente (banco do Dev Services) consumirem IDs ou verem a massa |
+| JVM própria | Execuções separadas no `pom.xml`: `aceitacao` no surefire e `aceitacao-it` no failsafe, depois das demais | O estado do Quarkus passar de um teste para outro. No `*IT`, a configuração devolvida por um recurso de teste vale para todos os jars que sobem depois na mesma JVM |
+| Sentinela | O `@setup` do Karate confere o processo 1 (`COTA-SENTINELA`, que nenhum cenário usa) antes de qualquer cenário | Rodar os cenários sobre o banco errado. A falha diz "a aplicação não está sobre o banco da aceitação" |
+| Em sequência | `Karate.run` (não `Runner.parallel`) e o `AceitacaoSequencialTest`, que falha se a execução paralela do JUnit for ligada | IDs gerados que mudam a cada build |
+
+Verificado: o build passa também com a ordem invertida (`-Dsurefire.runOrder=reversealphabetical -Dfailsafe.runOrder=reversealphabetical`), com os mesmos IDs. Sem o `@WithTestResource`, a sentinela barra antes do primeiro cenário.
 
 Detalhes e armadilhas: [skill teste-aceitacao, IDs fixos](.github/skills/teste-aceitacao/references/ids-fixos.md).
 
@@ -79,6 +92,7 @@ Para o agente de IA: `AGENTS.md` (sempre ativo), as skills em `.github/skills/` 
 
 Quebras feitas de propósito na criação deste modelo, e o que o build disse:
 
+- Sem o `@WithTestResource(BancoDaAceitacao.class)`, o Karate para no `@setup` com "A aplicação não está sobre o banco da aceitação" (sentinela), antes de qualquer cenário.
 - `@ApplicationScoped` em `ProcessoPagamento` falha com `DOM-001: DOMÍNIO NÃO PODE DEPENDER DE FRAMEWORK`, junto com o "Corrija:".
 - Um imobiliário aprovado direto da análise (`CONCLUIR_ANALISE -> APROVADO`) é pego duas vezes:
   - `TabelaDosFluxosTest` falha com "Tabela do fluxo IMOBILIARIO diferente da especificada" e mostra a diferença;

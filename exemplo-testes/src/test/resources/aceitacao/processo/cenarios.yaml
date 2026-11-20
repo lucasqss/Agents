@@ -2,7 +2,8 @@
 #   acao: abrir      -> dados (corpo do POST /processos) e espera { status, id?, estado? }
 #   acao: executar   -> processo (ID da massa, em db/massa/R__massa_aceitacao.sql) ou o aberto no cenário,
 #                       comando (a ação do processo), usuario, motivo, e espera { status, estado, mensagem?, acoes?, historico? }
-# IDs: a massa vai de 1 a 999, cada processo usado por um cenário só; o que os cenários abrem ganha 1000, 1001... na ordem
+# IDs: a massa vai de 2 a 999 (o 1 é a sentinela, que nenhum cenário usa), cada processo usado por um cenário só; o que
+# os cenários abrem ganha 1000, 1001... na ordem
 # deste arquivo. Só confira o ID gerado (espera.id) quando ele for o ponto do cenário: inserir um cenário que abre
 # processo antes dele muda o número.
 
@@ -56,7 +57,7 @@ cenarios:
     tipo: negativo
     passos:
       - acao: executar
-        processo: 1
+        processo: 11
         comando: PAGAR
         espera: { status: 409, estado: ABERTO, mensagem: Não é possível pagar um processo no estado ABERTO }
 

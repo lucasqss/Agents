@@ -47,6 +47,7 @@ src/test/resources/
     cenarios.yaml                      um item por cenário, com a lista de passos
 src/test/java/<pacote raiz>/aceitacao/
   BancoDaAceitacao.java, Cenarios.java genéricos (assets/java)
+  AceitacaoSequencialTest.java         barra a execução paralela do JUnit
   <Capacidade>AceitacaoTest.java       runner Karate, @QuarkusTest @WithTestResource(BancoDaAceitacao.class)
   <Capacidade>AceitacaoIT.java         herda vazio, @QuarkusIntegrationTest
 ```
@@ -61,7 +62,11 @@ Modelo completo neste projeto: `aceitacao/processo/` e `ProcessoAceitacaoTest`. 
 4. **Confira o efeito por outro endpoint** depois de cada passo (a situação gravada, as ações disponíveis, o histórico), não só o status.
 5. **O esperado vem do analista, via dev**, não do código. Divergência é defeito: o cenário fica vermelho e é relatado. Não mude o esperado para passar.
 6. **Todo `*Test` tem o `*IT`** de corpo vazio, que herda. Os dois rodam os mesmos cenários sobre um banco novo, então esperam os mesmos IDs.
-7. **O recurso de teste só entrega o endereço do banco.** No `*IT`, a configuração que ele devolve vale também para os jars dos outros `*IT`: nada de desligar Flyway ou mudar comportamento por ali.
+7. **O recurso de teste só entrega o endereço do banco**: nada de desligar Flyway ou mudar comportamento por ali.
+8. **Sandbox garantido por construção:**
+   - a aceitação tem execução própria no surefire (`aceitacao`) e no failsafe (`aceitacao-it`), cada uma numa JVM só dela;
+   - roda em sequência (`Karate.run`, nunca `Runner.parallel`; o `AceitacaoSequencialTest` barra o paralelo do JUnit);
+   - começa pela sentinela: o processo 1 da massa, que nenhum cenário usa, conferido no `@setup`.
 
 ## Antes de terminar
 
