@@ -1,0 +1,2 @@
+# Rode "sdk env install" para instalar o JDK do projeto via SDKMAN.
+java=25.0.5-tem
