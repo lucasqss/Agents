@@ -1,77 +1,91 @@
 ---
 name: teste-aceitacao
-description: Use ao criar, alterar ou revisar testes de aceitação escritos como especificações em português (Gherkin, # language: pt) que o negócio lê e valida, executadas pelo Cucumber contra os endpoints HTTP no par *Test (@QuarkusTest) e *IT (@QuarkusIntegrationTest), sobre um banco novo a cada execução com massa de IDs fixos. Serve para transformar as regras que o analista define em especificações executáveis no build. Não use para regra exaustiva (teste-unidade) nem para erro técnico ou integração do serviço montado (teste-componente).
+description: Use ao criar, alterar ou revisar testes de aceitação no modelo de tabelas que o QA preenche - uma tabela de massa (os cadastros, pela chave natural, em Markdown) e tabelas de cenários em português (Gherkin, # language: pt, Esquema do Cenário com Exemplos, uma por família) - executadas pelo Cucumber contra os endpoints HTTP no par *Test (@QuarkusTest) e *IT (@QuarkusIntegrationTest), sobre um banco novo a cada execução. Serve para transformar as regras que o analista define em especificações executáveis no build. Não use para regra exaustiva (teste-unidade) nem para erro técnico ou integração do serviço montado (teste-componente).
 ---
 
-# Teste de aceitação: especificações em português
+# Teste de aceitação: massa e cenários em tabelas
 
-A especificação **é** o teste. O analista lê e valida o `.feature` (em português, nas palavras do negócio); o build o executa contra a API. Um arquivo por regra (ou grupo de regras), numerado para fixar a ordem: `01-abertura.feature`, `04-alcada.feature`.
+O modelo de planilhas (uma de massa, outras de cenários), só que em **texto versionado no git**:
+
+- **Massa:** `cucumber/massa/processos.md`, uma tabela Markdown com os cadastros que já existem quando os cenários começam. A chave é natural (a cota); nenhum cenário cita um ID.
+- **Cenários:** um `.feature` por família ("aba"), com um `Esquema do Cenário` e a tabela `Exemplos`. Cada linha da tabela é um cenário, e o QA preenche linhas sem escrever passo nem SQL.
+- **Fluxos de vários passos:** um `Cenário` com a tabela de passos (`Quando os passos abaixo são executados em ordem:`).
 
 ```gherkin
 # language: pt
-@R4
-Funcionalidade: Alçada de aprovação
-  Até a alçada (R$ 50.000,00), inclusive, o processo é aprovado direto.
+Funcionalidade: Ações sobre o processo (R2 a R7)
 
-  Esquema do Cenário: <cenário> Concluir a análise de um serviço de <valor> leva a "<situação>"
-    Dado o processo <processo> da massa, de serviço, na situação "Em análise", com valor de <valor>
-    Quando "ana" concluir a análise
-    Então o processo fica "<situação>"
+  Esquema do Cenário: <cenário> <descrição>
+    Dado o processo da cota "<cota>" da massa
+    Quando "<quem>" pedir para "<ação>" com o motivo "<motivo>"
+    Então a ação é "<resultado>" e o processo fica "<situação>"
+    E a mensagem é "<mensagem>"
+    E as ações disponíveis são "<ações disponíveis>"
 
     Exemplos:
-      | cenário | processo | valor     | situação          |
-      | 4.1     | 5        | 50.000,00 | Aprovado          |
-      | 4.2     | 6        | 50.000,01 | Aguardando alçada |
+      | cenário | regra | descrição                       | cota     | quem | ação               | motivo | resultado | situação          | mensagem | ações disponíveis |
+      | 4.1     | R4    | Valor igual à alçada aprova     | COTA-005 | ana  | concluir a análise |        | aceita    | Aprovado          |          |                   |
+      | 4.2     | R4    | Um centavo acima aguarda alçada | COTA-006 | ana  | concluir a análise |        | aceita    | Aguardando alçada |          |                   |
 ```
 
-**Orçamento: 1 a 3 cenários por regra** (o caminho feliz, a recusa principal, o efeito conferido). A matriz exaustiva é da `teste-unidade`. Várias combinações da mesma regra cabem num `Esquema do Cenário` com `Exemplos`, que o negócio lê como tabela.
+**Célula vazia quer dizer "não conferir".** A exceção é `motivo`: vazio manda a ação sem motivo.
+
+**Orçamento: 1 a 3 cenários por regra** (o caminho feliz, a recusa principal, o efeito conferido). A matriz exaustiva é da `teste-unidade`: uma "aba" de mil linhas é sinal de que a regra está no nível errado.
 
 ## Passo a passo
 
 1. **Entreviste o dev** seguindo o [roteiro](references/entrevista.md): quais regras e cenários o analista definiu, de que situação cada um parte, o que já está coberto nos outros níveis.
-2. **Escreva a especificação primeiro**, só com frases do vocabulário ([como escrever](references/escrita.md)), e **leve ao analista antes de implementar**: o esperado é dele.
+2. **Preencha as tabelas primeiro** ([como preencher](references/escrita.md)): uma linha na massa para cada situação de partida, uma linha em `Exemplos` por cenário. **Leve ao analista antes de implementar**: o esperado é dele.
 3. **Pare e aguarde a confirmação do dev** (e, por ele, do negócio).
-4. Para cada cenário que parte de uma situação pronta, **uma linha nova na massa SQL** com o próximo ID livre ([IDs fixos](references/ids-fixos.md)).
-5. Frase nova só se o vocabulário não der conta: um método em `cucumber/passos/`, e o termo novo em `Vocabulario`.
-6. Rode `./mvnw verify` (o `*Test` e o `*IT` rodam no mesmo comando).
-7. Faça uma [sessão exploratória](references/exploratorios.md) por capacidade nova.
-8. Relate cenários, divergências e dúvidas.
+4. Coluna ou frase nova só se as que existem não derem conta: um método em `cucumber/passos/` e o termo novo em `Vocabulario`.
+5. Rode `./mvnw verify` (o `*Test` e o `*IT` rodam no mesmo comando).
+6. Faça uma [sessão exploratória](references/exploratorios.md) por capacidade nova.
+7. Relate cenários, divergências e dúvidas.
 
 ## Estrutura
 
-Tudo da aceitação fica numa pasta `cucumber/` própria, na raiz de `src/test/java` e de `src/test/resources`, separada dos pacotes dos outros testes (unidade, componente, arquitetura). O `pom.xml` a separa pelo caminho: `cucumber/**` fica fora da execução padrão e roda nas execuções `cucumber` (surefire) e `cucumber-it` (failsafe).
+Tudo da aceitação fica numa pasta `cucumber/` própria, na raiz de `src/test/java` e de `src/test/resources`, separada dos pacotes dos outros testes. O `pom.xml` a separa pelo caminho: `cucumber/**` fica fora da execução padrão e roda nas execuções `cucumber` (surefire) e `cucumber-it` (failsafe).
 
 ```
 src/test/resources/cucumber/
-  features/NN-<regra>.feature           as especificações, em português, numeradas (ordem de execução)
-  massa/R__massa_aceitacao.sql          massa com IDs fixos; o 1 é a sentinela; sequências reiniciadas em 1000
+  massa/processos.md                    a tabela de massa (o QA preenche)
+  features/01-abertura.feature          uma "aba" por arquivo; o prefixo fixa a ordem de execução
+  features/02-acoes.feature
+  features/03-fluxos.feature
 src/test/java/cucumber/
   ProcessoAceitacaoTest.java            runner: @QuarkusTest + @WithTestResource(BancoDaAceitacao), um teste JUnit por cenário
   ProcessoAceitacaoIT.java              herda vazio, @QuarkusIntegrationTest
-  BancoDaAceitacao.java, Resultados.java, AceitacaoSequencialTest.java   genéricos (assets/java)
-  passos/Vocabulario.java               termos do negócio <-> códigos da API (situação, ação, tipo, valor)
-  passos/PassosDoProcesso.java          as frases (Dado/Quando/Então) em Java com RestAssured
+  BancoDaAceitacao.java                 banco novo, migrations e a massa
+  Resultados.java, AceitacaoSequencialTest.java
+  massa/TabelaMarkdown.java             lê qualquer tabela Markdown (genérico)
+  massa/MassaDeProcessos.java           valida e grava a massa; cota -> id
+  passos/Vocabulario.java               termos do negócio <-> códigos da API
+  passos/PassosDoProcesso.java          as frases que leem cada linha das tabelas
 ```
 
-Modelo completo neste projeto. Relatórios: `target/cucumber/<Runner>.html` (cada cenário, cada passo) e os relatórios do surefire/failsafe, com o nome do cenário em cada teste.
+Os genéricos estão em [`assets/java/`](assets/java/). Modelo completo neste projeto. Relatórios: `target/cucumber/<Runner>.html` (cada cenário, cada passo) e os relatórios do surefire/failsafe, com o nome do cenário em cada teste.
 
 ## Regras
 
-1. **Palavras do negócio, não da API.** Nada de código de estado (`EM_ANALISE`), URL, status HTTP ou JSON na especificação. Termo novo entra no `Vocabulario`; termo escrito errado falha listando os válidos.
-2. **Só HTTP nos passos.** Nada de `@Inject` nem import de classe de produção. A massa entra pelo SQL; o resto, pelos endpoints.
-3. **Um registro da massa por cenário** (cada linha de `Exemplos` é um cenário). O passo `Dado o processo N da massa` barra o uso repetido, a sentinela e ID que não é da massa.
-4. **O `Dado` confere a massa** (tipo, situação, valor): se o SQL mudar, o cenário diz que a pré-condição não vale mais, em vez de falhar adiante sem explicação.
-5. **Confira o efeito por outro endpoint** depois de cada ação (`o processo fica`, `as ações disponíveis são`, `o histórico`), não só que a ação foi aceita.
-6. **O esperado vem do analista**, não do código. Divergência é defeito: o cenário fica vermelho e é relatado. Não mude o esperado para passar.
-7. **Todo `*Test` tem o `*IT`** de corpo vazio, que herda: o mesmo número de cenários nas duas fases, com os mesmos IDs.
-8. **Sandbox garantido por construção:** execução própria no surefire (`cucumber`) e no failsafe (`cucumber-it`), numa JVM só dela; em sequência (`--order lexical`, sem paralelo; o `AceitacaoSequencialTest` barra o paralelo do JUnit); começa pela sentinela, conferida pelo runner antes do primeiro cenário.
-9. **O recurso de teste só entrega o endereço do banco**: nada de desligar Flyway ou mudar comportamento por ali.
+1. **Palavras do negócio, não da API.** Nada de código de estado (`EM_ANALISE`), URL, status HTTP ou JSON nas tabelas. Termo novo entra no `Vocabulario`; termo escrito errado falha listando os válidos.
+2. **Só HTTP nos passos.** Nada de `@Inject` nem import de classe de produção. A massa entra pelo `BancoDaAceitacao`; o resto, pelos endpoints.
+3. **A massa é citada pela chave natural.** O ID é determinístico (sentinela = 1, depois a ordem do arquivo), mas nenhum cenário o cita: linha nova em qualquer posição da massa não muda nenhum cenário.
+4. **Uma cota por cenário** (cada linha de `Exemplos` conta como um). O passo `Dado o processo da cota` barra a cota usada por outro cenário e confere que o processo está como a massa diz.
+5. **A massa é validada inteira antes de a aplicação subir:** coluna faltando, cota vazia, repetida, longa ou reservada, termo e valor inválidos. A falha diz `processos.md, linha N`.
+6. **Confira o efeito por outro endpoint** depois de cada ação (a situação gravada, as ações disponíveis, o histórico), não só o status.
+7. **O esperado vem do analista**, não do código. Divergência é defeito: o cenário fica vermelho e é relatado. Não mude o esperado para passar.
+8. **Todo `*Test` tem o `*IT`** de corpo vazio, que herda: o mesmo número de cenários nas duas fases, com os mesmos números gerados.
+9. **Sandbox garantido por construção:**
+   - execução própria no surefire (`cucumber`) e no failsafe (`cucumber-it`), numa JVM só dela;
+   - em sequência (`--order lexical`, sem paralelo; o `AceitacaoSequencialTest` barra o paralelo do JUnit);
+   - começa pela sentinela (`COTA-SENTINELA`, gravada pelo carregador), conferida pelo runner antes do primeiro cenário.
+10. **O recurso de teste só entrega o endereço do banco**: nada de desligar Flyway ou mudar comportamento por ali.
 
 ## Antes de terminar
 
 1. `./mvnw verify` verde; o mesmo número de cenários no `*Test` e no `*IT`.
-2. Nenhum arquivo em `src/test/java/cucumber/` importa classe de produção; nenhuma especificação traz código da API.
-3. O analista viu as especificações novas (diga isso no relato, ou que ainda falta).
+2. Nenhum arquivo em `src/test/java/cucumber/` importa classe de produção; nenhuma tabela traz código da API.
+3. O analista viu as linhas novas (diga isso no relato, ou que ainda falta).
 4. Relate defeitos, dúvidas abertas e o resultado da sessão exploratória.
 
-Por que Cucumber e não Karate, e como trocar o motor sem perder as especificações: [plano B](references/plano-b.md).
+Por que tabelas em texto e não planilhas, e por que Cucumber e não Karate: [plano B](references/plano-b.md) e a ADR 001 do `exemplo-testes`.

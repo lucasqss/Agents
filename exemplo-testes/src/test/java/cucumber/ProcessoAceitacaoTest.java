@@ -2,6 +2,7 @@ package cucumber;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
+import cucumber.massa.MassaDeProcessos;
 import io.cucumber.core.cli.Main;
 import io.cucumber.plugin.event.Status;
 import io.quarkus.test.common.WithTestResource;
@@ -21,7 +22,7 @@ import org.junit.jupiter.api.TestFactory;
  * <ul>
  * <li>Os arquivos rodam em ordem alfabética ({@code --order lexical}), um cenário de cada vez, na ordem do arquivo: é isso
  * que torna os IDs gerados (1000, 1001...) reprodutíveis. Não ligue execução paralela.</li>
- * <li>Antes de tudo, a sentinela: o processo 1 da massa tem de estar lá como foi gravado, senão a aplicação não subiu
+ * <li>Antes de tudo, a sentinela (gravada por {@link MassaDeProcessos}) tem de estar lá como foi gravada, senão a aplicação não subiu
  * sobre o banco da aceitação e nenhum ID esperado vale.</li>
  * <li>Esta classe roda numa execução própria do surefire (e o *IT, do failsafe), numa JVM sem nenhum outro teste.</li>
  * </ul>
@@ -57,13 +58,13 @@ class ProcessoAceitacaoTest {
     }
 
     private static void conferirSentinela() {
-        Response resposta = RestAssured.given().when().get("/processos/1");
+        Response resposta = RestAssured.given().when().get("/processos/{id}", MassaDeProcessos.ID_DA_SENTINELA);
         JsonPath corpo = resposta.jsonPath();
-        boolean sentinela = resposta.statusCode() == 200 && "COTA-SENTINELA".equals(corpo.getString("numeroCota"))
+        boolean sentinela = resposta.statusCode() == 200 && MassaDeProcessos.SENTINELA.equals(corpo.getString("numeroCota"))
                 && "ABERTO".equals(corpo.getString("estado"));
         if (!sentinela) {
-            fail("A aplicação não está sobre o banco da aceitação (BancoDaAceitacao): o processo 1 da massa não foi"
-                    + " encontrado como gravado. Resposta: " + resposta.statusCode() + " " + resposta.asString());
+            fail("A aplicação não está sobre o banco da aceitação (BancoDaAceitacao): a sentinela ("
+                    + MassaDeProcessos.SENTINELA + ") não foi encontrada como gravada. Resposta: " + resposta.statusCode() + " " + resposta.asString());
         }
     }
 }

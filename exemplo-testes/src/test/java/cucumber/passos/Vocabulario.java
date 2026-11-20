@@ -12,7 +12,7 @@ import java.util.Map;
  */
 public class Vocabulario {
 
-    static final Map<String, String> SITUACOES = mapa(
+    public static final Map<String, String> SITUACOES = mapa(
             "Aberto", "ABERTO",
             "Em análise", "EM_ANALISE",
             "Pendente de documento", "PENDENTE_DOCUMENTO",
@@ -24,7 +24,7 @@ public class Vocabulario {
             "Cancelado", "CANCELADO");
 
     /** A ação escrita como o negócio a diz ("Quando "ana" concluir a análise"). */
-    static final Map<String, String> ACOES = mapa(
+    public static final Map<String, String> ACOES = mapa(
             "iniciar a análise", "INICIAR_ANALISE",
             "solicitar documento", "SOLICITAR_DOCUMENTO",
             "receber o documento", "RECEBER_DOCUMENTO",
@@ -36,7 +36,7 @@ public class Vocabulario {
             "pagar", "PAGAR",
             "cancelar", "CANCELAR");
 
-    static final Map<String, String> TIPOS = mapa(
+    public static final Map<String, String> TIPOS = mapa(
             "serviço", "SERVICO",
             "imobiliário", "IMOBILIARIO");
 
@@ -58,12 +58,28 @@ public class Vocabulario {
     }
 
     /** Valor em reais, como o negócio escreve: 50.000,01. */
-    @ParameterType("\\d{1,3}(?:\\.\\d{3})*,\\d{2}")
+    @ParameterType(VALOR_EM_REAIS)
     public BigDecimal valor(String texto) {
-        return new BigDecimal(texto.replace(".", "").replace(',', '.'));
+        return emReais(texto);
     }
 
-    static String codigo(Map<String, String> termos, String oQue, String termo) {
+    /** Valor em reais, como o negócio escreve: 50.000,01 (milhar com ponto, centavos com vírgula). */
+    public static final String VALOR_EM_REAIS = "\\d{1,3}(?:\\.\\d{3})*,\\d{2}";
+
+    public static BigDecimal emReais(String texto) {
+        if (!texto.strip().matches(VALOR_EM_REAIS)) {
+            throw new IllegalArgumentException("Valor '" + texto + "' fora do formato em reais (ex.: 50.000,01)");
+        }
+        return new BigDecimal(texto.strip().replace(".", "").replace(',', '.'));
+    }
+
+    /** O termo do negócio para um código da API (para as mensagens de falha falarem como a especificação). */
+    public static String termo(Map<String, String> termos, String codigo) {
+        return termos.entrySet().stream().filter(e -> e.getValue().equals(codigo)).map(Map.Entry::getKey).findFirst()
+                .orElse(codigo);
+    }
+
+    public static String codigo(Map<String, String> termos, String oQue, String termo) {
         String codigo = termos.get(termo.strip());
         if (codigo == null) {
             throw new IllegalArgumentException("Termo de " + oQue + " desconhecido: '" + termo + "'. Use um destes: "

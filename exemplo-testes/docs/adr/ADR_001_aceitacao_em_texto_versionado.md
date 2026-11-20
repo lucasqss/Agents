@@ -21,12 +21,20 @@ As planilhas de exemplo da migração do Selic (massa de participantes, contas e
 1. **Cenários e massa ficam em texto, no git.** Nada de xlsx ou CSV como fonte: o versionamento, o diff do PR e o merge (conflito visível em vez de sobrescrita silenciosa) só funcionam com texto. Quem decide uma mudança é o PR, com `CODEOWNERS` nas especificações.
 2. **Os cenários são especificações em português (Gherkin, `# language: pt`), executadas pelo Cucumber.** O que era uma aba de planilha vira um `.feature` com `Esquema do Cenário` e `Exemplos`: a mesma tabela, com as mesmas colunas, editada na IDE (o plugin de Gherkin alinha as colunas). O negócio lê e valida o próprio arquivo.
 3. **Vocabulário fechado.** Cada campo tem uma coluna, e os termos (situações, ações, tipos de conta...) são validados por um `Vocabulario` antes de chegar à API. Termo errado ou registro de massa inexistente falha dizendo o arquivo, o cenário e os valores válidos.
-4. **A massa é citada pela chave natural sempre que existir.** No Selic, conta, ISPB e código mais vencimento do título já identificam o registro: o cenário cita a conta, como o QA já faz. Onde a chave é gerada, vale a massa com IDs fixos (`R__massa_aceitacao.sql` e `BancoDaAceitacao`).
+4. **A massa é citada pela chave natural sempre que existir.** No Selic, conta, ISPB e código mais vencimento do título já identificam o registro: o cenário cita a conta, como o QA já faz. O ID gerado pelo banco nunca aparece no cenário: o carregador grava a massa com IDs determinísticos (pela ordem do arquivo) e os passos chegam a ele pela chave.
 5. **Tudo roda no build**, com sandbox próprio (banco novo, JVM própria, em sequência, com sentinela). As mesmas especificações podem rodar contra homologação num job de CI parametrizado, que o QA dispara. Esse job substitui um sistema de testes implantado à parte.
 6. **Mensageria:**
    - mensagens simples são conferidas por passos Java com um broker em Testcontainers;
    - se a validação de mensagens do catálogo SPB ficar pesada, entra o Citrus **dentro** do Cucumber (citrus-cucumber), ainda no `mvn verify`, sem sistema à parte.
 7. **Cada nível com o seu volume.** As combinações exaustivas (cada tipo de conta × liquidante × transmissor) são da unidade, como a `TabelaDosFluxosTest`. A aceitação tem de 1 a 3 cenários por regra.
+
+## Implementação neste exemplo
+
+Nenhum passo nem SQL a escrever para um cenário novo:
+
+- **massa:** `src/test/resources/cucumber/massa/processos.md`, uma tabela Markdown com chave natural, validada inteira antes de a aplicação subir;
+- **"abas":** `src/test/resources/cucumber/features/` (`01-abertura`, `02-acoes`, `03-fluxos`), cada uma com `Esquema do Cenário` e `Exemplos`, ou tabela de passos;
+- **leitura:** `src/test/java/cucumber/` (`TabelaMarkdown`, `MassaDeProcessos`, `Vocabulario`, `PassosDoProcesso`).
 
 ## Consequências
 

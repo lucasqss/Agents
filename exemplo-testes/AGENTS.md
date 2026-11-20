@@ -2,7 +2,7 @@
 
 Serviço Java 25 + Quarkus 3.33: o processo de pagamento, uma máquina de estados com um fluxo por tipo (serviço e imobiliário). O projeto existe para ser **modelo de testes e barreiras de build**: o comportamento e a estrutura são verificados a cada `./mvnw verify`, seja qual for o agente que mexer no código.
 
-**Use as skills:** `teste-unidade` para provar regra de negócio (as matrizes exaustivas ficam aqui); `teste-componente` para o serviço montado (persistência, validação, erros, contrato) e o `*IT` contra o jar; `teste-aceitacao` para as especificações em português (`.feature`), que o negócio valida e o Cucumber executa sobre a massa de IDs fixos. Cada comportamento é provado no nível mais baixo que consegue prová-lo.
+**Use as skills:** `teste-unidade` para provar regra de negócio (as matrizes exaustivas ficam aqui); `teste-componente` para o serviço montado (persistência, validação, erros, contrato) e o `*IT` contra o jar; `teste-aceitacao` para a aceitação em tabelas que o QA preenche (a massa em `cucumber/massa/processos.md`, os cenários nos `Exemplos` dos `.feature` em português), que o negócio valida e o Cucumber executa. Cada comportamento é provado no nível mais baixo que consegue prová-lo.
 
 ## Como trabalhar
 
@@ -12,15 +12,15 @@ Serviço Java 25 + Quarkus 3.33: o processo de pagamento, uma máquina de estado
 4. **Verifique rodando.** Código que você não rodou não está pronto. Ao final de cada turno com mudança de código, o harness (`.github/hooks/`) roda a verificação rápida (arquitetura e domínio) e devolve a falha para você corrigir.
 5. **Relate o que é fato.** Diga o que mudou, o que você rodou e o resultado. Teste que falhou é relatado como falha.
 
-- **Regra de fluxo nova ou mudada** (estado, ação, transição, tipo): mude a tabela no domínio (`FluxoProcesso.comum()` ou o `Fluxo<Tipo>`) **e** a tabela escrita por extenso em `TabelaDosFluxosTest`, no mesmo commit. Ela é a especificação: se só o código mudou, o build falha mostrando a diferença. Depois, 1 a 3 cenários na especificação da regra (`src/test/resources/cucumber/features/`), com o vocabulário que já existe.
+- **Regra de fluxo nova ou mudada** (estado, ação, transição, tipo): mude a tabela no domínio (`FluxoProcesso.comum()` ou o `Fluxo<Tipo>`) **e** a tabela escrita por extenso em `TabelaDosFluxosTest`, no mesmo commit. Ela é a especificação: se só o código mudou, o build falha mostrando a diferença. Depois, 1 a 3 linhas nas tabelas de cenários (`src/test/resources/cucumber/features/`), com o vocabulário que já existe.
 - **Correção de bug.** Primeiro reproduza com um teste que falha pelo motivo do bug, no nível mais baixo possível. Corrija na camada dona da regra. Os testes antigos continuam passando sem terem sido alterados.
 
 ## Antes de terminar qualquer tarefa
 
 1. Rode `./mvnw verify` (precisa de Docker: banco do Dev Services e o da aceitação).
 2. **Se uma regra ArchUnit falhar, corrija o código, nunca a regra.** Não edite, apague nem afrouxe nada em `src/test/java/**/arquitetura/` nem em `.github/hooks/`. A falha traz um ID e um "Corrija:". Se achar que a regra está errada, diga isso e pare.
-3. A aceitação roda isolada (banco próprio, JVM própria, em sequência). Não junte as execuções `cucumber` e `cucumber-it` às outras no `pom.xml`, não ligue execução paralela e não use o processo 1 da massa (sentinela) em cenário.
-4. Não edite migrations existentes. Mudança de schema é sempre um arquivo novo `V<n+1>__descricao.sql`. A massa da aceitação (`src/test/resources/cucumber/massa/`) muda por linha nova, com o próximo ID livre abaixo de 1000.
+3. A aceitação roda isolada (banco próprio, JVM própria, em sequência). Não junte as execuções `cucumber` e `cucumber-it` às outras no `pom.xml`, não ligue execução paralela e não use a cota `COTA-SENTINELA`.
+4. Não edite migrations existentes. Mudança de schema é sempre um arquivo novo `V<n+1>__descricao.sql`. A massa da aceitação (`src/test/resources/cucumber/massa/processos.md`) muda por linha nova, com uma cota nova; os cenários a citam pela cota, nunca por número.
 
 ## Proibido
 

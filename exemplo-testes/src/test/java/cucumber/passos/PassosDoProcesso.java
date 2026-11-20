@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import cucumber.massa.MassaDeProcessos;
 import io.cucumber.datatable.DataTable;
 import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
@@ -16,7 +17,9 @@ import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
+import io.restassured.specification.RequestSpecification;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -24,18 +27,14 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Os passos das especificações do processo de pagamento. Só HTTP: nenhuma classe de produção. Cada cenário ganha uma
- * instância nova (o processo do cenário e a última resposta ficam aqui). Depois de cada ação, o efeito é conferido por
- * outro endpoint: a situação gravada, as ações disponíveis, o histórico.
+ * As frases das especificações do processo de pagamento. O QA preenche tabelas (a massa em
+ * {@code cucumber/massa/processos.md} e as colunas dos {@code Exemplos}); estas frases leem cada linha e a executam. Só
+ * HTTP: nenhuma classe de produção. Cada cenário ganha uma instância nova. Célula vazia quer dizer "não conferir".
  */
 public class PassosDoProcesso {
 
-    /** As sequências recomeçam aqui (R__massa_aceitacao.sql): abaixo, massa; daqui para cima, criado pelos cenários. */
-    static final long PRIMEIRO_ID_GERADO = 1000;
-    /** O processo 1 é a sentinela, que o runner confere antes de tudo: nenhum cenário o usa. */
-    static final long SENTINELA = 1;
-    /** Que cenário usa cada processo da massa: dois cenários no mesmo registro dependeriam da ordem. */
-    private static final Map<Long, String> DONO_DA_MASSA = new ConcurrentHashMap<>();
+    /** Que cenário usa cada processo da massa: dois cenários no mesmo processo dependeriam da ordem. */
+    private static final Map<String, String> DONO_DA_COTA = new ConcurrentHashMap<>();
 
     private String cenario = "";
     private Long processo;
@@ -48,26 +47,25 @@ public class PassosDoProcesso {
 
     // ---------- Dado ----------
 
-    @Dado("o processo {long} da massa, de {tipo}, na situação {situacao}")
-    public void processoDaMassa(long id, String tipo, String situacao) {
-        reservar(id);
-        processo = id;
+    /** Parte de um processo da massa, citado pela cota. Confere que ele está como a massa diz. */
+    @Dado("o processo da cota {string} da massa")
+    public void processoDaMassa(String cota) {
+        MassaDeProcessos.Processo daMassa = MassaDeProcessos.daCota(cota);
+        String dono = DONO_DA_COTA.putIfAbsent(daMassa.cota(), cenario);
+        if (dono != null && !dono.equals(cenario)) {
+            fail("A cota " + cota + " da massa já é usada pelo cenário " + dono
+                    + ": cada cenário usa o seu processo, senão o resultado depende da ordem. Crie outra linha na massa.");
+        }
+        processo = daMassa.id();
         JsonPath gravado = consultar();
-        assertEquals(tipo, gravado.getString("tipo"), "tipo do processo " + id + " na massa");
-        assertEquals(situacao, gravado.getString("estado"), "situação do processo " + id + " na massa");
-    }
-
-    @Dado("o processo {long} da massa, de {tipo}, na situação {situacao}, com valor de {valor}")
-    public void processoDaMassaComValor(long id, String tipo, String situacao, BigDecimal valor) {
-        processoDaMassa(id, tipo, situacao);
-        assertEquals(0, valor.compareTo(consultar().getObject("valor", BigDecimal.class)), "valor do processo " + id + " na massa");
+        assertEquals(Vocabulario.termo(Vocabulario.SITUACOES, daMassa.situacao()), situacaoDe(gravado),
+                "situação gravada do processo da cota " + cota + ", que a massa diz (" + daMassa.onde() + ")");
     }
 
     @Dado("um processo novo de {tipo}, da cota {string}, com valor de {valor}")
     public void processoNovo(String tipo, String cota, BigDecimal valor) {
         abrir(tipo, cota, valor);
         assertEquals(201, ultima.statusCode(), () -> "abrir o processo: " + ultima.asString());
-        processo = ultima.jsonPath().getLong("id");
     }
 
     // ---------- Quando ----------
@@ -82,20 +80,47 @@ public class PassosDoProcesso {
         }
     }
 
-    @Quando("{string} {acao}")
-    public void executar(String usuario, String acao) {
-        ultima = RestAssured.given().header("X-Usuario", usuario)
-                .when().post("/processos/{id}/acoes/{acao}", processoDoCenario(), acao);
+    /** Motivo vazio: a ação vai sem corpo (e as que exigem motivo são recusadas). */
+    @Quando("{string} pedir para {string} com o motivo {string}")
+    public void executar(String quem, String acao, String motivo) {
+        RequestSpecification pedido = RestAssured.given().header("X-Usuario", quem);
+        if (!motivo.isBlank()) {
+            pedido = pedido.contentType(ContentType.JSON).body(Map.of("motivo", motivo));
+        }
+        ultima = pedido.when().post("/processos/{id}/acoes/{acao}", processoDoCenario(),
+                Vocabulario.codigo(Vocabulario.ACOES, "ação", acao));
     }
 
-    @Quando("{string} {acao} com o motivo {string}")
-    public void executarComMotivo(String usuario, String acao, String motivo) {
-        ultima = RestAssured.given().header("X-Usuario", usuario).contentType(ContentType.JSON)
-                .body(Map.of("motivo", motivo))
-                .when().post("/processos/{id}/acoes/{acao}", processoDoCenario(), acao);
+    /** Vários passos sobre o mesmo processo, uma linha por ação: quem, ação, motivo, resultado, situação (e mensagem). */
+    @Quando("os passos abaixo são executados em ordem:")
+    public void passos(DataTable tabela) {
+        List<Map<String, String>> linhas = tabela.asMaps();
+        for (int i = 0; i < linhas.size(); i++) {
+            Map<String, String> passo = linhas.get(i);
+            String onde = "passo " + (i + 1) + " (" + valor(passo, "ação") + ")";
+            try {
+                executar(valor(passo, "quem"), valor(passo, "ação"), valor(passo, "motivo"));
+                acaoE(valor(passo, "resultado"), valor(passo, "situação"));
+                mensagem(valor(passo, "mensagem"));
+            } catch (AssertionError | IllegalArgumentException e) {
+                throw new AssertionError(onde + ": " + e.getMessage(), e);
+            }
+        }
     }
 
     // ---------- Então ----------
+
+    /** Abertura aceita (201) ou recusada (400); número e situação vazios não são conferidos. */
+    @Entao("a abertura é {string}, com número {string} e situação {string}")
+    public void abertura(String resultado, String numero, String situacao) {
+        conferirResultado(resultado, 201, 400);
+        if (!numero.isBlank()) {
+            assertEquals(Long.parseLong(numero.strip()), ultima.jsonPath().getLong("id"), "número do processo aberto");
+        }
+        if (!situacao.isBlank()) {
+            conferirSituacao(situacao);
+        }
+    }
 
     @Entao("o processo é aberto com o número {long}")
     public void abertoComNumero(long numero) {
@@ -103,47 +128,35 @@ public class PassosDoProcesso {
         assertEquals(numero, ultima.jsonPath().getLong("id"), "número do processo aberto");
     }
 
-    @Entao("a abertura é recusada")
-    public void aberturaRecusada() {
-        assertEquals(400, ultima.statusCode(), () -> "abrir o processo: " + ultima.asString());
+    /** Ação aceita (2xx) ou recusada (400/409), e a situação gravada depois dela (vazia: não confere). */
+    @Entao("a ação é {string} e o processo fica {string}")
+    public void acaoE(String resultado, String situacao) {
+        conferirResultado(resultado, 200, 400, 409);
+        if (!situacao.isBlank()) {
+            conferirSituacao(situacao);
+        }
     }
 
-    @Entao("o processo fica {situacao}")
-    public void processoFica(String situacao) {
-        assertTrue(ultima.statusCode() / 100 == 2, () -> "a ação foi recusada: " + ultima.statusCode() + " " + ultima.asString());
-        processoContinua(situacao);
+    @E("a mensagem é {string}")
+    public void mensagem(String mensagem) {
+        if (!mensagem.isBlank()) {
+            assertEquals(mensagem, ultima.jsonPath().getString("mensagem"));
+        }
     }
 
-    @Entao("a ação é recusada com a mensagem {string}")
-    public void acaoRecusada(String mensagem) {
-        assertTrue(ultima.statusCode() == 400 || ultima.statusCode() == 409,
-                () -> "esperava a recusa, mas veio " + ultima.statusCode() + " " + ultima.asString());
-        assertEquals(mensagem, ultima.jsonPath().getString("mensagem"));
-    }
-
-    @Entao("a ação é recusada")
-    public void acaoRecusadaSemMensagem() {
-        assertTrue(ultima.statusCode() == 400 || ultima.statusCode() == 409,
-                () -> "esperava a recusa, mas veio " + ultima.statusCode() + " " + ultima.asString());
-    }
-
-    @E("o processo continua {situacao}")
-    public void processoContinua(String situacao) {
-        assertEquals(situacao, consultar().getString("estado"), "situação gravada do processo " + processo);
-    }
-
-    @E("as ações disponíveis são:")
-    public void acoesDisponiveis(List<String> termos) {
+    /** Ações separadas por vírgula, ou "nenhuma"; vazio não confere. */
+    @E("as ações disponíveis são {string}")
+    public void acoesDisponiveis(String acoes) {
+        if (acoes.isBlank()) {
+            return;
+        }
         Set<String> esperadas = new HashSet<>();
-        termos.forEach(t -> esperadas.add(Vocabulario.codigo(Vocabulario.ACOES, "ação", t)));
+        if (!"nenhuma".equalsIgnoreCase(acoes.strip())) {
+            Arrays.stream(acoes.split(",")).forEach(a -> esperadas.add(Vocabulario.codigo(Vocabulario.ACOES, "ação", a)));
+        }
         List<String> atuais = RestAssured.given().when().get("/processos/{id}/acoes", processoDoCenario())
                 .then().statusCode(200).extract().jsonPath().getList("$", String.class);
         assertEquals(esperadas, new HashSet<>(atuais), "ações disponíveis do processo " + processo);
-    }
-
-    @E("nenhuma ação está disponível")
-    public void nenhumaAcao() {
-        acoesDisponiveis(List.of());
     }
 
     @E("o histórico tem {int} registro(s)")
@@ -171,18 +184,31 @@ public class PassosDoProcesso {
 
     // ---------- apoio ----------
 
-    private void reservar(long id) {
-        if (id == SENTINELA) {
-            fail("O processo " + id + " é a sentinela do banco da aceitação: nenhum cenário o usa. Crie outro na massa.");
+    /** "aceita": o primeiro status; "recusada": um dos demais. */
+    private void conferirResultado(String resultado, int aceita, int... recusada) {
+        int status = ultima.statusCode();
+        switch (resultado.strip()) {
+            case "aceita" -> assertTrue(status == aceita || status / 100 == 2,
+                    () -> "esperava a ação aceita, mas foi recusada: " + status + " " + ultima.asString());
+            case "recusada" -> assertTrue(Arrays.stream(recusada).anyMatch(s -> s == status),
+                    () -> "esperava a recusa, mas veio " + status + " " + ultima.asString());
+            default -> throw new IllegalArgumentException("Resultado desconhecido: '" + resultado + "'. Use: aceita, recusada");
         }
-        if (id >= PRIMEIRO_ID_GERADO) {
-            fail("O processo " + id + " não é da massa (os da massa ficam abaixo de " + PRIMEIRO_ID_GERADO + ").");
-        }
-        String dono = DONO_DA_MASSA.putIfAbsent(id, cenario);
-        if (dono != null && !dono.equals(cenario)) {
-            fail("O processo " + id + " da massa já é usado pelo cenário " + dono
-                    + ": cada cenário usa o seu, senão o resultado depende da ordem. Crie outro na massa.");
-        }
+    }
+
+    /** Compara pelos termos do negócio: a falha diz "esperado Aprovado, gravado Aguardando alçada". */
+    private void conferirSituacao(String situacao) {
+        String esperada = Vocabulario.termo(Vocabulario.SITUACOES, Vocabulario.codigo(Vocabulario.SITUACOES, "situação", situacao));
+        assertEquals(esperada, situacaoDe(consultar()), "situação gravada do processo");
+    }
+
+    private static String situacaoDe(JsonPath processo) {
+        return Vocabulario.termo(Vocabulario.SITUACOES, processo.getString("estado"));
+    }
+
+    private static String valor(Map<String, String> linha, String coluna) {
+        String valor = linha.get(coluna);
+        return valor == null ? "" : valor;
     }
 
     private Long processoDoCenario() {

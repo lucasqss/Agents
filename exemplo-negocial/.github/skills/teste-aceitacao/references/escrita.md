@@ -1,57 +1,87 @@
-# Como escrever as especificações
+# Como preencher a massa e as tabelas de cenários
 
-## Forma
+> As colunas e termos abaixo são os do `exemplo-testes` (processo de pagamento). Cada projeto tem os seus, no mesmo formato: a massa em `cucumber/massa/*.md` e o vocabulário em `cucumber/passos/Vocabulario.java`.
 
-- Primeira linha `# language: pt`. Palavras-chave: `Funcionalidade`, `Contexto`, `Cenário`, `Esquema do Cenário`, `Exemplos`, `Dado`, `Quando`, `Então`, `E`, `Mas`.
-- **Um arquivo por regra** (ou por grupo pequeno de regras), com prefixo numérico: o prefixo fixa a ordem de execução, e com ela os IDs gerados.
-- `Funcionalidade:` com o nome da regra e, abaixo, duas ou três linhas que a explicam como o analista explicaria.
-- Tag com o número da regra (`@R4`) no arquivo ou no cenário: rastreabilidade entre requisito e teste.
-- Nome do cenário começa pelo número (`4.2 ...`) e diz o resultado: "Valor acima da alçada aguarda a alçada", não "Teste de alçada 2".
-- Combinações da mesma regra: `Esquema do Cenário` com `Exemplos`. O negócio lê a tabela; cada linha vira um cenário.
+## A massa: `cucumber/massa/processos.md`
 
-## Vocabulário disponível
+Uma tabela Markdown. O GitHub a mostra formatada no PR, e a IDE alinha as colunas. O texto acima da tabela explica a massa a quem preenche.
 
-> O vocabulário abaixo é o do `exemplo-testes` (processo de pagamento). Cada projeto tem o seu, no mesmo formato, em `cucumber/passos/Vocabulario.java`.
-
-Os termos ficam em `passos/Vocabulario.java`:
-
-- **Situações** (sempre entre aspas): "Aberto", "Em análise", "Pendente de documento", "Aguardando vistoria", "Aguardando alçada", "Aprovado", "Pago", "Reprovado", "Cancelado".
-- **Ações:** iniciar a análise, solicitar documento, receber o documento, concluir a análise, concluir a vistoria, aprovar na alçada, devolver para análise, reprovar, pagar, cancelar.
-- **Tipos:** serviço, imobiliário.
-- **Valores** em reais como o negócio escreve: `50.000,01`.
-
-| Frase | Para quê |
+| Coluna | O que é |
 |---|---|
-| `Dado o processo 6 da massa, de serviço, na situação "Em análise"` (`, com valor de 50.000,01`) | Partir de uma situação pronta da massa; confere a pré-condição |
-| `Dado um processo novo de serviço, da cota "COTA-101", com valor de 30.000,00` | Partir do começo, abrindo um processo |
-| `Quando alguém abre um processo de serviço, da cota "X", com valor de 0,00` | A abertura é o que se testa |
-| `Quando "ana" concluir a análise` | Ação sem motivo |
-| `Quando "ana" reprovar com o motivo "renda incompatível"` | Ação com motivo |
-| `Então o processo é aberto com o número 1000` | Abertura aceita (e o número, quando ele é o ponto do cenário) |
-| `Então a abertura é recusada` | Abertura recusada |
-| `Então o processo fica "Aprovado"` | Ação aceita, e a situação gravada |
-| `Então a ação é recusada` (`com a mensagem "..."`) | Ação recusada, e a mensagem que a pessoa vê |
-| `E o processo continua "Em análise"` | Nada mudou |
-| `E as ações disponíveis são:` + uma ação por linha | Os botões que a pessoa vê |
-| `E nenhuma ação está disponível` | Situação final |
-| `E o histórico tem 3 registros` | Quantas transições houve |
-| `E o último registro do histórico é:` + tabela `ação`, `quem`, `de`, `para`, `motivo` | O que ficou registrado |
+| `cota` | A chave natural, única, até 30 caracteres. `COTA-SENTINELA` é reservada |
+| `tipo` | serviço ou imobiliário |
+| `valor` | em reais: `50.000,01` |
+| `situação` | Aberto, Em análise, Pendente de documento, Aguardando vistoria, Aguardando alçada, Aprovado, Pago, Reprovado, Cancelado |
+| `observação` | livre, para quem lê; não vai para o banco. Diga para qual cenário a linha existe |
 
-## Frase nova
+- **Uma linha por situação de partida, e por cenário:** dois cenários na mesma cota dependeriam da ordem.
+- **Linha nova em qualquer posição:** os cenários citam a cota, não o número.
+- O build valida o arquivo inteiro antes de subir a aplicação, e a falha diz a linha.
 
-Só quando o vocabulário não der conta, e escrita como o negócio fala:
+## As "abas": um `.feature` por família
 
-1. Escreva a frase na especificação e rode: o Cucumber diz que ela não tem definição.
+Cada arquivo começa com `# language: pt`, uma `Funcionalidade:` com a regra explicada como o analista explicaria, e um parágrafo "Como preencher". O prefixo numérico (`01-`, `02-`) fixa a ordem de execução e, com ela, os números gerados pelos cenários que abrem processo.
+
+Toda tabela `Exemplos` começa com `cenário` (o número, ex.: `4.2`), `regra` (`R4`) e `descrição` (o resultado em uma frase). Os três formam o nome do teste nos relatórios.
+
+**Célula vazia = não conferir.** A exceção é `motivo`: vazio manda a ação sem motivo.
+
+### `01-abertura.feature`
+
+| Coluna | Valores |
+|---|---|
+| `tipo`, `cota`, `valor` | o que se abre |
+| `resultado` | aceita ou recusada |
+| `número` | o número que o processo recebe (só quando ele é o ponto do cenário: 1000 é o primeiro) |
+| `situação` | a situação depois da abertura |
+
+### `02-acoes.feature`: uma ação sobre um processo da massa
+
+| Coluna | Valores |
+|---|---|
+| `cota` | o processo da massa |
+| `quem` | o usuário que pede |
+| `ação` | iniciar a análise, solicitar documento, receber o documento, concluir a análise, concluir a vistoria, aprovar na alçada, devolver para análise, reprovar, pagar, cancelar |
+| `motivo` | texto, ou vazio |
+| `resultado` | aceita ou recusada |
+| `situação` | a situação gravada depois da ação |
+| `mensagem` | a mensagem que a pessoa vê na recusa |
+| `ações disponíveis` | separadas por vírgula, ou `nenhuma` |
+
+### `03-fluxos.feature`: vários passos sobre o mesmo processo
+
+Um `Cenário` por fluxo, que parte de `Dado o processo da cota "X" da massa` ou de `Dado um processo novo de serviço, da cota "X", com valor de 30.000,00`. Os passos vêm numa tabela, com as mesmas colunas da aba de ações:
+
+```gherkin
+Quando os passos abaixo são executados em ordem:
+  | quem  | ação                | motivo | resultado | situação          |
+  | vitor | concluir a vistoria |        | aceita    | Aguardando alçada |
+  | carla | aprovar na alçada   |        | aceita    | Aprovado          |
+Então o histórico tem 2 registros
+E o último registro do histórico é:
+  | ação | aprovar na alçada |
+  | quem | carla             |
+```
+
+Uma falha diz o passo: `passo 2 (aprovar na alçada): ...`.
+
+## Coluna ou frase nova
+
+Só quando as tabelas não dão conta:
+
+1. Escreva a coluna ou a frase e rode: o Cucumber diz que o passo não tem definição.
 2. Acrescente o método em `PassosDoProcesso` com `@Dado`, `@Quando`, `@Entao` ou `@E` (sem acento no Java: o ErrorProne não aceita acento em identificador; no `.feature` continua "Então").
-3. Use os tipos do vocabulário (`{situacao}`, `{acao}`, `{tipo}`, `{valor}`) para que termo errado falhe com a lista dos válidos.
+3. Converta os termos pelo `Vocabulario`; trate a célula vazia como "não conferir".
 4. Só HTTP; o efeito é conferido por outro endpoint.
 
 ## Erros comuns
 
 | Sintoma | Causa |
 |---|---|
-| `Termo de situação desconhecido: 'Aguardando alcada'` | Termo escrito diferente do vocabulário (aqui, sem cedilha). A mensagem lista os válidos |
-| Cenário `UNDEFINED` | A frase não casa com nenhum passo: confira vírgulas e aspas, ou crie a frase |
-| `O processo N da massa já é usado pelo cenário ...` | Dois cenários (ou duas linhas de `Exemplos`) sobre o mesmo registro. Crie outro na massa |
-| `tipo do processo N na massa` / `situação do processo N na massa` | A massa SQL não está como o `Dado` diz: o SQL mudou ou o cenário cita o ID errado |
+| `Massa inválida: processos.md, linha 30: Termo de situação desconhecido: 'Aguardando alcada'` | Termo diferente do vocabulário (aqui, sem cedilha). A mensagem lista os válidos |
+| `A cota 'COTA-999' não está em cucumber/massa/processos.md` | O cenário cita uma cota que não existe na massa |
+| `A cota COTA-003 da massa já é usada pelo cenário ...` | Duas linhas de `Exemplos` (ou dois cenários) na mesma cota. Crie outra linha na massa |
+| `situação gravada do processo da cota X, que a massa diz (...)` | A massa diz uma situação e o banco tem outra: o arquivo mudou ou foi a cota errada |
+| `expected: <Aprovado> but was: <Aguardando alçada>` | O sistema fez diferente do que a tabela espera: defeito, ou esperado a rever com o analista |
+| Cenário `UNDEFINED` | A frase não casa com nenhum passo: confira as aspas e as vírgulas |
 | Número do processo aberto diferente do esperado | Um cenário novo, que abre processo, entrou antes deste na ordem dos arquivos |
