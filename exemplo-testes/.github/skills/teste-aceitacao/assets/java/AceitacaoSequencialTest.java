@@ -1,4 +1,4 @@
-package PACOTE_RAIZ.aceitacao;
+package cucumber;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 

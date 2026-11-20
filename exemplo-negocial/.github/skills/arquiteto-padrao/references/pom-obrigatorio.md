@@ -103,21 +103,21 @@ A aceitação roda em **execução própria** do surefire e do failsafe, numa JV
 ```xml
 <!-- maven-surefire-plugin -->
 <executions>
-    <execution><id>default-test</id><configuration><excludes><exclude>**/aceitacao/**</exclude></excludes></configuration></execution>
-    <execution><id>aceitacao</id><goals><goal>test</goal></goals>
-        <configuration><includes><include>**/aceitacao/*Test.java</include></includes></configuration></execution>
+    <execution><id>default-test</id><configuration><excludes><exclude>cucumber/**</exclude></excludes></configuration></execution>
+    <execution><id>cucumber</id><goals><goal>test</goal></goals>
+        <configuration><includes><include>cucumber/*Test.java</include></includes></configuration></execution>
 </executions>
-<!-- maven-failsafe-plugin: integracao e aceitacao-it com summaryFile próprio; verificar lê os dois -->
+<!-- maven-failsafe-plugin: integracao e cucumber-it com summaryFile próprio; verificar lê os dois -->
 <executions>
     <execution><id>integracao</id><goals><goal>integration-test</goal></goals><configuration>
-        <excludes><exclude>**/aceitacao/**</exclude></excludes>
+        <excludes><exclude>cucumber/**</exclude></excludes>
         <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-integracao.xml</summaryFile></configuration></execution>
-    <execution><id>aceitacao-it</id><goals><goal>integration-test</goal></goals><configuration>
-        <includes><include>**/aceitacao/*IT.java</include></includes>
-        <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-aceitacao.xml</summaryFile></configuration></execution>
+    <execution><id>cucumber-it</id><goals><goal>integration-test</goal></goals><configuration>
+        <includes><include>cucumber/*IT.java</include></includes>
+        <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-cucumber.xml</summaryFile></configuration></execution>
     <execution><id>verificar</id><goals><goal>verify</goal></goals><configuration><summaryFiles>
         <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-integracao.xml</summaryFile>
-        <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-aceitacao.xml</summaryFile>
+        <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-cucumber.xml</summaryFile>
     </summaryFiles></configuration></execution>
 </executions>
 ```

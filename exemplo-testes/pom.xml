@@ -258,18 +258,18 @@
                         <id>default-test</id>
                         <configuration>
                             <excludes>
-                                <exclude>**/aceitacao/**</exclude>
+                                <exclude>cucumber/**</exclude>
                             </excludes>
                         </configuration>
                     </execution>
                     <execution>
-                        <id>aceitacao</id>
+                        <id>cucumber</id>
                         <goals>
                             <goal>test</goal>
                         </goals>
                         <configuration>
                             <includes>
-                                <include>**/aceitacao/*Test.java</include>
+                                <include>cucumber/*Test.java</include>
                             </includes>
                         </configuration>
                     </execution>
@@ -308,21 +308,21 @@
                         </goals>
                         <configuration>
                             <excludes>
-                                <exclude>**/aceitacao/**</exclude>
+                                <exclude>cucumber/**</exclude>
                             </excludes>
                             <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-integracao.xml</summaryFile>
                         </configuration>
                     </execution>
                     <execution>
-                        <id>aceitacao-it</id>
+                        <id>cucumber-it</id>
                         <goals>
                             <goal>integration-test</goal>
                         </goals>
                         <configuration>
                             <includes>
-                                <include>**/aceitacao/*IT.java</include>
+                                <include>cucumber/*IT.java</include>
                             </includes>
-                            <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-aceitacao.xml</summaryFile>
+                            <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-cucumber.xml</summaryFile>
                         </configuration>
                     </execution>
                     <execution>
@@ -333,7 +333,7 @@
                         <configuration>
                             <summaryFiles>
                                 <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-integracao.xml</summaryFile>
-                                <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-aceitacao.xml</summaryFile>
+                                <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-cucumber.xml</summaryFile>
                             </summaryFiles>
                         </configuration>
                     </execution>

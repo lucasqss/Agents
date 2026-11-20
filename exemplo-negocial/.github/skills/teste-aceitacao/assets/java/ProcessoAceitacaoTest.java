@@ -1,4 +1,4 @@
-package PACOTE_RAIZ.aceitacao;
+package cucumber;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -15,7 +15,7 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 /**
- * Runner da aceitação: executa as especificações em português de {@code src/test/resources/aceitacao/} com o Cucumber,
+ * Runner da aceitação: executa as especificações em português de {@code src/test/resources/cucumber/features/} com o Cucumber,
  * contra a aplicação no banco da aceitação, e devolve um teste JUnit por cenário (o nome traz o arquivo e o cenário).
  *
  * <ul>
@@ -30,7 +30,7 @@ import org.junit.jupiter.api.TestFactory;
 @WithTestResource(BancoDaAceitacao.class)
 class ProcessoAceitacaoTest {
 
-    private static final String PASSOS = "PACOTE_RAIZ.aceitacao.passos";
+    private static final String PASSOS = "cucumber.passos";
 
     @TestFactory
     Stream<DynamicTest> cenarios() {
@@ -46,7 +46,7 @@ class ProcessoAceitacaoTest {
             "classpath:aceitacao"}, getClass().getClassLoader());
         List<Resultados.Cenario> cenarios = Resultados.todos();
         if (cenarios.isEmpty()) {
-            fail("Nenhum cenário executado em src/test/resources/aceitacao/");
+            fail("Nenhum cenário executado em src/test/resources/cucumber/features/");
         }
         return cenarios.stream().map(c -> DynamicTest.dynamicTest(c.nome(), () -> {
             if (c.status() != Status.PASSED) {

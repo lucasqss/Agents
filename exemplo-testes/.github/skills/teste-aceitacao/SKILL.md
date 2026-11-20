@@ -32,18 +32,20 @@ Funcionalidade: Alçada de aprovação
 2. **Escreva a especificação primeiro**, só com frases do vocabulário ([como escrever](references/escrita.md)), e **leve ao analista antes de implementar**: o esperado é dele.
 3. **Pare e aguarde a confirmação do dev** (e, por ele, do negócio).
 4. Para cada cenário que parte de uma situação pronta, **uma linha nova na massa SQL** com o próximo ID livre ([IDs fixos](references/ids-fixos.md)).
-5. Frase nova só se o vocabulário não der conta: um método em `aceitacao/passos/`, e o termo novo em `Vocabulario`.
+5. Frase nova só se o vocabulário não der conta: um método em `cucumber/passos/`, e o termo novo em `Vocabulario`.
 6. Rode `./mvnw verify` (o `*Test` e o `*IT` rodam no mesmo comando).
 7. Faça uma [sessão exploratória](references/exploratorios.md) por capacidade nova.
 8. Relate cenários, divergências e dúvidas.
 
 ## Estrutura
 
+Tudo da aceitação fica numa pasta `cucumber/` própria, na raiz de `src/test/java` e de `src/test/resources`, separada dos pacotes dos outros testes (unidade, componente, arquitetura). O `pom.xml` a separa pelo caminho: `cucumber/**` fica fora da execução padrão e roda nas execuções `cucumber` (surefire) e `cucumber-it` (failsafe).
+
 ```
-src/test/resources/
-  db/massa/R__massa_aceitacao.sql       massa com IDs fixos; o 1 é a sentinela; sequências reiniciadas em 1000
-  aceitacao/NN-<regra>.feature          as especificações, em português, numeradas (ordem de execução)
-src/test/java/<pacote raiz>/aceitacao/
+src/test/resources/cucumber/
+  features/NN-<regra>.feature           as especificações, em português, numeradas (ordem de execução)
+  massa/R__massa_aceitacao.sql          massa com IDs fixos; o 1 é a sentinela; sequências reiniciadas em 1000
+src/test/java/cucumber/
   ProcessoAceitacaoTest.java            runner: @QuarkusTest + @WithTestResource(BancoDaAceitacao), um teste JUnit por cenário
   ProcessoAceitacaoIT.java              herda vazio, @QuarkusIntegrationTest
   BancoDaAceitacao.java, Resultados.java, AceitacaoSequencialTest.java   genéricos (assets/java)
@@ -62,13 +64,13 @@ Modelo completo neste projeto. Relatórios: `target/cucumber/<Runner>.html` (cad
 5. **Confira o efeito por outro endpoint** depois de cada ação (`o processo fica`, `as ações disponíveis são`, `o histórico`), não só que a ação foi aceita.
 6. **O esperado vem do analista**, não do código. Divergência é defeito: o cenário fica vermelho e é relatado. Não mude o esperado para passar.
 7. **Todo `*Test` tem o `*IT`** de corpo vazio, que herda: o mesmo número de cenários nas duas fases, com os mesmos IDs.
-8. **Sandbox garantido por construção:** execução própria no surefire (`aceitacao`) e no failsafe (`aceitacao-it`), numa JVM só dela; em sequência (`--order lexical`, sem paralelo; o `AceitacaoSequencialTest` barra o paralelo do JUnit); começa pela sentinela, conferida pelo runner antes do primeiro cenário.
+8. **Sandbox garantido por construção:** execução própria no surefire (`cucumber`) e no failsafe (`cucumber-it`), numa JVM só dela; em sequência (`--order lexical`, sem paralelo; o `AceitacaoSequencialTest` barra o paralelo do JUnit); começa pela sentinela, conferida pelo runner antes do primeiro cenário.
 9. **O recurso de teste só entrega o endereço do banco**: nada de desligar Flyway ou mudar comportamento por ali.
 
 ## Antes de terminar
 
 1. `./mvnw verify` verde; o mesmo número de cenários no `*Test` e no `*IT`.
-2. Nenhum arquivo em `aceitacao/` importa classe de produção; nenhuma especificação traz código da API.
+2. Nenhum arquivo em `src/test/java/cucumber/` importa classe de produção; nenhuma especificação traz código da API.
 3. O analista viu as especificações novas (diga isso no relato, ou que ainda falta).
 4. Relate defeitos, dúvidas abertas e o resultado da sessão exploratória.
 

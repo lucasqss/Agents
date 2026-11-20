@@ -28,4 +28,5 @@
 /src/test/java/**/domain/processo/tipo/TabelaDosFluxosTest.java @lucasqss
 
 # Especificações de aceitação: o que o negócio validou. Mudar o esperado exige revisão.
-/src/test/resources/aceitacao/                  @lucasqss
+/src/test/resources/cucumber/                   @lucasqss
+/src/test/java/cucumber/                        @lucasqss

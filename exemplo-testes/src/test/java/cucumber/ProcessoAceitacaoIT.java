@@ -1,4 +1,4 @@
-package br.com.claudio.pagamento.aceitacao;
+package cucumber;
 
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 

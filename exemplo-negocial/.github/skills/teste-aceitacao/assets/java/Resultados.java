@@ -1,4 +1,4 @@
-package PACOTE_RAIZ.aceitacao;
+package cucumber;
 
 import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.EventPublisher;

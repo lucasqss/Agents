@@ -35,15 +35,15 @@ Cada comportamento é provado no nível mais baixo que consegue prová-lo. Os de
 | Unidade: domínio | `domain/**` | JUnit puro e jqwik | A regra: a **tabela de cada fluxo escrita por extenso** (`TabelaDosFluxosTest`), propriedades em caminhos gerados (`FluxosPropriedadesTest`) e as recusas que não mudam nada |
 | Unidade: use case | `application/**` | `@QuarkusTest` + `@InjectMock` nas portas | A orquestração com a configuração real: alçada chega ao domínio, o que é gravado, o que não é |
 | Componente | `componente/*Test` | `@QuarkusTest` + RestAssured + PostgreSQL (Dev Services) | Persistência do estado e do histórico, `400` com os campos, `404`, `409`, formato único de erro |
-| Integração | `componente/*IT`, `aceitacao/*IT` | `@QuarkusIntegrationTest` herdando o `*Test` | O **jar empacotado** (perfil prod) se comporta igual |
-| Aceitação | `src/test/resources/aceitacao/*.feature` + `aceitacao/` | Cucumber com Gherkin **em português** | As regras de negócio de ponta a ponta, escritas como o negócio fala: o analista lê e valida a especificação |
+| Integração | `componente/*IT`, `cucumber/*IT` | `@QuarkusIntegrationTest` herdando o `*Test` | O **jar empacotado** (perfil prod) se comporta igual |
+| Aceitação | `src/test/resources/cucumber/features/*.feature` + `src/test/java/cucumber/` | Cucumber com Gherkin **em português** | As regras de negócio de ponta a ponta, escritas como o negócio fala: o analista lê e valida a especificação |
 | Arquitetura | `arquitetura/` | ArchUnit (58 regras com ID e "Corrija:") | Camadas, nomes, domínio puro, nenhum ciclo |
 | Contrato | `ContratoRestTest` + openapi-diff | contra `docs/api/openapi-base.json` | Nenhum campo de resposta some ou muda de tipo |
 | Mutação | `-Pauditoria` | PITest no domínio, limite de 94% | Que os testes afirmam a regra, não só passam por ela |
 
 ## Especificações em português, validadas pelo negócio
 
-A aceitação é escrita em `src/test/resources/aceitacao/`, um arquivo por regra, com as palavras do negócio. O mesmo arquivo é o que o analista valida e o que o build executa:
+A aceitação é escrita em `src/test/resources/cucumber/features/`, um arquivo por regra, com as palavras do negócio. O mesmo arquivo é o que o analista valida e o que o build executa:
 
 ```gherkin
 # language: pt
@@ -63,8 +63,8 @@ Funcionalidade: Alçada de aprovação
       | 4.2     | 6        | 50.000,01 | Aguardando alçada |
 ```
 
-- **Vocabulário único** (`aceitacao/passos/Vocabulario.java`): situações, ações, tipos e valores como o negócio os diz, ligados ao código da API. Um termo escrito errado falha listando os termos válidos.
-- **Frases reutilizáveis** (`aceitacao/passos/PassosDoProcesso.java`): uma regra nova costuma ser só um `.feature` novo, sem código.
+- **Vocabulário único** (`cucumber/passos/Vocabulario.java`): situações, ações, tipos e valores como o negócio os diz, ligados ao código da API. Um termo escrito errado falha listando os termos válidos.
+- **Frases reutilizáveis** (`cucumber/passos/PassosDoProcesso.java`): uma regra nova costuma ser só um `.feature` novo, sem código.
 - **Relatórios:** `target/cucumber/ProcessoAceitacaoTest.html` (e `...IT.html`), com cada cenário e passo. Nos relatórios do surefire e do failsafe, cada teste tem o nome do cenário (`04-alcada.feature | 4.2 Concluir a análise...`).
 - **Como escrever:** [skill teste-aceitacao, como escrever](.github/skills/teste-aceitacao/references/escrita.md).
 
@@ -74,10 +74,10 @@ Por que texto versionado e não planilhas de massa e cenários (como num motor C
 
 ## IDs reprodutíveis na aceitação
 
-Toda execução da aceitação (`*Test` e `*IT`) sobe **um PostgreSQL novo** e o prepara antes de a aplicação subir (`aceitacao/BancoDaAceitacao.java`):
+Toda execução da aceitação (`*Test` e `*IT`) sobe **um PostgreSQL novo** e o prepara antes de a aplicação subir (`src/test/java/cucumber/BancoDaAceitacao.java`):
 
 1. aplica as migrations de produção (`db/migration`);
-2. aplica a massa `src/test/resources/db/massa/R__massa_aceitacao.sql`, que grava um processo pronto em cada situação, **com ID fixo** (2 a 11; o 1 é a sentinela), e reinicia as sequências em **1000**.
+2. aplica a massa `src/test/resources/cucumber/massa/R__massa_aceitacao.sql`, que grava um processo pronto em cada situação, **com ID fixo** (2 a 11; o 1 é a sentinela), e reinicia as sequências em **1000**.
 
 Por isso, em todo build e nas duas fases:
 
@@ -98,7 +98,7 @@ A aceitação roda num sandbox, e o isolamento está garantido por construção,
 | Garantia | Como | O que impede |
 |---|---|---|
 | Banco próprio | `BancoDaAceitacao` sobe um PostgreSQL novo; o `@WithTestResource` vale só para a classe de aceitação | Os testes de componente (banco do Dev Services) consumirem IDs ou verem a massa |
-| JVM própria | Execuções separadas no `pom.xml`: `aceitacao` no surefire e `aceitacao-it` no failsafe, depois das demais | O estado do Quarkus passar de um teste para outro. No `*IT`, a configuração devolvida por um recurso de teste vale para todos os jars que sobem depois na mesma JVM |
+| JVM própria | Execuções separadas no `pom.xml`: `cucumber` no surefire e `cucumber-it` no failsafe, depois das demais | O estado do Quarkus passar de um teste para outro. No `*IT`, a configuração devolvida por um recurso de teste vale para todos os jars que sobem depois na mesma JVM |
 | Sentinela | O runner confere o processo 1 (`COTA-SENTINELA`, que nenhum cenário usa) antes do primeiro cenário | Rodar os cenários sobre o banco errado. A falha diz "a aplicação não está sobre o banco da aceitação" |
 | Em sequência | Cucumber com `--order lexical`, um cenário de cada vez, e o `AceitacaoSequencialTest`, que falha se a execução paralela do JUnit for ligada | IDs gerados que mudam a cada build |
 

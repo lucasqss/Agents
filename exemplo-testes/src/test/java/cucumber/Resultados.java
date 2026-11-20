@@ -1,4 +1,4 @@
-package br.com.claudio.pagamento.aceitacao;
+package cucumber;
 
 import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.EventPublisher;

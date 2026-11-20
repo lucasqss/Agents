@@ -1,4 +1,4 @@
-package br.com.claudio.pagamento.aceitacao.passos;
+package cucumber.passos;
 
 import io.cucumber.java.ParameterType;
 import java.math.BigDecimal;

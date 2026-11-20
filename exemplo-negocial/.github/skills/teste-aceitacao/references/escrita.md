@@ -11,7 +11,7 @@
 
 ## Vocabulário disponível
 
-> O vocabulário abaixo é o do `exemplo-testes` (processo de pagamento). Cada projeto tem o seu, no mesmo formato, em `aceitacao/passos/Vocabulario.java`.
+> O vocabulário abaixo é o do `exemplo-testes` (processo de pagamento). Cada projeto tem o seu, no mesmo formato, em `cucumber/passos/Vocabulario.java`.
 
 Os termos ficam em `passos/Vocabulario.java`:
 
