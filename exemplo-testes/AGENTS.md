@@ -2,7 +2,7 @@
 
 Serviço Java 25 + Quarkus 3.33: o processo de pagamento, uma máquina de estados com um fluxo por tipo (serviço e imobiliário). O projeto existe para ser **modelo de testes e barreiras de build**: o comportamento e a estrutura são verificados a cada `./mvnw verify`, seja qual for o agente que mexer no código.
 
-**Use as skills:** `teste-unidade` para provar regra de negócio (as matrizes exaustivas ficam aqui); `teste-componente` para o serviço montado (persistência, validação, erros, contrato) e o `*IT` contra o jar; `teste-aceitacao` para a aceitação em tabelas que o QA preenche (a massa em `cucumber/massa/processos.md`, os cenários nos `Exemplos` dos `.feature` em português), que o negócio valida e o Cucumber executa. Cada comportamento é provado no nível mais baixo que consegue prová-lo.
+**Use as skills:** `teste-unidade` para provar regra de negócio (as matrizes exaustivas ficam aqui); `teste-componente` para o serviço montado (persistência, validação, erros, contrato) e o `*IT` contra o jar; `prototipo-de-jornada` para as telas de rascunho em `prototipo-telas/` (React + Vite + Tailwind, com serviço simulado); `teste-aceitacao` para a aceitação em tabelas que o QA preenche (a massa em `cucumber/massa/processos.md`, os cenários nos `Exemplos` dos `.feature` em português), que o negócio valida e o Cucumber executa. Cada comportamento é provado no nível mais baixo que consegue prová-lo.
 
 ## Como trabalhar
 

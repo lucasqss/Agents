@@ -2,7 +2,7 @@
 
 Serviço Java 25 + Quarkus 3.33 com domínio puro e padrões do *Patterns of Enterprise Application Architecture* (Fowler). A arquitetura é verificada a cada build por testes ArchUnit.
 
-**Use as skills:** `especificar-caso-de-uso` ao transformar um pedido de negócio em requisito escrito, antes de qualquer código; `arquiteto-padrao` ao criar ou alterar código; `adequar-ao-padrao` ao trazer código legado para o padrão; `teste-unidade` para provar regra de negócio (as matrizes exaustivas ficam aqui); `teste-componente` para o serviço montado (persistência, validação, identidade, erros, concorrência, integração, contrato); `teste-aceitacao` para as especificações em português (`.feature`), que o negócio valida e o Cucumber executa sobre a massa de IDs fixos. Cada comportamento é provado no nível mais baixo que consegue prová-lo.
+**Use as skills:** `especificar-caso-de-uso` ao transformar um pedido de negócio em requisito escrito, antes de qualquer código; `arquiteto-padrao` ao criar ou alterar código; `adequar-ao-padrao` ao trazer código legado para o padrão; `teste-unidade` para provar regra de negócio (as matrizes exaustivas ficam aqui); `teste-componente` para o serviço montado (persistência, validação, identidade, erros, concorrência, integração, contrato); `prototipo-de-jornada` para as telas de rascunho em `prototipo-telas/` (React + Vite + Tailwind, com serviço simulado; o que ainda não existe na API fica em `prototipo-telas/src/jornada/contrato-proposto.md`); `teste-aceitacao` para as especificações em português (`.feature`), que o negócio valida e o Cucumber executa sobre a massa de IDs fixos. Cada comportamento é provado no nível mais baixo que consegue prová-lo.
 
 ## Como trabalhar
 

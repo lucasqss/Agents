@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# Sobe a API em modo dev e o protótipo de telas. Ctrl+C derruba os dois.
-# Requisitos: JDK 25, Docker (o Dev Services sobe o PostgreSQL) e python3.
+# Sobe o protótipo de telas.
+#   ./subir.sh           o serviço em modo dev (Quarkus) + as telas contra ele. Ctrl+C derruba os dois.
+#   ./subir.sh falso     só as telas, com o serviço simulado no navegador (sem Java, sem Docker).
+# Requisitos: Node 20+; no modo normal, também JDK 25 e Docker (o Dev Services sobe o PostgreSQL).
 set -euo pipefail
 
 AQUI=$(cd "$(dirname "$0")" && pwd)
-PORTA=${PORTA:-5173}
+cd "$AQUI"
+[ -d node_modules ] || npm install
+
+if [ "${1:-}" = "falso" ]; then
+  exec npm run dev:falso
+fi
 
 (cd "$AQUI/.." && ./mvnw -q quarkus:dev -Dquarkus.console.enabled=false) &
 API=$!
-trap 'kill $API $TELAS 2>/dev/null || true' EXIT INT TERM
+trap 'kill $API 2>/dev/null || true' EXIT INT TERM
 
-(cd "$AQUI" && python3 -m http.server "$PORTA" --bind 127.0.0.1) &
-TELAS=$!
-
-echo "Protótipo: http://localhost:$PORTA   (a API sobe em http://localhost:8080; a primeira vez demora)"
-wait
+echo "Protótipo: http://localhost:5173   (a API sobe em http://localhost:8080; a primeira vez demora)"
+npm run dev

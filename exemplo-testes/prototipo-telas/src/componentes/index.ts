@@ -1,0 +1,20 @@
+// Os componentes do protótipo. Tela nova se monta com estes; componente novo só quando nenhum serve.
+export { Aviso, type TipoDeAviso } from "./Aviso";
+export { Botao, BotaoLink } from "./Botao";
+export { Campo, Entrada, Opcoes } from "./Campo";
+export { Caminho, type SituacaoDoPasso } from "./Caminho";
+export { Cartao } from "./Cartao";
+export { DialogoTexto } from "./DialogoTexto";
+export { Etiqueta } from "./Etiqueta";
+export { Indicadores } from "./Indicadores";
+export { Layout, type ItemDeMenu } from "./Layout";
+export { LinhaDoTempo } from "./LinhaDoTempo";
+export { PorTrasDaTela } from "./PorTrasDaTela";
+export { Tabela, type Coluna } from "./Tabela";
+export { type Tom } from "./tons";
+export { Vazio } from "./Vazio";
+export { Abas } from "./Abas";
+export { CartaoDeEscolha } from "./CartaoDeEscolha";
+export { EnvioDeArquivo } from "./EnvioDeArquivo";
+export { Interruptor } from "./Interruptor";
+export { Passos } from "./Passos";
