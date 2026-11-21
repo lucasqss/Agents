@@ -1,0 +1,26 @@
+{
+  "_sobre": "Desenho da jornada: o que o front DESCREVE. A API DECIDE (se a ação vale, para onde leva, regras e valores). Chaves = códigos da API (conferidos contra o OpenAPI pelos nomes em 'contrato').",
+  "nome": "Nome do sistema",
+  "situacoes": {
+    "CODIGO_DA_SITUACAO": { "rotulo": "Como o negócio chama", "cor": "neutro | andamento | espera | sucesso | erro", "quemAge": "usuario da persona sugerida" },
+    "CODIGO_FINAL": { "rotulo": "Situação final", "cor": "sucesso", "final": true }
+  },
+  "acoes": {
+    "CODIGO_DA_ACAO": { "rotulo": "Texto do botão" },
+    "CODIGO_DESTRUTIVO": { "rotulo": "Cancelar", "pedeMotivo": true, "estilo": "perigo" }
+  },
+  "tipos": {
+    "CODIGO_DO_TIPO": {
+      "rotulo": "Nome do tipo",
+      "explicacao": "Uma frase sobre o caminho deste tipo.",
+      "etapas": ["CODIGO_DA_SITUACAO", { "situacao": "OUTRA_SITUACAO", "quando": "só em tal caso" }]
+    }
+  },
+  "personas": [
+    { "usuario": "identificador", "nome": "Nome", "papel": "papel" }
+  ],
+  "textos": {
+    "chave": "Texto de ajuda usado pelas telas com texto('chave')."
+  },
+  "contrato": { "situacoes": "EnumDeSituacaoNoOpenApi", "acoes": "EnumDeAcaoNoOpenApi", "tipos": "EnumDeTipoNoOpenApi" }
+}
