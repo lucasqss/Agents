@@ -5,7 +5,7 @@ Telas de **rascunho** sobre a API do `exemplo-testes`. Servem para duas coisas:
 - conversar com o negócio sobre as jornadas, com telas de verdade, sem Swagger;
 - apoiar o teste manual da API: preencher e acionar os endpoints sem montar JSON à mão.
 
-**Não é o produto final.** O visual é de propósito o de um esboço (bordas tracejadas, selo "RASCUNHO"), para a conversa ficar na jornada e não nas cores.
+**Não é o produto final:** um selo "Protótipo" na barra lateral lembra isso, sem dominar a tela.
 
 ## Como subir
 
@@ -26,7 +26,7 @@ Depois, abra http://localhost:5173.
 
 ## A jornada que dá para mostrar
 
-1. **Persona:** escolha quem você é no topo (Ana, analista; Vitor, vistoriador; Carla, aprovadora; Tesouraria). O nome vai no cabeçalho `X-Usuario` e aparece no histórico.
+1. **Persona:** escolha quem você é na barra lateral, em "Quem sou eu" (Ana, analista; Vitor, vistoriador; Carla, aprovadora; Tesouraria). O nome vai no cabeçalho `X-Usuario` e aparece no histórico.
 2. **Abrir:** abra um processo imobiliário de R$ 80.000,00.
 3. **Ana:** inicia e conclui a análise. O caminho mostra que o imobiliário vai para a vistoria.
 4. **Vitor:** conclui a vistoria. Como o valor está acima da alçada, o processo vai para "Aguardando alçada".
@@ -41,7 +41,10 @@ Para mostrar as regras na prática:
 
 ## Como é feito, e por que fica fora do serviço
 
-- **Sem build:** HTML, CSS e JavaScript puro (`index.html`, `estilo.css`, `app.js`, `config.js`). Sem npm e sem framework. Altere e recarregue a página.
+- **Sem build:** HTML, CSS e JavaScript puro (`index.html`, `estilo.css`, `app.js`, `config.js`). Sem npm, sem framework e sem dependência externa (nem CDN). Altere e recarregue a página.
+- **Visual em um lugar só:** o tema escuro é definido pelas variáveis no topo de `estilo.css` (superfícies, texto, destaque, estados, raio e espaçamento). Para trocar as cores, ou criar um tema claro, mude só esse bloco; o comentário ali mostra como.
+- **Poucos componentes, reutilizados:** `cartao`, `botao` (`principal`, `perigo`), `campo`, `etiqueta`, `aviso`, `tabela`, `caminho`, `linha-do-tempo`, `dialogo`. Tela nova se monta com eles em `app.js`.
+- **Celular:** a barra lateral vira barra de topo, e o caminho do processo vira uma lista vertical.
 - **Fora do jar:** a pasta fica fora de `src/`, então o Maven nem a vê.
 - **Mudança no serviço:** só o CORS, que vale apenas no perfil `%dev` (`application.properties`). Em teste e em produção, nada muda.
 - **Outro ambiente:** troque a URL em `config.js`. O ambiente precisa liberar CORS para esta página.

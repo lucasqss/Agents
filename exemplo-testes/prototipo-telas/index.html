@@ -3,34 +3,56 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Processos de pagamento · rascunho</title>
+  <meta name="color-scheme" content="dark">
+  <title>Processos de pagamento</title>
   <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
-  <header class="topo">
-    <a class="marca" href="#/">Processos de pagamento</a>
-    <span class="selo" title="Protótipo para conversar sobre as jornadas. Não é o produto final.">RASCUNHO</span>
-    <label class="quem">
-      Quem sou eu
-      <select id="persona"></select>
-    </label>
-  </header>
+  <div class="app">
+    <aside class="lateral">
+      <a class="marca" href="#/">
+        <span class="marca-icone" aria-hidden="true">PP</span>
+        <span>Processos de pagamento</span>
+      </a>
+      <span class="selo" title="Telas para conversar sobre as jornadas. Não é o produto final.">Protótipo</span>
 
-  <main id="tela" aria-live="polite"></main>
+      <nav class="menu" aria-label="Principal">
+        <a href="#/" data-menu="inicio">Processos</a>
+        <a href="#/abrir" data-menu="abrir">Abrir processo</a>
+      </nav>
 
-  <details class="bastidor" id="bastidor">
-    <summary>Por trás da tela: a última chamada à API</summary>
-    <pre id="ultima-chamada">Nenhuma chamada ainda.</pre>
-  </details>
+      <div class="persona">
+        <span class="avatar" id="avatar" aria-hidden="true"></span>
+        <label>
+          <span class="rotulo">Quem sou eu</span>
+          <select id="persona"></select>
+        </label>
+      </div>
+    </aside>
 
-  <dialog id="dialogo-motivo">
+    <div class="conteudo">
+      <header class="cabecalho">
+        <nav class="trilha" id="trilha" aria-label="Você está em"></nav>
+        <h1 id="titulo"></h1>
+      </header>
+
+      <main id="tela" aria-live="polite"></main>
+
+      <details class="bastidor">
+        <summary>Por trás da tela: a última chamada à API</summary>
+        <pre id="ultima-chamada">Nenhuma chamada ainda.</pre>
+      </details>
+    </div>
+  </div>
+
+  <dialog id="dialogo-motivo" class="dialogo">
     <form method="dialog">
-      <h3 id="dialogo-titulo">Motivo</h3>
-      <p class="dica">Esta ação exige um motivo. Ele fica registrado no histórico do processo.</p>
+      <h2 id="dialogo-titulo">Motivo</h2>
+      <p class="secundario">Esta ação exige um motivo. Ele fica registrado no histórico do processo.</p>
       <textarea id="dialogo-texto" rows="4" maxlength="500" placeholder="Escreva o motivo"></textarea>
-      <div class="botoes">
-        <button value="cancelar" class="secundario">Voltar</button>
-        <button value="confirmar" id="dialogo-confirmar">Confirmar</button>
+      <div class="dialogo-botoes">
+        <button value="cancelar" class="botao">Voltar</button>
+        <button value="confirmar" id="dialogo-confirmar" class="botao principal">Confirmar</button>
       </div>
     </form>
   </dialog>
