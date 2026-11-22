@@ -45,6 +45,8 @@ O nome das pastas varia por projeto; o papel não. No protótipo React deste rep
 | componentes | `src/componentes/` |
 | telas | `src/telas/` e `App.tsx` |
 
+Em Angular standalone a organização é a mesma, sob `src/app/`: núcleo em `api/` e `apoio/`, cliente em `jornada/api.ts`, desenho em `jornada/vocabulario.ts`, componentes em `componentes/` e telas em `telas/` e `app.ts`. A forma de cada peça (signals, `input()`, CDK, Lucide) está em [frameworks](references/frameworks.md#a-mesma-tela-ações-disponíveis-em-cada-um).
+
 O porquê de cada regra e a estrutura de referência estão em [arquitetura](references/arquitetura.md). Os outros frameworks estão em [frameworks](references/frameworks.md).
 
 ## Passo a passo por tarefa
@@ -63,6 +65,7 @@ O porquê de cada regra e a estrutura de referência estão em [arquitetura](ref
      - **Agir:** chame a api com o motivo, se a jornada pedir, e recarregue tudo da API. A situação nova é a que volta, não uma que você calcula.
      - **Erro:** use a mensagem da API no aviso. Se o recurso não existir, mostre o erro e o link de volta, em vez da tela.
      - **Etapa opcional** do caminho (ex.: alçada): mostre-a como "talvez" e marque-a como feita **pelo histórico**. Nunca a decida pelo valor nem pelo limite: isso é regra do backend.
+     - **Textos da especificação:** use-os ao pé da letra. Onde ela diz `por <usuário>`, mostre o usuário que a API devolve, sem trocá-lo pelo nome da persona.
 5. **Elemento visual novo:** procure no catálogo do projeto ([componentes](references/componentes.md)). Se não houver, crie um componente genérico e puro, que use só os tokens de tema.
 6. **Outro framework:** as camadas e a jornada são as mesmas; muda a forma de cada peça ([frameworks](references/frameworks.md)). Os modelos em JavaScript puro estão em [`assets/`](assets/).
 
@@ -93,10 +96,19 @@ UI_COMPONENTES="src/componentes" UI_TELAS="src/telas src/App.tsx" \
 .github/skills/ui-jornada/scripts/verificar.sh prototipo-telas
 ```
 
+Para um Angular standalone organizado como acima (o script reconhece a raiz `src/app` sozinho), rode a partir da pasta do front:
+
+```bash
+UI_NUCLEO="src/app/api src/app/apoio" UI_API="src/app/api src/app/jornada/api.ts" \
+UI_JORNADA="src/app/jornada/vocabulario.ts src/app/jornada/servicoFalso.ts" \
+UI_COMPONENTES="src/app/componentes" UI_TELAS="src/app/telas src/app/app.ts" \
+.claude/skills/ui-jornada/scripts/verificar.sh .
+```
+
 Se uma regra falhar, **corrija o código, não a regra**. O script não pega regra de negócio escrita sem código da API (ex.: `valor > 50000`). Isso fica para a revisão.
 
 ## Antes de terminar
 
 1. `verificar.sh` verde.
-2. A checagem do projeto: no protótipo, `npm run typecheck` e o percurso no navegador, como manda a `prototipo-de-jornada`.
+2. A checagem do projeto: no protótipo React, `npm run typecheck` e o percurso no navegador, como manda a `prototipo-de-jornada`. Em Angular, `typecheck` **e** `lint`, e o percurso no navegador no modo simulado.
 3. Relate o que mudou em cada camada e o que não conseguiu verificar.

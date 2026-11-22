@@ -8,7 +8,7 @@
 # da estrutura da skill (js/ ou src/ com nucleo, api, jornadas, componentes, telas):
 #   UI_NUCLEO        infraestrutura: único lugar com fetch/axios/HttpClient
 #   UI_API           clientes dos recursos: único lugar com endpoint (chamar(...), URL base)
-#   UI_JORNADA       o desenho da jornada: único lugar com código da API (EM_ANALISE)
+#   UI_JORNADA       o desenho da jornada: único lugar com código da API (EM_ANALISE, e === "PAGO")
 #   UI_COMPONENTES   componentes visuais puros
 #   UI_TELAS         telas
 # Exemplo para o protótipo React deste repositório (skill prototipo-de-jornada):
@@ -84,7 +84,8 @@ regra "UI-004: CLIENTE DA API NÃO DEPENDE DE TELAS NEM COMPONENTES ($API)" \
 visao=$(existentes $TELAS $COMPONENTES)
 regra "UI-005: CÓDIGO DA API SÓ NA JORNADA ($JORNADA)" \
   "traduza pelo vocabulário/contexto da jornada; regra que compara código é do backend" \
-  "$([ -n "$visao" ] && grep -rnE "${EXT[@]}" "[\"'\`][A-Z][A-Z0-9]*_[A-Z0-9_]+[\"'\`]" $visao || true)"
+  "$([ -n "$visao" ] && grep -rnE "${EXT[@]}" \
+    "[\"'\`][A-Z][A-Z0-9]*_[A-Z0-9_]+[\"'\`]|[!=]==?\s*[\"'\`][A-Z]{3,}[\"'\`]|[\"'\`][A-Z]{3,}[\"'\`]\s*[!=]==?" $visao || true)"
 
 invalidas=""
 while IFS= read -r j; do

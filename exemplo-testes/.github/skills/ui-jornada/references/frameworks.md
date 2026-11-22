@@ -1,16 +1,16 @@
 # A mesma arquitetura em cada framework
 
-As cinco camadas, as regras e o JSON da jornada não mudam. Muda só a forma de cada peça e a raiz do código (`js/` em JavaScript puro, `src/` nos frameworks). O `scripts/verificar.sh` confere qualquer um, porque olha os caminhos das camadas (configuráveis por variável). O protótipo React deste repositório (`exemplo-testes/prototipo-telas`) é um exemplo de React com as camadas mapeadas para as pastas dele (tabela no `SKILL.md`).
+As cinco camadas, as regras e o JSON da jornada não mudam. Muda só a forma de cada peça e a raiz do código (`js/` em JavaScript puro, `src/` em React e Vue, `src/app/` em Angular). O `scripts/verificar.sh` confere qualquer um, porque olha os caminhos das camadas (configuráveis por variável). O protótipo React deste repositório (`exemplo-testes/prototipo-telas`) é um exemplo de React com as camadas mapeadas para as pastas dele (tabela no `SKILL.md`).
 
 | Peça | JavaScript puro (estrutura de referência) | React | Vue | Angular |
 |---|---|---|---|---|
-| `nucleo/http` | `chamar()` com `fetch` | o mesmo módulo (ou um hook `useApi` só para estado de carregamento, chamando `chamar`) | o mesmo módulo | `HttpService` em `nucleo/`, o único com `HttpClient` |
-| `nucleo/rotas` | roteador por `#hash` | `react-router` configurado em `nucleo/rotas` | `vue-router` em `nucleo/rotas` | `Routes` em `nucleo/rotas` |
-| `api/<recurso>` | módulo de funções | o mesmo módulo | o mesmo módulo | `@Injectable` `ProcessosApi` em `api/`, usando `HttpService` |
+| `nucleo/http` | `chamar()` com `fetch` | o mesmo módulo (ou um hook `useApi` só para estado de carregamento, chamando `chamar`) | o mesmo módulo | `chamar()` em `nucleo/` (`fetch`, ou `HttpClient` num serviço do núcleo); nada fora dele injeta `HttpClient` |
+| `nucleo/rotas` | roteador por `#hash` | `react-router` configurado em `nucleo/rotas` | `vue-router` em `nucleo/rotas` | `Routes` + `provideRouter(rotas, withHashLocation(), withComponentInputBinding())`: o `:id` e o `?aberto` chegam à tela como `input()` |
+| `api/<recurso>` | módulo de funções | o mesmo módulo | o mesmo módulo | o mesmo módulo de funções (Promise), ou um `@Injectable` em `api/` |
 | `jornadas/*.json` | lido por `lerArquivo` | `import jornada from "./jornadas/x.json"` | idem | `import` ou `HttpService` lendo o asset |
-| contexto da jornada | `telas/contexto.js` | `JornadaContext` (Context) em `telas/contexto` | `provide/inject` em `telas/contexto` | `JornadaService` em `telas/contexto` |
-| `componentes/` | função → string HTML | componente de função, só props, sem efeitos | SFC só com `props` e `emits` | componente `standalone` com `@Input`/`@Output`, sem serviço injetado |
-| `telas/` | função que monta a página | componente de página: busca em `useEffect` pela `api` | página com `onMounted` chamando a `api` | componente de rota chamando o serviço da `api` |
+| contexto da jornada | `telas/contexto.js` | `JornadaContext` (Context) em `telas/contexto` | `provide/inject` em `telas/contexto` | as constantes da jornada importadas, ou um `JornadaService` |
+| `componentes/` | função → string HTML | componente de função, só props, sem efeitos | SFC só com `props` e `emits` | componente standalone com `input()`/`model()`/`output()`, OnPush, sem serviço da api nem da jornada; se melhora um elemento nativo, seletor de atributo (`button[app-botao]`) |
+| `telas/` | função que monta a página | componente de página: busca em `useEffect` pela `api` | página com `onMounted` chamando a `api` | componente de rota: estado em `signal`, derivados em `computed`, carga num `effect` que lê o `input()` do id |
 | estilo | `tokens.css` + `componentes.css` | os mesmos arquivos (ou CSS Modules usando os tokens) | `<style scoped>` usando os tokens | `styles` usando os tokens |
 
 Regras que mudam de forma, não de sentido:
@@ -58,21 +58,23 @@ onMounted(async () => { codigos.value = (await processos.acoes(props.id)).corpo 
 </template>
 ```
 
-Angular:
+Angular (standalone, signals, sem zone.js):
 
 ```ts
-@Component({ standalone: true, selector: "acoes-disponiveis", imports: [BotaoComponent], template: `
-  @for (a of codigos(); track a) {
-    <app-botao [perigo]="jornada.acao(a).estilo === 'perigo'" (clique)="executar.emit(a)">{{ jornada.acao(a).rotulo }}</app-botao>
+@Component({ selector: "app-acoes", imports: [Botao], changeDetection: ChangeDetectionStrategy.OnPush, template: `
+  @for (a of disponiveis(); track a) {
+    <button app-botao [variante]="ACOES[a].perigo ? 'perigo' : 'normal'" (click)="executar.emit(a)">{{ ACOES[a].texto }}</button>
   }` })
-export class AcoesDisponiveisComponent {
-  @Input({ required: true }) id!: string;
-  @Output() executar = new EventEmitter<string>();
-  jornada = inject(JornadaService);
-  private api = inject(ProcessosApi);
-  codigos = signal<string[]>([]);
-  ngOnInit() { this.api.acoes(this.id).subscribe((r) => this.codigos.set(this.jornada.ordenarAcoes(r.corpo ?? []))); }
+export class AcoesDisponiveis {
+  readonly id = input.required<string>();
+  readonly executar = output<Acao>();
+  protected readonly ACOES = ACOES;                      // jornada: rótulo e estilo
+  private readonly codigos = signal<Acao[]>([]);
+  protected readonly disponiveis = computed(() => (Object.keys(ACOES) as Acao[]).filter((a) => this.codigos().includes(a)));
+  constructor() { effect(() => { void processos.acoes(this.id()).then((r) => this.codigos.set(r.ok ? r.dados : [])); }); }
 }
 ```
+
+No Angular, sem zone.js, **todo estado que a tela mostra fica em `signal`**: um campo comum alterado depois de um `await` não redesenha a tela. Diálogo (o motivo) é o `Dialog` do Angular CDK, aberto por um serviço do catálogo, nunca um `<dialog>` montado na tela. Ícone é `<svg lucideNome aria-hidden="true">` com o componente do `@lucide/angular` nos `imports`. Rode o `lint` do projeto (angular-eslint, com as regras de acessibilidade de template) além do typecheck.
 
 Em todos: a lista vem da API, o rótulo e o estilo vêm da jornada, e o botão é um componente que não sabe de API nem de jornada.
