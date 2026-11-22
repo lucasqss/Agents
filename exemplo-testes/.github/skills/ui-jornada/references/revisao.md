@@ -16,6 +16,9 @@
 | Erro | Por que é erro | Correção |
 |---|---|---|
 | `if (p.valor > 50000) mostraAlcada()` | regra de negócio no front; o número muda no backend e o front mente | mostrar a situação que a API devolve; texto de ajuda sem número |
+| `caminho.filter(c => !c.talvez \|\| p.valor > ALCADA)` | mesma regra de alçada, só que escondida no desenho do caminho | etapa opcional como "talvez"; feita se aparece no histórico |
+| `p.estado === "PENDENTE_DOCUMENTO" ? 2 : ...` para posicionar o caminho | código da API comparado na tela (UI-005) | posição pela situação atual na lista de etapas da jornada, e pelo histórico |
+| aviso de entrada ("Processo aberto.") que fica na tela junto com o resultado da ação | dois avisos ao mesmo tempo: a pessoa não sabe qual vale | um só estado de aviso; o resultado da ação substitui o anterior |
 | `if (p.estado === "APROVADO") <botão Pagar>` | o front decidindo se a ação vale | botões só das "ações disponíveis" |
 | `fetch(API + "/processos/" + id)` dentro da tela | HTTP fora do núcleo, endpoint fora da api (UI-001, UI-002) | `processos.consultar(id)` |
 | componente que importa `api/` para "se buscar sozinho" | componente deixa de ser reutilizável e testável (UI-003) | a tela busca e passa por props |

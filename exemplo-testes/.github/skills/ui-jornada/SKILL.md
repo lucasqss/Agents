@@ -57,6 +57,12 @@ O porquê de cada regra e a estrutura de referência estão em [arquitetura](ref
    - busque pela api e traduza códigos pela jornada (rótulo, cor);
    - monte com os componentes;
    - mostre botões só a partir das ações disponíveis da API.
+   - Na tela de detalhe com ações, siga a receita:
+     - **Carregar:** busque juntos o recurso, as ações disponíveis e o histórico.
+     - **Avisar:** mantenha **um só aviso** de estado. Ele começa com o aviso de entrada (ex.: "Processo aberto.") e o resultado de cada ação **substitui** o anterior. Nunca empilhe avisos.
+     - **Agir:** chame a api com o motivo, se a jornada pedir, e recarregue tudo da API. A situação nova é a que volta, não uma que você calcula.
+     - **Erro:** use a mensagem da API no aviso. Se o recurso não existir, mostre o erro e o link de volta, em vez da tela.
+     - **Etapa opcional** do caminho (ex.: alçada): mostre-a como "talvez" e marque-a como feita **pelo histórico**. Nunca a decida pelo valor nem pelo limite: isso é regra do backend.
 5. **Elemento visual novo:** procure no catálogo do projeto ([componentes](references/componentes.md)). Se não houver, crie um componente genérico e puro, que use só os tokens de tema.
 6. **Outro framework:** as camadas e a jornada são as mesmas; muda a forma de cada peça ([frameworks](references/frameworks.md)). Os modelos em JavaScript puro estão em [`assets/`](assets/).
 
