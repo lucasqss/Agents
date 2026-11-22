@@ -15,13 +15,18 @@
 #   UI_NUCLEO="src/api src/apoio" UI_API="src/api src/jornada/api.ts" \
 #   UI_JORNADA="src/jornada/vocabulario.ts src/jornada/servicoFalso.ts" \
 #   UI_COMPONENTES="src/componentes" UI_TELAS="src/telas src/App.tsx" verificar.sh exemplo-testes/prototipo-telas
+# Exemplo para Angular standalone (src/app/...):
+#   UI_NUCLEO="src/app/api src/app/apoio" UI_API="src/app/api src/app/jornada/api.ts" \
+#   UI_JORNADA="src/app/jornada/vocabulario.ts src/app/jornada/servicoFalso.ts" \
+#   UI_COMPONENTES="src/app/componentes" UI_TELAS="src/app/telas src/app/app.ts" verificar.sh <pasta-do-front>
 #
 # Sai com 1 e lista arquivo:linha de cada violação, com o "Corrija:".
 set -uo pipefail
 
 FRONT=${1:?"uso: verificar.sh <pasta-do-front>"}
 cd "$FRONT" || exit 2
-RAIZ=$( [ -d src ] && echo src || echo js )
+# Raiz do código: src/app (Angular), src (React, Vue, Vite) ou js (JavaScript puro). UI_RAIZ sobrescreve.
+RAIZ=${UI_RAIZ:-$( if [ -d src/app ]; then echo src/app; elif [ -d src ]; then echo src; else echo js; fi )}
 NUCLEO=${UI_NUCLEO:-$RAIZ/nucleo}
 API=${UI_API:-$RAIZ/api}
 JORNADA=${UI_JORNADA:-$RAIZ/jornadas}
