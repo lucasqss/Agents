@@ -87,13 +87,13 @@ Erros comuns e checklist: [revisão](references/revisao.md).
 
 ## Verificação automática
 
-[`scripts/verificar.sh`](scripts/verificar.sh) confere de UI-001 a UI-006 só com `grep`, em qualquer framework. Os caminhos das camadas vêm de variáveis, e os padrões valem para `js/` ou `src/` com `nucleo`, `api`, `jornadas`, `componentes` e `telas`. Para o protótipo React deste repositório:
+[`scripts/verificar.sh`](scripts/verificar.sh) confere de UI-001 a UI-006 só com `grep`, em qualquer framework. Os caminhos das camadas vêm de variáveis, e os padrões valem para `js/` ou `src/` com `nucleo`, `api`, `jornadas`, `componentes` e `telas`. Para o protótipo React de `exemplo-testes`, a partir da raiz do repositório:
 
 ```bash
 UI_NUCLEO="src/api src/apoio" UI_API="src/api src/jornada/api.ts" \
 UI_JORNADA="src/jornada/vocabulario.ts src/jornada/servicoFalso.ts" \
 UI_COMPONENTES="src/componentes" UI_TELAS="src/telas src/App.tsx" \
-.github/skills/ui-jornada/scripts/verificar.sh prototipo-telas
+frontend/.github/skills/ui-jornada/scripts/verificar.sh exemplo-testes/prototipo-telas
 ```
 
 Para um Angular standalone organizado como acima (o script reconhece a raiz `src/app` sozinho), rode a partir da pasta do front:
