@@ -18,7 +18,7 @@ Recebe HTTP, chama o caso de uso e devolve o resultado. Sem regra de negócio, s
 
 **Ação com dado obrigatório:** o dado vem em um record de request próprio (`@NotBlank`, `@Size(max = <tamanho da coluna>)`), com o corpo declarado obrigatório (`@RequestBody(required = true) @Valid @NotNull`), para o OpenAPI mostrar o corpo como obrigatório. Corpo ausente, vazio ou grande demais responde 400 com o nome do campo, antes de buscar o agregado (400 vence 404 e 409). Ações sem dado seguem aceitando requisição sem corpo (`required = false`); os dois estilos convivem no mesmo resource. Quem decide se a ação exige o dado é o domínio ([domínio](dominio.md)); o entrypoint só confere o formato.
 
-**Erros:** saem como `ErroResponse`, com a lista `campos`. Exceção vira HTTP em `ExceptionMappers`, na raiz de `entrypoint/`:
+**Erros:** saem como `ErroResponse`, com a lista `campos`. Cada status de erro que o endpoint devolve também é declarado no contrato OpenAPI, com o corpo `ErroResponse` ([contrato OpenAPI](contrato-openapi.md)). Exceção vira HTTP em `ExceptionMappers`, na raiz de `entrypoint/`:
 
 | Exceção | HTTP |
 |---|---|

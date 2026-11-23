@@ -6,6 +6,31 @@
         "type" : "string",
         "enum" : [ "INICIAR_ANALISE", "SOLICITAR_DOCUMENTO", "RECEBER_DOCUMENTO", "CONCLUIR_ANALISE", "CONCLUIR_VISTORIA", "APROVAR_NA_ALCADA", "DEVOLVER_PARA_ANALISE", "REPROVAR", "PAGAR", "CANCELAR" ]
       },
+      "CampoInvalido" : {
+        "type" : "object",
+        "properties" : {
+          "campo" : {
+            "type" : [ "string", "null" ]
+          },
+          "erro" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ErroResponse" : {
+        "type" : "object",
+        "properties" : {
+          "mensagem" : {
+            "type" : [ "string", "null" ]
+          },
+          "campos" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CampoInvalido"
+            }
+          }
+        }
+      },
       "EstadoAtual" : {
         "type" : "object",
         "properties" : {
@@ -113,6 +138,7 @@
   "paths" : {
     "/processos" : {
       "post" : {
+        "operationId" : "abrir",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -135,7 +161,14 @@
             }
           },
           "400" : {
-            "description" : "Bad Request"
+            "description" : "Dados inválidos (campos com o erro de cada um)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErroResponse"
+                }
+              }
+            }
           }
         },
         "summary" : "Abrir",
@@ -144,6 +177,7 @@
     },
     "/processos/{id}" : {
       "get" : {
+        "operationId" : "consultar",
         "parameters" : [ {
           "name" : "id",
           "in" : "path",
@@ -163,6 +197,16 @@
                 }
               }
             }
+          },
+          "404" : {
+            "description" : "Processo não encontrado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErroResponse"
+                }
+              }
+            }
           }
         },
         "summary" : "Consultar",
@@ -171,6 +215,7 @@
     },
     "/processos/{id}/acoes" : {
       "get" : {
+        "operationId" : "acoes",
         "parameters" : [ {
           "name" : "id",
           "in" : "path",
@@ -193,6 +238,16 @@
                 }
               }
             }
+          },
+          "404" : {
+            "description" : "Processo não encontrado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErroResponse"
+                }
+              }
+            }
           }
         },
         "summary" : "Acoes",
@@ -201,6 +256,7 @@
     },
     "/processos/{id}/acoes/{acao}" : {
       "post" : {
+        "operationId" : "executar",
         "parameters" : [ {
           "name" : "acao",
           "in" : "path",
@@ -227,14 +283,19 @@
           "required" : true
         } ],
         "requestBody" : {
-          "required" : false,
           "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Motivo"
+              }
+            },
             "*/*" : {
               "schema" : {
                 "$ref" : "#/components/schemas/Motivo"
               }
             }
-          }
+          },
+          "required" : false
         },
         "responses" : {
           "200" : {
@@ -248,7 +309,34 @@
             }
           },
           "400" : {
-            "description" : "Bad Request"
+            "description" : "Dados inválidos, ou motivo ausente numa ação que o exige",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErroResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Processo ou ação não encontrado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErroResponse"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "A ação não vale na situação atual do processo, ou alteração concorrente",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErroResponse"
+                }
+              }
+            }
           }
         },
         "summary" : "Executar",
@@ -257,6 +345,7 @@
     },
     "/processos/{id}/historico" : {
       "get" : {
+        "operationId" : "historico",
         "parameters" : [ {
           "name" : "id",
           "in" : "path",
@@ -276,6 +365,16 @@
                   "items" : {
                     "$ref" : "#/components/schemas/ProcessoTransicaoResumo"
                   }
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Processo não encontrado",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErroResponse"
                 }
               }
             }

@@ -266,6 +266,8 @@ Acrescente `.jqwik-database` ao `.gitignore` (o PITest o grava na raiz).
 ```properties
 # application.properties
 quarkus.smallrye-openapi.store-schema-directory=target/openapi
+# operationId = nome do método do resource: nome estável para o cliente gerado no front (ver contrato-openapi.md).
+quarkus.smallrye-openapi.operation-id-strategy=METHOD
 ```
 
 ```xml

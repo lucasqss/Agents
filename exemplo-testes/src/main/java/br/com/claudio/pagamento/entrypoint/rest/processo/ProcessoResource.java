@@ -10,6 +10,7 @@ import br.com.claudio.pagamento.domain.processo.fluxo.AcaoProcesso;
 import br.com.claudio.pagamento.domain.processo.fluxo.EstadoProcesso;
 import br.com.claudio.pagamento.domain.processo.fluxo.Transicao;
 import br.com.claudio.pagamento.domain.processo.tipo.TipoProcesso;
+import br.com.claudio.pagamento.entrypoint.ErroResponse;
 import br.com.claudio.pagamento.entrypoint.IdCriado;
 import br.com.claudio.pagamento.persistence.processo.ProcessoResumo;
 import br.com.claudio.pagamento.persistence.processo.ProcessoTransicaoResumo;
@@ -47,6 +48,10 @@ public class ProcessoResource {
 
     static final String USUARIO = "X-Usuario";
 
+    // Respostas de erro publicadas no contrato, sempre no formato de ErroResponse (ver ExceptionMappers): o front gera os
+    // tipos a partir do OpenAPI e precisa saber o corpo do erro de cada status.
+    private static final String JSON = MediaType.APPLICATION_JSON;
+
     public record NovoProcesso(@NotNull TipoProcesso tipo,
             @NotBlank @Size(max = ProcessoPagamento.TAMANHO_MAXIMO_DA_COTA) String numeroCota,
             @NotNull @Positive @Digits(integer = 13, fraction = 2) BigDecimal valor) {
@@ -81,7 +86,9 @@ public class ProcessoResource {
 
     @POST
     @APIResponse(responseCode = "201", description = "Processo aberto",
-            content = @Content(mediaType = MediaType.APPLICATION_JSON, schema = @Schema(implementation = IdCriado.class)))
+            content = @Content(mediaType = JSON, schema = @Schema(implementation = IdCriado.class)))
+    @APIResponse(responseCode = "400", description = "Dados inválidos (campos com o erro de cada um)",
+            content = @Content(mediaType = JSON, schema = @Schema(implementation = ErroResponse.class)))
     public Response abrir(@Valid @NotNull NovoProcesso dados) {
         Long id = abrir.executar(dados.tipo(), dados.numeroCota(), dados.valor());
         return Response.created(URI.create("/processos/" + id)).entity(new IdCriado(id)).build();
@@ -89,6 +96,9 @@ public class ProcessoResource {
 
     @GET
     @Path("/{id}")
+    @APIResponse(responseCode = "200", description = "OK") // o corpo vem do tipo de retorno
+    @APIResponse(responseCode = "404", description = "Processo não encontrado",
+            content = @Content(mediaType = JSON, schema = @Schema(implementation = ErroResponse.class)))
     public ProcessoResumo consultar(@PathParam("id") Long id) {
         return consultar.executar(id);
     }
@@ -96,21 +106,37 @@ public class ProcessoResource {
     /** As ações que o processo aceita agora, em ordem alfabética. */
     @GET
     @Path("/{id}/acoes")
+    @APIResponse(responseCode = "200", description = "OK") // o corpo vem do tipo de retorno
+    @APIResponse(responseCode = "404", description = "Processo não encontrado",
+            content = @Content(mediaType = JSON, schema = @Schema(implementation = ErroResponse.class)))
     public List<AcaoProcesso> acoes(@PathParam("id") Long id) {
         return listarAcoes.executar(id).stream().sorted(Comparator.comparing(Enum::name)).toList();
     }
 
     @POST
     @Path("/{id}/acoes/{acao}")
-    @Consumes(MediaType.WILDCARD)
+    @APIResponse(responseCode = "200", description = "OK") // o corpo vem do tipo de retorno
+    @Consumes(MediaType.WILDCARD) // corpo opcional, sem Content-Type (CorpoAusenteReader); o contrato publica JSON e */*
+    @APIResponse(responseCode = "400", description = "Dados inválidos, ou motivo ausente numa ação que o exige",
+            content = @Content(mediaType = JSON, schema = @Schema(implementation = ErroResponse.class)))
+    @APIResponse(responseCode = "404", description = "Processo ou ação não encontrado",
+            content = @Content(mediaType = JSON, schema = @Schema(implementation = ErroResponse.class)))
+    @APIResponse(responseCode = "409", description = "A ação não vale na situação atual do processo, ou alteração concorrente",
+            content = @Content(mediaType = JSON, schema = @Schema(implementation = ErroResponse.class)))
     public EstadoAtual executar(@PathParam("id") Long id, @PathParam("acao") AcaoProcesso acao,
             @HeaderParam(USUARIO) @NotBlank @Size(max = Transicao.TAMANHO_MAXIMO_DO_AUTOR) String usuario,
-            @RequestBody(required = false) @Valid @Nullable Motivo corpo) {
+            @RequestBody(required = false, content = {
+                    @Content(mediaType = JSON, schema = @Schema(implementation = Motivo.class)),
+                    @Content(mediaType = MediaType.WILDCARD, schema = @Schema(implementation = Motivo.class))})
+            @Valid @Nullable Motivo corpo) {
         return new EstadoAtual(executarAcao.executar(id, acao, usuario, Motivo.texto(corpo)));
     }
 
     @GET
     @Path("/{id}/historico")
+    @APIResponse(responseCode = "200", description = "OK") // o corpo vem do tipo de retorno
+    @APIResponse(responseCode = "404", description = "Processo não encontrado",
+            content = @Content(mediaType = JSON, schema = @Schema(implementation = ErroResponse.class)))
     public List<ProcessoTransicaoResumo> historico(@PathParam("id") Long id) {
         return listarHistorico.executar(id);
     }
