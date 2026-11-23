@@ -35,15 +35,9 @@ Quando houver um **serviço simulado** (modo sem backend), ele é cópia das reg
 | **componentes** | Visuais e puros: dados prontos entram, visão sai. Não chamam API nem leem a jornada | núcleo |
 | **telas** | Uma por rota: buscam pela api, traduzem pela jornada e montam com componentes | todas acima |
 
-O nome das pastas varia por projeto; o papel não. No protótipo React deste repositório (`exemplo-testes/prototipo-telas`):
+O nome das pastas varia por projeto; o papel não. **A referência em React é a POC `frontend/poc/`**, com a stack do repositório (React, shadcn/ui, cliente gerado do OpenAPI) e as receitas na skill `react-jornada`. Ela usa os nomes padrão: `src/nucleo/`, `src/api/`, `src/jornadas/`, `src/componentes/` e `src/telas/` (mais `App.tsx`). O serviço simulado fica fora das camadas, em `src/simulado/`.
 
-| Camada | Onde está |
-|---|---|
-| núcleo | `src/api/` (transporte real e simulado) e `src/apoio/` |
-| api | `src/jornada/api.ts` |
-| jornada | `src/jornada/vocabulario.ts` (e a cópia das regras em `servicoFalso.ts`) |
-| componentes | `src/componentes/` |
-| telas | `src/telas/` e `App.tsx` |
+Os protótipos mais antigos de `exemplo-testes/prototipo-telas` e `exemplo-negocial/prototipo-telas` usam outros nomes: núcleo em `src/api/` e `src/apoio/`, cliente em `src/jornada/api.ts`, desenho em `src/jornada/vocabulario.ts`.
 
 Em Angular standalone a organização é a mesma, sob `src/app/`: núcleo em `api/` e `apoio/`, cliente em `jornada/api.ts`, desenho em `jornada/vocabulario.ts`, componentes em `componentes/` e telas em `telas/` e `app.ts`. A forma de cada peça (signals, `input()`, CDK, Lucide) está em [frameworks](references/frameworks.md#a-mesma-tela-ações-disponíveis-em-cada-um).
 
@@ -87,7 +81,7 @@ Erros comuns e checklist: [revisão](references/revisao.md).
 
 ## Verificação automática
 
-[`scripts/verificar.sh`](scripts/verificar.sh) confere de UI-001 a UI-006 só com `grep`, em qualquer framework. Os caminhos das camadas vêm de variáveis, e os padrões valem para `js/` ou `src/` com `nucleo`, `api`, `jornadas`, `componentes` e `telas`. Para o protótipo React de `exemplo-testes`, a partir da raiz do repositório:
+[`scripts/verificar.sh`](scripts/verificar.sh) confere de UI-001 a UI-006 só com `grep`, em qualquer framework. Os caminhos das camadas vêm de variáveis, e os padrões valem para `js/` ou `src/` com `nucleo`, `api`, `jornadas`, `componentes` e `telas`. Na POC (`frontend/poc`), é o `npm run arquitetura`, parte do `npm run verificar`. Para o protótipo React mais antigo de `exemplo-testes`, a partir da raiz do repositório:
 
 ```bash
 UI_NUCLEO="src/api src/apoio" UI_API="src/api src/jornada/api.ts" \
@@ -110,5 +104,5 @@ Se uma regra falhar, **corrija o código, não a regra**. O script não pega reg
 ## Antes de terminar
 
 1. `verificar.sh` verde.
-2. A checagem do projeto: no protótipo React, `npm run typecheck` e o percurso no navegador, como manda a `prototipo-de-jornada`. Em Angular, `typecheck` **e** `lint`, e o percurso no navegador no modo simulado.
+2. A checagem do projeto: em React, `npm run verificar` e `npm run test:e2e`, como manda a `react-jornada` (no protótipo antigo, `npm run typecheck` e o percurso, como manda a `prototipo-de-jornada`). Em Angular, `typecheck` **e** `lint`, e o percurso no navegador no modo simulado.
 3. Relate o que mudou em cada camada e o que não conseguiu verificar.
