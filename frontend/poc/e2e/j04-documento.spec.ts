@@ -1,5 +1,6 @@
 // PROPOSTA: anexar um documento ao processo, num assistente de 3 passos.
-import { abrirProcesso, aviso, bloco, expect, semProblemasDeAcessibilidade, test } from "./apoio";
+import { aviso, bloco, expect, semProblemasDeAcessibilidade, test } from "./apoio";
+import { abrirProcesso } from "./passos-processo";
 
 const pdf = { name: "identidade.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 documento de teste") };
 

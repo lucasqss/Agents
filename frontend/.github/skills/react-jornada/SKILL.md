@@ -21,6 +21,8 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
 
 ## Receita por tarefa
 
+**Projeto novo:** não copie a POC à mão. Rode `frontend/novo-front.sh <pasta-nova> <contrato do serviço (arquivo ou URL)> [nome]`, depois `npm ci && npm run gerar:api && npm run verificar` na pasta nova. Sai um esqueleto que já passa nas barreiras (núcleo, catálogo, moldura, Início, "Página não encontrada", apoio dos e2e), com as skills e o AGENTS.md, e com a POC inteira em `modelo/` (fora do build) para copiar. **Num front criado assim, onde esta skill diz `frontend/poc/`, leia `modelo/`.** Depois: a primeira jornada, pela receita abaixo, trocando o que é do projeto (`src/jornadas/`, `src/api/`, `src/simulado/`, `src/telas/`, `e2e/`, o nome e a sigla em `App.tsx`).
+
 **Tela de detalhe com ações:** copie `src/telas/Processo.tsx`.
 1. **Busca:** uma só, `useRecurso(chave, () => todas({ ... }))`. A chave leva tudo de que a busca depende (`processo:${id}`). Nada de `useEffect` na tela.
 2. **Aviso:** um só estado de aviso. O de entrada ("Processo aberto.") é o valor inicial, e o resultado de cada ação o substitui.

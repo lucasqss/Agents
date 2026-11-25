@@ -38,17 +38,6 @@ export async function souEu(page: Page, usuario: string) {
   await page.getByLabel("Quem sou eu").selectOption(usuario);
 }
 
-/** Abre um processo pela tela "Abrir processo", espera o aviso de aberto e devolve o número dele. */
-export async function abrirProcesso(page: Page, tipo: "Serviço" | "Imobiliário", cota: string, valor: string): Promise<number> {
-  await page.goto("./#/abrir");
-  await page.getByText(tipo, { exact: true }).click();
-  await page.getByLabel("Número da cota").fill(cota);
-  await page.getByLabel("Valor a pagar (R$)").fill(valor);
-  await page.getByRole("button", { name: "Abrir processo" }).click();
-  await expect(aviso(page)).toHaveText("Processo aberto.");
-  return Number(/#\/processo\/(\d+)/.exec(page.url())?.[1]);
-}
-
 /** Clica na ação (escrevendo o motivo no diálogo, se houver) e espera o aviso "<ação>: feito". */
 export async function agir(page: Page, acao: string, motivo?: string) {
   await page.getByRole("button", { name: acao, exact: true }).click();

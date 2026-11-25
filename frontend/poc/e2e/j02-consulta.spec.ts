@@ -1,5 +1,6 @@
 // Jornada de consulta: achar um processo pelo número, na tela inicial. Modelo curto de spec.
-import { abrirProcesso, aviso, expect, semProblemasDeAcessibilidade, test } from "./apoio";
+import { aviso, expect, semProblemasDeAcessibilidade, test } from "./apoio";
+import { abrirProcesso } from "./passos-processo";
 
 test("[C-01] Consultar pelo número abre o processo; a lista de recentes o mostra", async ({ page }) => {
   const id = await abrirProcesso(page, "Serviço", "COTA-CONSULTA", "1.000,00");

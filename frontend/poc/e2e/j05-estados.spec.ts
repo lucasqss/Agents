@@ -1,5 +1,6 @@
 // Estados que toda tela tem: página que não existe, falha de rede com "Tentar de novo", e o carregando.
-import { abrirProcesso, aviso, expect, semProblemasDeAcessibilidade, test } from "./apoio";
+import { aviso, expect, semProblemasDeAcessibilidade, test } from "./apoio";
+import { abrirProcesso } from "./passos-processo";
 
 test("[E-01] Endereço que não existe mostra 'Página não encontrada' e o caminho de volta", async ({ page }) => {
   await page.goto("./#/nao-existe");

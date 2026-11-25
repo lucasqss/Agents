@@ -1,5 +1,6 @@
 // PROPOSTA: lista de todos os processos, com filtro por situação e páginas de 5.
-import { abrirProcesso, agir, expect, semProblemasDeAcessibilidade, test } from "./apoio";
+import { agir, expect, semProblemasDeAcessibilidade, test } from "./apoio";
+import { abrirProcesso } from "./passos-processo";
 
 test.describe("Todos os processos", { tag: "@proposta" }, () => {
   test("[L-01] Filtra por situação e pagina de 5 em 5", async ({ page }) => {

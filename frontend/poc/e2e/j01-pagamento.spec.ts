@@ -1,6 +1,7 @@
 // Jornada do processo de pagamento, contra o serviço simulado. Escrita a partir da especificação:
 // os passos e os textos são os que o negócio descreveu, não os que a tela por acaso mostra.
-import { abrirProcesso, agir, aviso, bloco, expect, semProblemasDeAcessibilidade, souEu, test } from "./apoio";
+import { agir, aviso, bloco, expect, semProblemasDeAcessibilidade, souEu, test } from "./apoio";
+import { abrirProcesso } from "./passos-processo";
 
 test("[J-01] Imobiliário acima da alçada: análise, vistoria, alçada e pagamento", async ({ page }) => {
   const id = await abrirProcesso(page, "Imobiliário", "COTA-80K", "80.000,00");

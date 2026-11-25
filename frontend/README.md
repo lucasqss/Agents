@@ -13,6 +13,15 @@ Aqui ficam as convenções de front do repositório: a arquitetura, a stack e as
 
 As skills ficam em `.github/skills/` (Copilot), com links em `.claude/skills/` (Claude Code). O `exemplo-testes/.github/skills/ui-jornada` é um link para a daqui.
 
+## Começar um front novo
+
+```bash
+frontend/novo-front.sh ../meu-front ../meu-servico/docs/api/openapi-base.json "Meu serviço"
+cd ../meu-front && npm ci && npm run gerar:api && npm run verificar
+```
+
+O contrato também pode ser uma URL (`http://localhost:8080/q/openapi?format=json`). Sai o esqueleto que já passa nas barreiras, as skills e o AGENTS.md, e a POC em `modelo/` para o agente copiar.
+
 ## As barreiras da POC
 
 `npm run verificar` para no primeiro problema, cada um com o "Corrija:" na mensagem:
