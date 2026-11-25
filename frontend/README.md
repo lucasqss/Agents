@@ -22,7 +22,7 @@ As skills ficam em `.github/skills/` (Copilot), com links em `.claude/skills/` (
 3. **Lint:** as regras de hooks do React (incluindo as do React Compiler) e de acessibilidade de JSX.
 4. **Arquitetura (UI-001 a UI-006):** HTTP só no núcleo, endpoint só na api, componente puro, código da API só na jornada.
 
-`npm run test:e2e` percorre as jornadas num navegador, em computador e celular.
+`npm run test:e2e` percorre as jornadas num navegador, em computador e celular, com a checagem de acessibilidade (axe) em cada tela. Os testes são escritos a partir da especificação, antes da tela, com seletores pelo papel acessível: no A/B com agentes, foi esse tipo de teste que pegou o que o lint não via (abas feitas com botões, texto diferente do pedido).
 
 ## Como a skill de arquitetura foi validada
 

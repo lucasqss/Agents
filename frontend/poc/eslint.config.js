@@ -19,6 +19,9 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-unused-vars": ["error", { varsIgnorePattern: "^_", ignoreRestSiblings: true }],
       "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
+      // Área rolável precisa receber foco do teclado (o axe exige, WCAG 2.1.1): o padrão do W3C é role="region" com
+      // rótulo e tabIndex={0}. Só esse papel ganha a exceção; o resto da regra continua valendo.
+      "jsx-a11y/no-noninteractive-tabindex": ["error", { tags: [], roles: ["tabpanel", "region"], allowExpressionValues: true }],
     },
   },
   {

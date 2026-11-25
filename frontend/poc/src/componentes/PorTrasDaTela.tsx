@@ -18,7 +18,7 @@ export function PorTrasDaTela() {
         Por trás da tela: as últimas chamadas à API
         <span className="ml-auto text-xs">{MODO === "falso" ? "modo simulado" : "serviço real"}</span>
       </summary>
-      <pre data-testid="chamadas" className="max-h-96 overflow-auto border-t px-4 py-3 font-mono text-xs leading-relaxed">
+      <pre data-testid="chamadas" role="region" tabIndex={0} aria-label="Últimas chamadas à API" className="max-h-96 overflow-auto border-t px-4 py-3 font-mono text-xs leading-relaxed">
         {chamadas.length ? chamadas.map(comoTexto).join("\n\n────────\n\n") : "Nenhuma chamada ainda."}
       </pre>
     </details>

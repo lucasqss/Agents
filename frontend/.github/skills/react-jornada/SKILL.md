@@ -59,6 +59,19 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
 2. Faltou um primitivo: `npx shadcn@4 add <nome>`. Ele vai para `src/componentes/ui/` e importa `cn` do pacote `cn` (é o padrão do shadcn 4).
 3. Faltou uma composição: um componente em `src/componentes/`, só com props, sem chamar a API nem ler a jornada. Cores só pelas classes do tema (`bg-primary`, `text-muted-foreground`, os tons de `tons.ts`), nunca `#hex` nem `text-blue-500`.
 
+## Teste da jornada (Playwright)
+
+O teste no navegador é a única barreira que pega o que o lint e o typecheck não veem: aba que não é aba, aviso duplicado, texto diferente do pedido, tela inacessível. Mas só pega **se for escrito a partir da especificação**. Teste escrito depois, olhando a tela pronta, confirma o erro: num teste com agentes, o que montou abas com botões escreveu um teste que clicava no texto da aba, e ele passou.
+
+1. **Primeiro o spec, depois a tela.** Copie `assets/jornada.spec.ts` (desta skill) para `e2e/jNN-<jornada>.spec.ts`. Escreva os passos e os textos esperados copiando da especificação, ao pé da letra. Rode: ele falha. Faça a tela até ele passar.
+2. **Importe `test` e `expect` de `e2e/apoio.ts`.** Cada teste começa com o navegador limpo e falha se houver erro no console. O apoio também tem os passos da jornada: `abrirProcesso`, `souEu`, `agir`, `aviso` e `bloco`.
+3. **Seletores pelo papel e pelo texto que a pessoa lê:** `getByRole("button" | "tab" | "dialog" | "status" | "alert" | "row" | "link" | "heading", { name })`, `getByLabel` e texto exato. Se a especificação diz "abas", o teste usa `getByRole("tab")`; se diz "aviso", usa `aviso(page)`. Nunca classe CSS nem estrutura do DOM. `data-testid` só no painel "Por trás da tela".
+4. **`semProblemasDeAcessibilidade(page)` em cada tela visitada** (o axe, WCAG 2 A e AA): rótulo de campo, nome de botão, contraste do tema, papéis ARIA.
+5. **O esperado não se troca pelo que a tela mostra.** Se spec e tela discordam, corrija a tela. Mudar texto esperado só com a confirmação de quem escreveu a especificação: é a mesma regra das especificações de aceitação no backend.
+6. **Fora do e2e:** regra de negócio (é da aceitação, com Cucumber, no backend) e cada combinação de campo. O e2e prova que a jornada é navegável e acessível, contra o serviço simulado.
+
+Para rodar dois projetos ao mesmo tempo, mude a porta: `PW_PORTA=4180 npm run test:e2e`.
+
 ## Armadilhas (vistas em agentes)
 
 - Empilhar "Processo aberto." e o resultado da ação: dois avisos. O resultado **substitui**.
@@ -69,10 +82,11 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
 - Editar `src/api/esquema.d.ts` à mão: rode `npm run gerar:api`.
 - `<div onClick>` como botão: use `Button` (ou a `Tabela` com `aoEscolher`, que já trata o teclado). O lint de acessibilidade acusa.
 - Montar com `Button` o que o shadcn já tem com acessibilidade (abas, menu, seleção, diálogo). O lint **não** acusa: botões que trocam de aba passam no lint e quebram a navegação por teclado e o leitor de tela.
+- Escrever o e2e depois da tela, olhando para ela: o teste confirma o erro em vez de pegá-lo.
 - Copiar do modelo o texto junto com a estrutura (ex.: o "Nenhum processo ainda..." da tela inicial numa aba que pede "Nenhum processo em andamento.").
 
 ## Antes de terminar
 
 1. `npm run verificar`, a partir de `frontend/poc` ou do seu front. Ele roda o contrato em dia (`conferir:api`), o `typecheck`, o `lint` e a `arquitetura` (o `verificar.sh` da `ui-jornada`). Regra que falha se corrige no código.
-2. `npm run test:e2e`: os percursos das jornadas no navegador, modo simulado, computador e celular. Jornada nova ou mudada ganha ou ajusta o seu `e2e/jNN-<jornada>.spec.ts`.
+2. `npm run test:e2e`: os percursos das jornadas no navegador (modo simulado, computador e celular), com o axe em cada tela. Jornada nova ganha o seu `e2e/jNN-<jornada>.spec.ts`, escrito antes da tela (seção acima).
 3. Relate o que mudou em cada camada e o que rodou.

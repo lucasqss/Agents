@@ -20,7 +20,7 @@ O serviço de verdade é o `exemplo-testes` em modo dev (`cd ../../exemplo-teste
 |---|---|
 | `npm run gerar:api` | Gera `src/api/esquema.d.ts` a partir do contrato (`exemplo-testes/docs/api/openapi-base.json`). Rode quando o contrato mudar. |
 | `npm run verificar` | As barreiras rápidas, em ordem: contrato em dia (`conferir:api`), `typecheck`, `lint` e `arquitetura` (UI-001 a UI-006). |
-| `npm run test:e2e` | Os percursos das jornadas no navegador (Playwright), contra o build em modo simulado, em computador e celular. |
+| `npm run test:e2e` | Os percursos das jornadas no navegador (Playwright), contra o build em modo simulado, em computador e celular, com a checagem de acessibilidade (axe) em cada tela. `PW_PORTA` muda a porta (padrão 4174). |
 
 ## As pastas
 
@@ -32,7 +32,7 @@ O serviço de verdade é o `exemplo-testes` em modo dev (`cd ../../exemplo-teste
 | `src/componentes/` | componentes | o catálogo (`index.ts`) e os primitivos do shadcn/ui (`ui/`) |
 | `src/telas/` e `src/App.tsx` | telas | `Inicio` (lista), `AbrirProcesso` (formulário), `Processo` (detalhe com ações), `contexto.ts` (persona e recentes) |
 | `src/simulado/` | fora das camadas | o serviço simulado: cópia das regras do serviço, para o modo sem backend |
-| `e2e/` | | um `jNN-<jornada>.spec.ts` por jornada |
+| `e2e/` | | um `jNN-<jornada>.spec.ts` por jornada, escrito a partir da especificação; `apoio.ts` tem o `test` (navegador limpo, sem erro no console), os passos da jornada e a checagem de acessibilidade |
 
 ## Decisões de stack
 

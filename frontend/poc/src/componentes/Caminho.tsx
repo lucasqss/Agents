@@ -17,7 +17,7 @@ export function Caminho({ passos }: { passos: Passo[] }) {
           )}
           <span className={cn("relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 bg-background text-xs font-semibold",
             p.situacao === "feito" && "border-primary bg-primary text-primary-foreground",
-            p.situacao === "atual" && "border-primary text-primary ring-4 ring-primary/20",
+            p.situacao === "atual" && "border-andamento text-andamento ring-4 ring-andamento/20",
             p.situacao === "talvez" && "border-dashed border-border text-muted-foreground",
             p.situacao === "futuro" && "border-border text-muted-foreground")}>
             {p.situacao === "feito" ? <Check className="size-4" aria-hidden /> : i + 1}

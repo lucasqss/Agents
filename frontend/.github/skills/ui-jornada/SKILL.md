@@ -104,5 +104,6 @@ Se uma regra falhar, **corrija o código, não a regra**. O script não pega reg
 ## Antes de terminar
 
 1. `verificar.sh` verde.
-2. A checagem do projeto: em React, `npm run verificar` e `npm run test:e2e`, como manda a `react-jornada` (no protótipo antigo, `npm run typecheck` e o percurso, como manda a `prototipo-de-jornada`). Em Angular, `typecheck` **e** `lint`, e o percurso no navegador no modo simulado.
-3. Relate o que mudou em cada camada e o que não conseguiu verificar.
+2. Um teste no navegador para cada jornada, **escrito a partir da especificação antes da tela**: seletores pelo papel acessível e pelo texto que a pessoa lê, e uma checagem de acessibilidade (axe) em cada tela. Teste escrito depois, olhando a tela, confirma o erro em vez de pegá-lo.
+3. A checagem do projeto: em React, `npm run verificar` e `npm run test:e2e`, como manda a `react-jornada` (no protótipo antigo, `npm run typecheck` e o percurso, como manda a `prototipo-de-jornada`). Em Angular, `typecheck` **e** `lint`, e o percurso no navegador no modo simulado.
+4. Relate o que mudou em cada camada e o que não conseguiu verificar.

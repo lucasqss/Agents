@@ -4,6 +4,7 @@
 
 - [ ] `scripts/verificar.sh` da skill verde (UI-001 a UI-006), com os caminhos das camadas do projeto.
 - [ ] A jornada percorrida na aplicação no ar; sem a faixa "Jornada desatualizada".
+- [ ] A jornada tem teste no navegador escrito a partir da especificação (seletor por papel acessível e texto exato), com checagem de acessibilidade (axe) em cada tela.
 - [ ] Nenhum botão, etapa ou mensagem decidida no front: ações vêm de "ações disponíveis", situação vem da API, erro vem da API (por campo, no `data-campo` certo).
 - [ ] Texto novo de tela que é desenho da jornada foi para `textos` na jornada, não escrito na tela.
 - [ ] Componente novo é puro (só props), tem bloco em `componentes.css` e linha no [catálogo](componentes.md).
