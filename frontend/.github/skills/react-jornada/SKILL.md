@@ -107,6 +107,6 @@ Para rodar dois projetos ao mesmo tempo, mude a porta: `PW_PORTA=4180 npm run te
 
 ## Antes de terminar
 
-1. `npm run verificar`, a partir de `frontend/poc` ou do seu front. Ele roda o contrato em dia (`conferir:api`), o `typecheck`, o `lint` e a `arquitetura` (o `verificar.sh` da `ui-jornada`). Regra que falha se corrige no código.
+1. `npm run verificar`, a partir de `frontend/poc` ou do seu front. Ele roda o contrato em dia (`conferir:api`), o `typecheck`, o `lint`, a `arquitetura` (o `verificar.sh` da `ui-jornada`) e os testes de unidade (`test:unidade`). Regra que falha se corrige no código. Mexeu no núcleo (`src/nucleo/`) ou num componente com lógica: o teste de unidade vem junto, ao lado do arquivo (`*.test.ts`).
 2. `npm run test:e2e`: os percursos das jornadas no navegador (modo simulado, computador e celular), com o axe em cada tela. Jornada nova ganha o seu `e2e/jNN-<jornada>.spec.ts`, escrito antes da tela (seção acima).
 3. Relate o que mudou em cada camada e o que rodou.
