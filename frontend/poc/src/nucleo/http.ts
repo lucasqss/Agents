@@ -5,9 +5,12 @@
  * Toda chamada fica registrada para o painel "Por trás da tela". Esta pasta é genérica: em outro projeto, fica igual.
  */
 import createClient, { type Client, type Middleware } from "openapi-fetch";
+import { cabecalhosDeIdentidade } from "./identidade";
+import { MODO } from "./modo";
 import { fetchSimulado, type RotaSimulada } from "./simulado";
 
-export const MODO: "real" | "falso" = import.meta.env.VITE_MODO === "falso" ? "falso" : "real";
+export { MODO };
+
 const URL_DA_API: string = MODO === "falso" ? "http://simulado" : (import.meta.env.VITE_API ?? "http://localhost:8080");
 
 /** Formato de erro da API (ErroResponse): `campos` só vem preenchido em erro de validação de entrada. */
@@ -74,6 +77,24 @@ const registrar: Middleware = {
   },
 };
 
+// O cabeçalho de identidade (token) que o projeto registrou em definirIdentidade(), em toda chamada.
+const identificar: Middleware = {
+  async onRequest({ request }) {
+    for (const [nome, valor] of Object.entries(await cabecalhosDeIdentidade())) {
+      if (!request.headers.has(nome)) request.headers.set(nome, valor);
+    }
+    return request;
+  },
+};
+
+/** Mensagem quando a API recusa sem dizer o porquê (corpo vazio, comum em 401 e 403). */
+const MENSAGEM_DO_STATUS: Record<number, string> = {
+  401: "Você precisa se identificar: a identidade não foi enviada ou venceu.",
+  403: "Você não tem permissão para fazer isto.",
+  404: "Não encontrado.",
+  413: "O arquivo é grande demais.",
+};
+
 // ---------- o cliente ----------
 
 let rotasSimuladas: RotaSimulada[] = [];
@@ -89,7 +110,7 @@ export function criarCliente<Paths extends object>(): Client<Paths> {
     baseUrl: URL_DA_API,
     fetch: MODO === "falso" ? (pedido: Request) => fetchSimulado(pedido, rotasSimuladas) : undefined,
   });
-  cliente.use(registrar);
+  cliente.use(identificar, registrar);
   return cliente;
 }
 
@@ -99,7 +120,8 @@ export async function resposta<D>(chamada: Promise<{ data?: D; error?: unknown; 
     const { data, error, response } = await chamada;
     if (response.ok) return { ok: true, status: response.status, dados: data as D };
     const e = (error ?? {}) as Partial<{ mensagem: string | null; campos: ErroApi["campos"] }>;
-    return { ok: false, status: response.status, erro: { mensagem: e.mensagem ?? `Erro ${response.status}`, campos: e.campos ?? [] } };
+    const padrao = MENSAGEM_DO_STATUS[response.status] ?? (response.status >= 500 ? "O serviço falhou ao responder. Tente de novo." : `Erro ${response.status}`);
+    return { ok: false, status: response.status, erro: { mensagem: e.mensagem ?? padrao, campos: e.campos ?? [] } };
   } catch (e) {
     return { ok: false, status: 0, erro: { mensagem: `Sem resposta de ${URL_DA_API}. O serviço está no ar? (${(e as Error).message})`, campos: [] } };
   }

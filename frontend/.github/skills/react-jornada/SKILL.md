@@ -65,6 +65,11 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
 
 **Situação, ação, tipo ou etapa nova:** só em `src/jornadas/`. As chaves são do contrato, então o typecheck exige o rótulo de todo código novo.
 
+**Identidade (quem age):**
+- Cabeçalho do contrato (ex.: `X-Usuario`): a função da api recebe o usuário como parâmetro tipado, e a tela passa a persona de `useEu()` (como em `executar`).
+- Token (`Authorization: Bearer`): registre uma vez em `src/main.tsx`: `definirIdentidade(async () => ({ Authorization: \`Bearer ${await tokenDeDesenvolvimento({ iss, sub, groups }, chavePrivada)}\` }))` (`src/nucleo/identidade.ts`). O núcleo põe o cabeçalho em toda chamada. No simulado a assinatura é falsa e o serviço simulado lê quem é com `lerToken`; no modo real, só vale com a chave privada de desenvolvimento do serviço (perfil `%dev`).
+- 401 e 403 sem corpo já viram mensagem clara no núcleo; a tela mostra o `Aviso` como em qualquer erro.
+
 **Rota nova:** um caso em `src/App.tsx` (título, trilha e corpo) e, se for de primeiro nível, um item no menu da `Moldura`. O que não casa com nenhuma rota já cai em "Página não encontrada", e a `Moldura` já envolve cada tela num `LimiteDeErro` (defeito ao desenhar vira aviso, não página em branco): não repita isso na tela.
 
 **Ver a tela sem rede (no simulado):** `localStorage.setItem("simulado:sem-rede", "1")` no console do navegador; para voltar, `removeItem`. Serve para mostrar ao negócio e para o e2e (`e2e/j05-estados.spec.ts`).
