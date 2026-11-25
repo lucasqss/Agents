@@ -33,11 +33,10 @@ export function EnvioDaParte({ link }: { link: string }) {
   if (falha) return <><Aviso tipo="erro">{falha}</Aviso><BotaoLink href="#/documentos">Voltar à caixa de e-mail</BotaoLink></>;
   if (!envio) return <Cartao><Vazio>Carregando...</Vazio></Cartao>;
 
-  const antesDaAnalise = envio.situacaoDoProcesso === "AGUARDANDO_DOCUMENTOS";
-  const encerrado = SITUACOES[envio.situacaoDoProcesso].final;
-  const podeEnviar = (d: DocumentoExigido) => !encerrado && (d.situacao === "RECUSADO" || (antesDaAnalise && d.situacao !== "ACEITO"));
-  const enviados = envio.documentos.filter((d) => d.situacao !== "PENDENTE" && d.situacao !== "RECUSADO").length;
-  const recusados = envio.documentos.filter((d) => d.situacao === "RECUSADO").length;
+  const antesDaAnalise = SITUACOES[envio.situacaoDoProcesso].aguardaAsPartes;
+  const podeEnviar = (d: DocumentoExigido) => d.acoes.includes("enviar");
+  const enviados = envio.documentos.filter((d) => SITUACOES_DO_DOCUMENTO[d.situacao].entregue).length;
+  const recusados = envio.documentos.filter((d) => SITUACOES_DO_DOCUMENTO[d.situacao].recusado).length;
   const tudoEnviado = enviados === envio.documentos.length;
 
   const grupos = new Map<string, DocumentoExigido[]>();
@@ -84,7 +83,7 @@ export function EnvioDaParte({ link }: { link: string }) {
             {docs.map((d) => (
               <li key={d.id} className="grid gap-3 py-3 first:pt-0 last:pb-0 sm:grid-cols-[1fr_auto_220px] sm:items-center">
                 <div className="flex items-start gap-3">
-                  {d.situacao === "ACEITO" ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-400" aria-hidden /> : <FileText className="mt-0.5 size-5 shrink-0 text-neutral-500" aria-hidden />}
+                  {SITUACOES_DO_DOCUMENTO[d.situacao].aceito ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-400" aria-hidden /> : <FileText className="mt-0.5 size-5 shrink-0 text-neutral-500" aria-hidden />}
                   <div>
                     <p className="text-sm font-medium text-neutral-100">{d.texto}</p>
                     {d.arquivo && <p className="text-xs text-neutral-500">{d.arquivo}{d.enviadoEm ? ` · ${dataHora(d.enviadoEm)}` : ""}</p>}
@@ -93,7 +92,7 @@ export function EnvioDaParte({ link }: { link: string }) {
                 </div>
                 <span className="justify-self-start"><Etiqueta tom={SITUACOES_DO_DOCUMENTO[d.situacao].tom}>{SITUACOES_DO_DOCUMENTO[d.situacao].texto}</Etiqueta></span>
                 {podeEnviar(d)
-                  ? <EnvioDeArquivo rotulo={`${d.situacao === "PENDENTE" ? "Enviar" : "Trocar"} ${minuscula(d.texto)}`}
+                  ? <EnvioDeArquivo rotulo={`${SITUACOES_DO_DOCUMENTO[d.situacao].verboDoEnvio} ${minuscula(d.texto)}`}
                       desabilitado={enviando === d.id} aoEscolher={(a) => enviar(d, a)} />
                   : <span />}
               </li>

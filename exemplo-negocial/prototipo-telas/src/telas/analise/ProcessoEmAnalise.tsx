@@ -80,7 +80,6 @@ export function ProcessoEmAnalise({ id }: { id: string }) {
     const s: SituacaoDoPasso = situacao === p.estado ? "atual" : percorridos.has(situacao) ? "feito" : talvez ? "talvez" : "futuro";
     return { nome: SITUACOES[situacao].texto + (s === "talvez" ? " (acima da alçada)" : ""), situacao: s };
   });
-  const conferindo = p.estado === "EM_ANALISE" || p.estado === "PENDENTE_DOCUMENTO";
 
   return (
     <>
@@ -112,15 +111,13 @@ export function ProcessoEmAnalise({ id }: { id: string }) {
         ) : (
           <p className="text-sm text-neutral-400">
             {SITUACOES[p.estado].final ? "Nenhuma ação: o processo está numa situação final."
-              : p.estado === "AGUARDANDO_DOCUMENTOS" ? "Aguardando as partes enviarem os documentos."
-              : p.estado === "PAGAMENTO_SOLICITADO" ? "Aguardando a rotina de pagamento, que pede o pagamento à tesouraria a cada 5 minutos."
-              : "Nenhuma ação nesta situação."}
+              : SITUACOES[p.estado].textoDeEspera ?? "Nenhuma ação nesta situação."}
           </p>
         )}
         <p className="mt-3 text-xs text-neutral-500">
           Os botões são as ações que a situação aceita. Quem pode cada uma é conferido pelo serviço: com a persona errada, aparece a recusa.
         </p>
-        {MODO === "falso" && p.estado === "PAGAMENTO_SOLICITADO" && (
+        {MODO === "falso" && SITUACOES[p.estado].rotinaDePagamento && (
           <div className="mt-3">
             <Botao onClick={async () => { const r = await desenvolvimento.rodarRotina(); await depois(r.ok, "Rotina de pagamento rodou: a tesouraria simulada confirmou.", "A rotina falhou."); }}
               icone={<PlayCircle className="size-4" aria-hidden />}>Rodar a rotina de pagamento agora (simulação)</Botao>
@@ -128,7 +125,7 @@ export function ProcessoEmAnalise({ id }: { id: string }) {
         )}
       </Cartao>
 
-      <DocumentosDoProcesso documentos={documentos} partes={p.partes} conferindo={conferindo} aoVer={ver} aoAceitar={aceitar} aoRecusar={recusar} />
+      <DocumentosDoProcesso documentos={documentos} partes={p.partes} aoVer={ver} aoAceitar={aceitar} aoRecusar={recusar} />
 
       <Cartao titulo={`${tipo.bens[0].toUpperCase()}${tipo.bens.slice(1)}`}>
         <Tabela<Bem> linhas={p.bens} chave={(b) => JSON.stringify(b)} colunas={[

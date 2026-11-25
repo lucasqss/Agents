@@ -3,12 +3,12 @@ import { Botao, Cartao, Etiqueta, Vazio } from "../../componentes";
 import type { DocumentoExigido, Parte } from "../../jornada/api";
 import { SITUACOES_DO_DOCUMENTO } from "../../jornada/vocabulario";
 
-/** Documentos agrupados por parte, com ver, aceitar e recusar. `conferindo`: o processo está em análise. */
-export function DocumentosDoProcesso({ documentos, partes, conferindo, aoVer, aoAceitar, aoRecusar }: {
-  documentos: DocumentoExigido[]; partes: Parte[]; conferindo: boolean;
+/** Documentos agrupados por parte, com ver, aceitar e recusar. Aceitar e recusar só aparecem se a API os lista no documento. */
+export function DocumentosDoProcesso({ documentos, partes, aoVer, aoAceitar, aoRecusar }: {
+  documentos: DocumentoExigido[]; partes: Parte[];
   aoVer: (d: DocumentoExigido) => void; aoAceitar: (d: DocumentoExigido) => void; aoRecusar: (d: DocumentoExigido) => void;
 }) {
-  const aceitos = documentos.filter((d) => d.situacao === "ACEITO").length;
+  const aceitos = documentos.filter((d) => SITUACOES_DO_DOCUMENTO[d.situacao].aceito).length;
   return (
     <Cartao titulo="Documentos" acoes={<span className="text-xs text-neutral-500">{aceitos} de {documentos.length} aceitos</span>}>
       {!documentos.length && <Vazio>Nenhum documento exigido.</Vazio>}
@@ -30,10 +30,10 @@ export function DocumentosDoProcesso({ documentos, partes, conferindo, aoVer, ao
                     <span className="justify-self-start"><Etiqueta tom={SITUACOES_DO_DOCUMENTO[d.situacao].tom}>{SITUACOES_DO_DOCUMENTO[d.situacao].texto}</Etiqueta></span>
                     <div className="flex gap-1.5">
                       {d.arquivo && <Botao aria-label={`Ver ${d.texto} de ${parte.nome}`} onClick={() => aoVer(d)} icone={<Eye className="size-4" aria-hidden />}>Ver</Botao>}
-                      {conferindo && d.situacao === "ENVIADO" && (
+                      {d.acoes.includes("aceitar") && (
                         <Botao aria-label={`Aceitar ${d.texto} de ${parte.nome}`} onClick={() => aoAceitar(d)} icone={<Check className="size-4" aria-hidden />}>Aceitar</Botao>
                       )}
-                      {conferindo && (d.situacao === "ENVIADO" || d.situacao === "ACEITO") && (
+                      {d.acoes.includes("recusar") && (
                         <Botao variante="perigo" aria-label={`Recusar ${d.texto} de ${parte.nome}`} onClick={() => aoRecusar(d)} icone={<X className="size-4" aria-hidden />}>Recusar</Botao>
                       )}
                     </div>

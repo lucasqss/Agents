@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { dataHora } from "../../apoio/formato";
 import { Aviso, BotaoLink, Cartao, Etiqueta, Vazio } from "../../componentes";
 import { desenvolvimento, type Email } from "../../jornada/api";
+import { TIPOS_DE_EMAIL } from "../../jornada/vocabulario";
 
 /**
  * A caixa de entrada das partes, simulada: o que o serviço "enviou". Imita o e-mail de um provedor de coleta e
@@ -35,7 +36,7 @@ export function CaixaDeEmail() {
                 className={`w-full px-5 py-3 text-left text-sm ${aberto?.id === e.id ? "bg-blue-500/10" : "hover:bg-neutral-800/40"}`}>
                 <span className="flex items-center justify-between gap-2">
                   <span className="truncate font-medium text-neutral-100">{e.nome}</span>
-                  {e.tipo === "REENVIO" && <Etiqueta tom="erro">reenvio</Etiqueta>}
+                  {TIPOS_DE_EMAIL[e.tipo].etiqueta && <Etiqueta tom="erro">{TIPOS_DE_EMAIL[e.tipo].etiqueta}</Etiqueta>}
                 </span>
                 <span className="block truncate text-neutral-400">{e.assunto}</span>
                 <span className="block text-xs text-neutral-500">{e.para} · {dataHora(e.quando)}</span>

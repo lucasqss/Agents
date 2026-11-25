@@ -14,7 +14,7 @@ import { guardado } from "../apoio/guardado";
 import type { Bem, DocumentoExigido, Email, Favorecido, Parte, Transicao } from "./api";
 import { lerToken } from "./token";
 import {
-  ALCADA, DOCUMENTOS_PESSOAIS, SITUACOES, TIPOS, type Acao, type Papel, type Situacao, type Tipo,
+  ALCADA, DOCUMENTOS_PESSOAIS, SITUACOES, TIPOS, type Acao, type AcaoDoDocumento, type Papel, type Situacao, type Tipo,
 } from "./vocabulario";
 
 // ---------- dados ----------
@@ -25,7 +25,7 @@ interface ProcessoGravado {
   bens: Bem[]; partes: ParteGravada[]; favorecidos: Favorecido[]; historico: Transicao[];
   autorUltimaConclusao: string | null;
 }
-interface DocumentoGravado extends DocumentoExigido { processoId: number }
+interface DocumentoGravado extends Omit<DocumentoExigido, "acoes"> { processoId: number }
 interface Banco {
   clientes: { id: number; nome: string; cpf: string }[];
   cotas: { id: number; numero: string; valorCredito: number; clienteId: number }[];
@@ -143,6 +143,30 @@ function processo(id: string) {
   return banco.ler().processos.find((p) => String(p.id) === id);
 }
 const processoNaoEncontrado = (id: string) => erro(404, `Processo ${id} não encontrado(a)`);
+
+// ---------- regras dos documentos (as rotas recusam com 409; as respostas listam o que vale em `acoes`) ----------
+
+/** Na análise: documentos só são conferidos com o processo em análise; aceita-se o enviado, recusa-se o enviado ou aceito. */
+function acoesNaAnalise(p: ProcessoGravado, d: DocumentoGravado): AcaoDoDocumento[] {
+  if (p.estado !== "EM_ANALISE" && p.estado !== "PENDENTE_DOCUMENTO") return [];
+  return [
+    ...(d.situacao === "ENVIADO" ? ["aceitar" as const] : []),
+    ...(d.situacao === "ENVIADO" || d.situacao === "ACEITO" ? ["recusar" as const] : []),
+  ];
+}
+
+/** Pela parte: encerrado não recebe; antes da análise envia ou troca o que não foi aceito; depois, só o recusado. */
+function acoesDaParte(p: ProcessoGravado, d: DocumentoGravado): AcaoDoDocumento[] {
+  if (SITUACOES[p.estado].final) return [];
+  const antesDaAnalise = p.estado === "AGUARDANDO_DOCUMENTOS";
+  return d.situacao === "RECUSADO" || (antesDaAnalise && d.situacao !== "ACEITO") ? ["enviar"] : [];
+}
+
+/** O documento como a API o devolve: sem o processo, com as ações de quem pediu. */
+function comoResposta(p: ProcessoGravado, d: DocumentoGravado, acoes: (p: ProcessoGravado, d: DocumentoGravado) => AcaoDoDocumento[]): DocumentoExigido {
+  const { processoId: _, ...doc } = d;
+  return { ...doc, acoes: acoes(p, d) };
+}
 
 function registrar(p: ProcessoGravado, acao: string, para: Situacao, autor: string, observacao: string | null = null) {
   p.historico.push({ de: p.estado, para, acao, quando: agora(), autor, observacao, valorAnterior: null, valorNovo: null });
@@ -461,7 +485,7 @@ export const rotasDoServicoFalso: RotaFalsa[] = [
       if (recusou(autor)) return autor;
       const p = processo(id);
       if (!p) return processoNaoEncontrado(id);
-      return { status: 200, resposta: banco.ler().documentos.filter((d) => d.processoId === p.id).map(({ processoId: _, ...d }) => d) };
+      return { status: 200, resposta: banco.ler().documentos.filter((d) => d.processoId === p.id).map((d) => comoResposta(p, d, acoesNaAnalise)) };
     },
   },
   {
@@ -508,8 +532,8 @@ export const rotasDoServicoFalso: RotaFalsa[] = [
         }
         atualizado = x;
       });
-      const { processoId: _, ...resposta } = atualizado!;
-      return { status: 200, resposta };
+      const depois = banco.ler().processos.find((x) => x.id === p.id)!;
+      return { status: 200, resposta: comoResposta(depois, atualizado!, acoesNaAnalise) };
     },
   })),
 
@@ -525,7 +549,7 @@ export const rotasDoServicoFalso: RotaFalsa[] = [
       return {
         status: 200, resposta: {
           processoId: p.id, tipo: p.tipo, situacaoDoProcesso: p.estado, parte: { nome: parte.nome, papel: parte.papel },
-          documentos: b.documentos.filter((d) => d.parteId === parte.id && d.processoId === p.id).map(({ processoId: _, ...d }) => d),
+          documentos: b.documentos.filter((d) => d.parteId === parte.id && d.processoId === p.id).map((d) => comoResposta(p, d, acoesDaParte)),
         },
       };
     },
@@ -564,8 +588,8 @@ export const rotasDoServicoFalso: RotaFalsa[] = [
         atualizado = x;
       });
       arquivos.set(d.id, arquivo);
-      const { processoId: _, ...resposta } = atualizado!;
-      return { status: 200, resposta };
+      const depois = banco.ler().processos.find((x) => x.id === p.id)!;
+      return { status: 200, resposta: comoResposta(depois, atualizado!, acoesDaParte) };
     },
   },
 

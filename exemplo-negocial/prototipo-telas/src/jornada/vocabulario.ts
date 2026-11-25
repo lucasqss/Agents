@@ -7,8 +7,18 @@ export type Situacao =
   | "AGUARDANDO_DOCUMENTOS" | "ABERTO" | "EM_ANALISE" | "PENDENTE_DOCUMENTO" | "AGUARDANDO_VISTORIA" | "AGUARDANDO_ALCADA"
   | "AGUARDANDO_CONCORDANCIA" | "APROVADO" | "PAGAMENTO_SOLICITADO" | "PAGO" | "REPROVADO" | "CANCELADO";
 
-export const SITUACOES: Record<Situacao, { texto: string; tom: Tom; final?: boolean }> = {
-  AGUARDANDO_DOCUMENTOS: { texto: "Aguardando documentos", tom: "espera" }, // PROPOSTA (fase 2)
+/**
+ * `final`: situação de encerramento. `textoDeEspera`: o que a análise lê quando não há ação a fazer.
+ * `aguardaAsPartes`: o processo ainda espera os documentos das partes (texto do envio).
+ * `rotinaDePagamento`: espera a rotina de pagamento (no modo simulado, a tela oferece rodá-la).
+ */
+export const SITUACOES: Record<Situacao, {
+  texto: string; tom: Tom; final?: boolean; textoDeEspera?: string; aguardaAsPartes?: boolean; rotinaDePagamento?: boolean;
+}> = {
+  AGUARDANDO_DOCUMENTOS: { // PROPOSTA (fase 2)
+    texto: "Aguardando documentos", tom: "espera", aguardaAsPartes: true,
+    textoDeEspera: "Aguardando as partes enviarem os documentos.",
+  },
   ABERTO: { texto: "Pronto para análise", tom: "neutro" },
   EM_ANALISE: { texto: "Em análise", tom: "andamento" },
   PENDENTE_DOCUMENTO: { texto: "Pendente de documento", tom: "espera" },
@@ -16,7 +26,10 @@ export const SITUACOES: Record<Situacao, { texto: string; tom: Tom; final?: bool
   AGUARDANDO_ALCADA: { texto: "Aguardando alçada", tom: "espera" },
   AGUARDANDO_CONCORDANCIA: { texto: "Aguardando concordância", tom: "espera" },
   APROVADO: { texto: "Aprovado", tom: "andamento" },
-  PAGAMENTO_SOLICITADO: { texto: "Pagamento solicitado", tom: "andamento" },
+  PAGAMENTO_SOLICITADO: {
+    texto: "Pagamento solicitado", tom: "andamento", rotinaDePagamento: true,
+    textoDeEspera: "Aguardando a rotina de pagamento, que pede o pagamento à tesouraria a cada 5 minutos.",
+  },
   PAGO: { texto: "Pago", tom: "sucesso", final: true },
   REPROVADO: { texto: "Reprovado", tom: "erro", final: true },
   CANCELADO: { texto: "Cancelado", tom: "erro", final: true },
@@ -146,13 +159,33 @@ export const DOCUMENTOS_PESSOAIS = {
   ],
 };
 
-export const SITUACOES_DO_DOCUMENTO = {
-  PENDENTE: { texto: "Pendente", tom: "neutro" },
-  ENVIADO: { texto: "Enviado", tom: "andamento" },
-  ACEITO: { texto: "Aceito", tom: "sucesso" },
-  RECUSADO: { texto: "Recusado", tom: "erro" },
-} as const satisfies Record<string, { texto: string; tom: Tom }>;
-export type SituacaoDoDocumento = keyof typeof SITUACOES_DO_DOCUMENTO;
+export type SituacaoDoDocumento = "PENDENTE" | "ENVIADO" | "ACEITO" | "RECUSADO";
+
+/**
+ * `entregue`: conta como enviado para a parte. `aceito` e `recusado`: contam nesses totais.
+ * `verboDoEnvio`: o rótulo do envio do arquivo ("Enviar" o que falta, "Trocar" o que já foi).
+ */
+export const SITUACOES_DO_DOCUMENTO: Record<SituacaoDoDocumento, {
+  texto: string; tom: Tom; verboDoEnvio: string; entregue?: boolean; aceito?: boolean; recusado?: boolean;
+}> = {
+  PENDENTE: { texto: "Pendente", tom: "neutro", verboDoEnvio: "Enviar" },
+  ENVIADO: { texto: "Enviado", tom: "andamento", verboDoEnvio: "Trocar", entregue: true },
+  ACEITO: { texto: "Aceito", tom: "sucesso", verboDoEnvio: "Trocar", entregue: true, aceito: true },
+  RECUSADO: { texto: "Recusado", tom: "erro", verboDoEnvio: "Trocar", recusado: true },
+};
+
+/** Ações sobre um documento, como a API as lista em cada documento (`acoes`): quem decide se valem é o serviço. */
+export type AcaoDoDocumento = "aceitar" | "recusar" | "enviar";
+
+// ---------- e-mails às partes ----------
+
+export type TipoDeEmail = "CONVITE" | "REENVIO";
+
+/** `etiqueta`: marca o e-mail na caixa de entrada. */
+export const TIPOS_DE_EMAIL: Record<TipoDeEmail, { etiqueta?: string }> = {
+  CONVITE: {},
+  REENVIO: { etiqueta: "reenvio" },
+};
 
 // ---------- quem usa ----------
 
@@ -179,3 +212,25 @@ export const PERSONAS_DA_JORNADA: Record<Jornada, string[]> = {
 
 /** R16: até este valor, inclusive, aprova direto; acima, precisa do aprovador. Igual a processo.alcada do serviço. */
 export const ALCADA = 50_000;
+
+// ---------- fila da análise ----------
+
+export type FiltroDaFila = Situacao | "TODOS";
+
+/** As abas da fila, em ordem. `situacoes`: as situações que a aba mostra; sem elas, mostra todas. */
+export const FILTROS_DA_FILA: { valor: FiltroDaFila; texto: string; situacoes?: Situacao[] }[] = [
+  { valor: "ABERTO", texto: "Prontos para análise", situacoes: ["ABERTO"] },
+  { valor: "EM_ANALISE", texto: "Em análise", situacoes: ["EM_ANALISE"] },
+  { valor: "PENDENTE_DOCUMENTO", texto: "Pendente de documento", situacoes: ["PENDENTE_DOCUMENTO"] },
+  { valor: "AGUARDANDO_VISTORIA", texto: "Aguardando vistoria", situacoes: ["AGUARDANDO_VISTORIA"] },
+  { valor: "AGUARDANDO_ALCADA", texto: "Aguardando alçada", situacoes: ["AGUARDANDO_ALCADA"] },
+  { valor: "APROVADO", texto: "Aprovados", situacoes: ["APROVADO"] },
+  { valor: "AGUARDANDO_DOCUMENTOS", texto: "Aguardando documentos", situacoes: ["AGUARDANDO_DOCUMENTOS"] },
+  { valor: "TODOS", texto: "Todos" },
+];
+
+/** A aba com que cada persona começa: o que é dela fazer. Quem não está aqui começa no filtro padrão. */
+export const FILTRO_INICIAL_DA_PERSONA: Record<string, FiltroDaFila> = {
+  ana: "ABERTO", carlos: "ABERTO", bruno: "AGUARDANDO_ALCADA", tesouraria: "APROVADO",
+};
+export const FILTRO_PADRAO: FiltroDaFila = "ABERTO";

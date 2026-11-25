@@ -3,7 +3,7 @@
 import { chamar, type Pedido } from "../api/api";
 import { demonstracao, personaAtual } from "./estado";
 import { tokenDe } from "./token";
-import type { Acao, PapelDaParte, Situacao, SituacaoDoDocumento, Tipo } from "./vocabulario";
+import type { Acao, AcaoDoDocumento, PapelDaParte, Situacao, SituacaoDoDocumento, Tipo, TipoDeEmail } from "./vocabulario";
 
 // ---------- formatos ----------
 
@@ -26,6 +26,8 @@ export interface Pagina<T> { itens: T[]; pagina: number; tamanho: number; total:
 export interface DocumentoExigido {
   id: number; parteId: number; codigo: string; texto: string; bem: string | null;
   situacao: SituacaoDoDocumento; arquivo: string | null; enviadoEm: string | null; motivoRecusa: string | null;
+  /** PROPOSTA (fase 2): o que quem pediu pode fazer com o documento agora. Decide o serviço. */
+  acoes: AcaoDoDocumento[];
 }
 export interface Envio {
   processoId: number; tipo: Tipo; situacaoDoProcesso: Situacao;
@@ -33,7 +35,7 @@ export interface Envio {
 }
 export interface Email {
   id: number; para: string; nome: string; assunto: string; texto: string; quando: string; link: string;
-  tipo: "CONVITE" | "REENVIO"; processoId: number;
+  tipo: TipoDeEmail; processoId: number;
 }
 export interface NovoProcesso {
   cotaId: number; tipo: Tipo; valor: number;

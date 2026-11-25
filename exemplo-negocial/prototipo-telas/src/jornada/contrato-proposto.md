@@ -35,11 +35,11 @@ Os nomes e os formatos são proposta: o caso de uso pode mudá-los, e então o p
 | `GET /clientes/{id}/cotas` | autenticado; o cliente só as dele | `CotaDetalhe[]` (como `GET /cotas/{id}`) | 403 cliente de outra |
 | `POST /processos` (aditivo) | cliente | `+ bens[{dados{...}, valor}]`, `+ partes[{nome, documento, papel, email, valor?}]`; `favorecidos` continua | 400 formato; 400 soma dos bens ≠ valor, comprador ≠ 1, parte repetida, R15; 404, 403 R18, 409 R6, 409 R13 |
 | `GET /processos/{id}` | autenticado | `ProcessoResumo` + `bens[]` + `partes[]` (sem o link) | 404 |
-| `GET /processos/{id}/documentos` | backoffice, aprovador, tesouraria | `[{id, parteId, codigo, texto, bem, situacao, arquivo, enviadoEm, motivoRecusa}]` | 403, 404 |
+| `GET /processos/{id}/documentos` | backoffice, aprovador, tesouraria | `[{id, parteId, codigo, texto, bem, situacao, arquivo, enviadoEm, motivoRecusa, acoes}]`; `acoes`: `aceitar`/`recusar` que valem agora | 403, 404 |
 | `GET /processos/{id}/documentos/{doc}/arquivo` | idem | o arquivo | 404 |
 | `POST /processos/{id}/documentos/{doc}/aceitar` | backoffice | documento | 409 fora de análise ou não enviado |
 | `POST /processos/{id}/documentos/{doc}/recusar` | backoffice | `{motivo}` → documento; processo a pendente de documento; e-mail de reenvio | 400 sem motivo; 409 |
-| `GET /envios/{link}` | sem login (o link) | `{processoId, tipo, situacaoDoProcesso, parte{nome, papel}, documentos[]}` só da parte | 404 link inválido |
+| `GET /envios/{link}` | sem login (o link) | `{processoId, tipo, situacaoDoProcesso, parte{nome, papel}, documentos[]}` só da parte; em cada documento, `acoes`: `enviar` se a parte pode enviá-lo ou trocá-lo agora | 404 link inválido |
 | `POST /envios/{link}/documentos/{doc}` | sem login | multipart `arquivo` → documento | 400 tipo/tamanho; 404; 409 encerrado, ou já na análise e não recusado |
 | `GET /dev/emails` | só em dev | os e-mails "enviados" | |
 | `POST /dev/rotina-de-pagamento` | só no simulado | roda a rotina já | |
