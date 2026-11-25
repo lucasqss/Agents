@@ -33,6 +33,13 @@ O contrato também pode ser uma URL (`http://localhost:8080/q/openapi?format=jso
 
 `npm run test:e2e` percorre as jornadas num navegador, em computador e celular, com a checagem de acessibilidade (axe) em cada tela. Os testes são escritos a partir da especificação, antes da tela, com seletores pelo papel acessível: no A/B com agentes, foi esse tipo de teste que pegou o que o lint não via (abas feitas com botões, texto diferente do pedido).
 
+## Barreiras que não dependem do agente lembrar
+
+- **Harness do agente** (`.github/hooks/`, ligado no Copilot CLI por `harness.json` e no Claude Code por `.claude/settings.json`):
+  - ao fim de cada turno em que o agente mexeu no front, roda o `npm run verificar` da POC;
+  - se falhar, ou se ele tiver mexido numa barreira (lint, tsconfig, `verificar.sh`, apoio dos e2e), o turno não termina e ele recebe o motivo.
+- **CI** (`.github/workflows/frontend.yml`, na raiz): `verificar` e e2e a cada mudança no front ou no contrato do `exemplo-testes`.
+
 ## Como a skill de arquitetura foi validada
 
 Teste A/B com agentes de nível Haiku: a mesma tarefa (tela de detalhe do processo), um teste no navegador escondido do agente e o `verificar.sh`. Com a skill, React e Angular acertaram a jornada em 4 de 4; sem ela, nenhum acertou, e metade pôs regra de negócio na tela. A comparação de stacks que levou ao React está na análise publicada à parte.

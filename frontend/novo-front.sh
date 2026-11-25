@@ -240,6 +240,14 @@ sed -e 's|A referência de tudo é a POC em `poc/`.|O modelo para copiar está e
     -e 's|abra o modelo na POC (a `react-jornada` diz qual)|abra o modelo em `modelo/` (a `react-jornada` diz qual; onde ela diz `frontend/poc`, leia `modelo/`)|' \
     "$AQUI/AGENTS.md" > "$DESTINO/AGENTS.md"
 echo '@AGENTS.md' > "$DESTINO/CLAUDE.md"
+
+# 6. O harness do agente (fim de turno com a verificação, arquivos protegidos), com os caminhos do front novo.
+mkdir -p "$DESTINO/.github/hooks"
+cp "$AQUI"/.github/hooks/*.sh "$AQUI/.github/hooks/harness.json" "$AQUI/.github/hooks/README.md" "$DESTINO/.github/hooks/"
+sed -e 's|^VERIFICACAO="cd poc \&\& npm run -s verificar"|VERIFICACAO="npm run -s verificar"|' \
+    -e 's|\^poc/|^|g' -e 's|^\^\\.github/skills/ui-jornada/scripts/verificar\\.sh\$|^scripts/verificar-arquitetura\\.sh$|' \
+    "$AQUI/.github/hooks/harness.conf" > "$DESTINO/.github/hooks/harness.conf"
+cp "$AQUI/.claude/settings.json" "$DESTINO/.claude/settings.json"
 cat > "$DESTINO/README.md" <<EOF
 # $NOME
 

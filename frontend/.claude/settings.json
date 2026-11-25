@@ -1,0 +1,14 @@
+{
+  "$comentario": "Harness do front (os scripts em .github/hooks): verificação ao fim do turno, arquivos protegidos e contexto no início.",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.github/hooks/inicio-da-sessao.sh\"", "timeout": 10 }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.github/hooks/proteger-arquivos.sh\"", "timeout": 5 }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.github/hooks/verificar-antes-de-terminar.sh\"", "timeout": 600 }] }
+    ]
+  }
+}
