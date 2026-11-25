@@ -18,7 +18,8 @@ O serviço de verdade é o `exemplo-testes` em modo dev (`cd ../../exemplo-teste
 
 | Comando | O que faz |
 |---|---|
-| `npm run gerar:api` | Gera `src/api/esquema.d.ts` a partir do contrato (`exemplo-testes/docs/api/openapi-base.json`). Rode quando o contrato mudar. |
+| `npm run gerar:api` | Junta o OpenAPI do serviço e o contrato proposto (origens em `contrato.config.json`) e gera `src/api/esquema.d.ts` e `src/api/propostas.gerado.ts`. Rode quando o contrato mudar. |
+| `npm run contrato:propostas` | O que as telas propõem e o serviço ainda não tem, e o que ele já publicou (igual ou diferente da proposta). |
 | `npm run verificar` | As barreiras rápidas, em ordem: contrato em dia (`conferir:api`), `typecheck`, `lint` e `arquitetura` (UI-001 a UI-006). |
 | `npm run test:e2e` | Os percursos das jornadas no navegador (Playwright), contra o build em modo simulado, em computador e celular, com a checagem de acessibilidade (axe) em cada tela. `PW_PORTA` muda a porta (padrão 4174). |
 
@@ -27,10 +28,11 @@ O serviço de verdade é o `exemplo-testes` em modo dev (`cd ../../exemplo-teste
 | Pasta | Camada | O que tem |
 |---|---|---|
 | `src/nucleo/` | núcleo | cliente HTTP (openapi-fetch, transporte real ou simulado, registro das chamadas), `useRecurso`, `todas`, rotas por `#hash`, `guardado`, `formato` |
-| `src/api/` | api | `esquema.d.ts` (gerado) e `processos.ts` (uma função por endpoint) |
+| `contrato.config.json`, `contrato/proposto.yaml` | contrato | de onde vem o OpenAPI do serviço, e as operações propostas pelas telas (telas primeiro) |
+| `src/api/` | api | `esquema.d.ts` e `propostas.gerado.ts` (gerados) e `processos.ts` (uma função por endpoint) |
 | `src/jornadas/` | jornada | `processo-pagamento.ts`: rótulos e tons por código, caminhos, personas, textos |
 | `src/componentes/` | componentes | o catálogo (`index.ts`) e os primitivos do shadcn/ui (`ui/`) |
-| `src/telas/` e `src/App.tsx` | telas | `Inicio` (lista), `AbrirProcesso` (formulário), `Processo` (detalhe com ações), `contexto.ts` (persona e recentes) |
+| `src/telas/` e `src/App.tsx` | telas | `Inicio` (lista local), `ListaProcessos` (lista da API com filtro e páginas, proposta), `AbrirProcesso` (formulário), `Processo` (detalhe com ações e documentos), `AnexarDocumento` (assistente com envio de arquivo, proposta), `contexto.ts` (persona e recentes) |
 | `src/simulado/` | fora das camadas | o serviço simulado: cópia das regras do serviço, para o modo sem backend |
 | `e2e/` | | um `jNN-<jornada>.spec.ts` por jornada, escrito a partir da especificação; `apoio.ts` tem o `test` (navegador limpo, sem erro no console), os passos da jornada e a checagem de acessibilidade |
 

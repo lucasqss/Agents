@@ -4,7 +4,7 @@
  * (FluxoProcesso.comum() + FluxoImobiliario). É uma CÓPIA para a tela; a regra que vale é a do domínio.
  * Se o fluxo mudar no serviço, mude aqui também (a TabelaDosFluxosTest diz o que é o certo).
  */
-import type { Acao, Situacao, Tipo } from "@/api/processos";
+import type { Acao, Situacao, Tipo, TipoDocumento } from "@/api/processos";
 import { guardado } from "@/nucleo/guardado";
 import { erroSimulado as erro, type RotaSimulada as RotaFalsa } from "@/nucleo/simulado";
 /** R4: até este valor, inclusive, aprova direto; acima, precisa de quem tem alçada. Igual a processo.alcada do serviço. */
@@ -69,8 +69,14 @@ const FLUXOS: Record<Tipo, Tabela> = {
 interface Processo { id: number; tipo: Tipo; numeroCota: string; valor: number; estado: Situacao }
 interface Transicao { de: Situacao; para: Situacao; acao: Acao; quando: string; autor: string; observacao: string | null }
 
+/** PROPOSTA: documento anexado (contrato/proposto.yaml). Guarda só os dados do arquivo, não o conteúdo. */
+interface Documento { id: number; tipo: TipoDocumento; nome: string; tamanho: number; quando: string; autor: string }
+const TIPOS_DE_DOCUMENTO: TipoDocumento[] = ["IDENTIDADE", "COMPROVANTE_RESIDENCIA", "MATRICULA_DO_IMOVEL", "OUTRO"];
+const FORMATOS_ACEITOS = [".pdf", ".jpg", ".jpeg", ".png"];
+const LIMITE_DO_ARQUIVO = 10 * 1024 * 1024;
+
 // Os dados simulados ficam no navegador, para sobreviver a uma recarga. "Limpar" = apagar a chave no localStorage.
-const banco = guardado<{ processos: (Processo & { historico: Transicao[] })[] }>("simulado:processos", { processos: [] });
+const banco = guardado<{ processos: (Processo & { historico: Transicao[]; documentos?: Documento[] })[] }>("simulado:processos", { processos: [] });
 
 function achar(id: string) {
   return banco.ler().processos.find((p) => String(p.id) === id);
@@ -103,7 +109,7 @@ export const rotasDoServicoFalso: RotaFalsa[] = [
     tratar({ parametros: { id = "" } }) {
       const p = achar(id);
       if (!p) return naoEncontrado(id);
-      const { historico: _, ...resumo } = p;
+      const { historico: _, documentos: __, ...resumo } = p;
       return { status: 200, resposta: resumo };
     },
   },
@@ -142,6 +148,51 @@ export const rotasDoServicoFalso: RotaFalsa[] = [
         processos: banco.ler().processos.map((x) => (x.id === p.id ? { ...x, estado: para, historico: [...x.historico, transicao] } : x)),
       });
       return { status: 200, resposta: { estado: para } };
+    },
+  },
+
+  // ---------------- PROPOSTA (contrato/proposto.yaml): o serviço de verdade ainda não tem ----------------
+  {
+    metodo: "GET", caminho: "/processos",
+    tratar({ busca }) {
+      const situacao = busca.get("situacao");
+      const pagina = Number(busca.get("pagina") ?? 0);
+      const tamanho = Number(busca.get("tamanho") ?? 10);
+      if (!Number.isInteger(pagina) || pagina < 0) return erro(400, "Dados inválidos", [{ campo: "pagina", erro: "deve ser maior que ou igual a 0" }]);
+      if (!Number.isInteger(tamanho) || tamanho < 1 || tamanho > 50) return erro(400, "Dados inválidos", [{ campo: "tamanho", erro: "deve estar entre 1 e 50" }]);
+      const todos = banco.ler().processos
+        .filter((p) => !situacao || p.estado === situacao)
+        .sort((a, b) => b.id - a.id)
+        .map(({ historico: _, documentos: __, ...resumo }) => resumo);
+      return { status: 200, resposta: { itens: todos.slice(pagina * tamanho, (pagina + 1) * tamanho), pagina, tamanho, total: todos.length } };
+    },
+  },
+  {
+    metodo: "GET", caminho: "/processos/:id/documentos",
+    tratar({ parametros: { id = "" } }) {
+      const p = achar(id);
+      return p ? { status: 200, resposta: (p.documentos ?? []).slice().reverse() } : naoEncontrado(id);
+    },
+  },
+  {
+    metodo: "POST", caminho: "/processos/:id/documentos",
+    tratar({ parametros: { id = "" }, corpo, cabecalhos }) {
+      const usuario = cabecalhos["x-usuario"]?.trim();
+      if (!usuario) return erro(400, "Dados inválidos", [{ campo: "usuario", erro: "não deve estar em branco" }]);
+      const p = achar(id);
+      if (!p) return naoEncontrado(id);
+      const { tipo, arquivo } = (corpo ?? {}) as { tipo?: string; arquivo?: unknown };
+      const campos: { campo: string; erro: string }[] = [];
+      if (!tipo || !TIPOS_DE_DOCUMENTO.includes(tipo as TipoDocumento)) campos.push({ campo: "tipo", erro: "valor não aceito" });
+      if (!(arquivo instanceof File) || arquivo.size === 0) campos.push({ campo: "arquivo", erro: "envie um arquivo" });
+      else if (!FORMATOS_ACEITOS.some((f) => arquivo.name.toLowerCase().endsWith(f))) campos.push({ campo: "arquivo", erro: "formato não aceito: envie PDF, JPG ou PNG" });
+      if (campos.length) return erro(400, "Dados inválidos", campos);
+      const f = arquivo as File;
+      if (f.size > LIMITE_DO_ARQUIVO) return erro(413, "O arquivo passa do limite de 10 MB");
+      const documentos = p.documentos ?? [];
+      const novo: Documento = { id: documentos.length + 1, tipo: tipo as TipoDocumento, nome: f.name, tamanho: f.size, quando: new Date().toISOString(), autor: usuario };
+      banco.gravar({ processos: banco.ler().processos.map((x) => (x.id === p.id ? { ...x, documentos: [...documentos, novo] } : x)) });
+      return { status: 201, resposta: novo };
     },
   },
 ];

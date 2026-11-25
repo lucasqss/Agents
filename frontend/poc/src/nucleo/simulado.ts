@@ -42,12 +42,16 @@ function casar(padrao: string, caminho: string): Record<string, string> | null {
 export async function fetchSimulado(pedido: Request, rotas: RotaSimulada[]): Promise<Response> {
   await new Promise((r) => setTimeout(r, 120)); // um pouco de espera, para os estados de carregando aparecerem
   const url = new URL(pedido.url);
-  const texto = await pedido.clone().text();
   let corpo: unknown = null;
-  try {
-    corpo = texto ? JSON.parse(texto) : null;
-  } catch {
-    corpo = texto;
+  if (pedido.headers.get("content-type")?.startsWith("multipart/form-data")) {
+    corpo = Object.fromEntries((await pedido.clone().formData()).entries()); // { campo: File | string }
+  } else {
+    const texto = await pedido.clone().text();
+    try {
+      corpo = texto ? JSON.parse(texto) : null;
+    } catch {
+      corpo = texto;
+    }
   }
   const cabecalhos: Record<string, string> = {};
   pedido.headers.forEach((v, k) => (cabecalhos[k.toLowerCase()] = v));

@@ -6,11 +6,11 @@
 //     recarrega, os botões ficam desabilitados: a lista antiga pode ter ação que já não vale.
 //  5. Etapa opcional do caminho ("talvez"): feita se aparece no histórico, nunca decidida pelo valor.
 import { useState } from "react";
-import { processos, type Acao } from "@/api/processos";
-import { Aviso, Caminho, Cartao, DialogoTexto, Etiqueta, Indicadores, LinhaDoTempo, Vazio, type Passo, type TipoDeAviso } from "@/componentes";
+import { processos, type Acao, type Documento } from "@/api/processos";
+import { Aviso, Caminho, Cartao, DialogoTexto, Etiqueta, Indicadores, LinhaDoTempo, SeloProposta, Tabela, Vazio, type Passo, type TipoDeAviso } from "@/componentes";
 import { Button } from "@/componentes/ui/button";
-import { ACOES, TEXTOS, acao, caminho, situacao, tipo } from "@/jornadas/processo-pagamento";
-import { dataHora, reais } from "@/nucleo/formato";
+import { ACOES, TEXTOS, acao, caminho, situacao, tipo, tipoDeDocumento } from "@/jornadas/processo-pagamento";
+import { dataHora, reais, tamanhoDeArquivo } from "@/nucleo/formato";
 import { todas } from "@/nucleo/http";
 import { useRecurso } from "@/nucleo/useRecurso";
 import { lembrar, useEu } from "./contexto";
@@ -20,7 +20,8 @@ function EtiquetaDaSituacao({ codigo }: { codigo: string }) {
   return <Etiqueta tom={s.tom}>{s.texto}</Etiqueta>;
 }
 
-export function Processo({ id, recemAberto }: { id: number; recemAberto: boolean }) {
+/** `avisoDeEntrada`: o aviso de quem chegou de outra tela (ex.: "Processo aberto."), que o resultado das ações substitui. */
+export function Processo({ id, avisoDeEntrada }: { id: number; avisoDeEntrada?: string }) {
   const eu = useEu();
   const recurso = useRecurso(`processo:${id}`, async () => {
     const r = await todas({ processo: processos.consultar(id), acoes: processos.acoes(id), historico: processos.historico(id) });
@@ -28,7 +29,7 @@ export function Processo({ id, recemAberto }: { id: number; recemAberto: boolean
     return r;
   });
   const [aviso, setAviso] = useState<{ tipo: TipoDeAviso; texto: string } | null>(
-    recemAberto ? { tipo: "sucesso", texto: "Processo aberto." } : null);
+    avisoDeEntrada ? { tipo: "sucesso", texto: avisoDeEntrada } : null);
   const [pedindoMotivo, setPedindoMotivo] = useState<Acao | null>(null);
   const [agindo, setAgindo] = useState(false);
 
@@ -104,8 +105,34 @@ export function Processo({ id, recemAberto }: { id: number; recemAberto: boolean
         ) : <p className="text-sm text-muted-foreground">Nenhuma ação ainda.</p>}
       </Cartao>
 
+      <DocumentosDoProcesso id={id} />
+
       <DialogoTexto titulo={pedindoMotivo && ACOES[pedindoMotivo].texto} explicacao={TEXTOS.motivo}
         aoCancelar={() => setPedindoMotivo(null)} aoConfirmar={(m) => pedindoMotivo && void executar(pedindoMotivo, m)} />
     </>
+  );
+}
+
+/**
+ * Os documentos do processo (contrato PROPOSTO), com a sua própria busca: se o serviço ainda não tiver a operação (501),
+ * só este bloco mostra isso; o resto da tela segue.
+ */
+function DocumentosDoProcesso({ id }: { id: number }) {
+  const docs = useRecurso(`documentos:${id}`, () => processos.documentos(id));
+  return (
+    <Cartao titulo="Documentos" acoes={<>
+      <SeloProposta />
+      <Button asChild variant="secondary" size="sm"><a href={`#/processo/${id}/anexar`}>Anexar documento</a></Button>
+    </>}>
+      {docs.situacao === "carregando" ? <Vazio>Carregando...</Vazio>
+        : docs.situacao === "erro" ? <Aviso tipo={docs.status === 501 ? "info" : "erro"}>{docs.erro.mensagem}</Aviso>
+        : docs.dados.length === 0 ? <p className="text-sm text-muted-foreground">{TEXTOS.semDocumentos}</p>
+        : <Tabela<Documento> linhas={docs.dados} chave={(d) => d.id} colunas={[
+            { titulo: "Documento", valor: (d) => tipoDeDocumento(d.tipo).texto },
+            { titulo: "Arquivo", valor: (d) => d.nome },
+            { titulo: "Tamanho", valor: (d) => tamanhoDeArquivo(d.tamanho), numero: true },
+            { titulo: "Enviado", valor: (d) => `${dataHora(d.quando)} por ${d.autor}` },
+          ]} />}
+    </Cartao>
   );
 }

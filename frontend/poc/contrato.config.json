@@ -1,0 +1,5 @@
+{
+  "$comentario": "De onde vem o contrato da API. 'servico': o OpenAPI publicado pelo backend (arquivo ou URL, ex.: http://localhost:8080/q/openapi?format=json). 'proposto': o que as telas usam e o backend ainda não tem (telas primeiro).",
+  "servico": "../../exemplo-testes/docs/api/openapi-base.json",
+  "proposto": "contrato/proposto.yaml"
+}

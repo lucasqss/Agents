@@ -105,6 +105,29 @@ export async function resposta<D>(chamada: Promise<{ data?: D; error?: unknown; 
   }
 }
 
+/**
+ * Operação do contrato PROPOSTO (telas primeiro). No modo real, se o serviço ainda não a publicou (`pendente`), não
+ * chama: devolve 501 com uma mensagem clara, e a tela mostra "ainda não disponível". No modo simulado, chama normalmente.
+ */
+export function proposta<T>(pendente: boolean, chamar: () => Promise<Resposta<T>>): Promise<Resposta<T>> {
+  if (MODO === "real" && pendente) {
+    return Promise.resolve({ ok: false, status: 501, erro: { mensagem: "Ainda não disponível no serviço: esta parte é uma proposta das telas.", campos: [] } });
+  }
+  return chamar();
+}
+
+/** Corpo multipart (envio de arquivo): { tipo: "X", arquivo: File } vira FormData. Use em bodySerializer. */
+export function comoFormulario(corpo: unknown): FormData {
+  const formulario = new FormData();
+  for (const [campo, valor] of Object.entries(corpo as Record<string, unknown>)) {
+    if (valor === undefined || valor === null) continue;
+    if (valor instanceof Blob) formulario.append(campo, valor);
+    else if (typeof valor === "string" || typeof valor === "number" || typeof valor === "boolean") formulario.append(campo, String(valor));
+    else formulario.append(campo, JSON.stringify(valor));
+  }
+  return formulario;
+}
+
 /** Várias chamadas de uma vez, numa Resposta só: falha se qualquer uma falhar (com o erro da primeira que falhou). */
 export async function todas<T extends Record<string, Promise<Resposta<unknown>>>>(
   chamadas: T,

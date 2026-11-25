@@ -12,7 +12,8 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
 | Camada | Pasta | O que tem | Modelo |
 |---|---|---|---|
 | núcleo | `src/nucleo/` | cliente HTTP (`criarCliente`, `resposta`, `todas`), `useRecurso`, rotas `#hash` (`useRota`, `ir`), `guardado`, `formato` | não mude; é igual em todo projeto |
-| api | `src/api/` | `esquema.d.ts` (**gerado**, nunca à mão) e uma função por endpoint | `src/api/processos.ts` |
+| contrato | `contrato.config.json`, `contrato/proposto.yaml` | de onde vem o OpenAPI do serviço, e o que as telas propõem e o serviço ainda não tem | `contrato/proposto.yaml` |
+| api | `src/api/` | `esquema.d.ts` e `propostas.gerado.ts` (**gerados**, nunca à mão) e uma função por endpoint | `src/api/processos.ts` |
 | jornada | `src/jornadas/` | rótulos e tons por código (`Record<Situacao, …>`), caminhos, personas, textos, tradutores (`situacao(codigo)`) | `src/jornadas/processo-pagamento.ts` |
 | componentes | `src/componentes/` e `src/componentes/ui/` (shadcn) | peças visuais puras | `src/componentes/index.ts` (catálogo) |
 | telas | `src/telas/` e `src/App.tsx` | uma por rota, mais o estado de apresentação (`contexto.ts`) | `src/telas/Processo.tsx` (detalhe), `src/telas/AbrirProcesso.tsx` (formulário), `src/telas/Inicio.tsx` (lista) |
@@ -38,15 +39,26 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
 - O resto (obrigatório, tamanho, regra) vem da API. `r.erro.campos` vira o erro de cada `Campo`, e `r.erro.mensagem` vira um `Aviso`.
 - Depois de criar: `ir("/x/<id>?aberto=1")`.
 
-**Lista:** copie `src/telas/Inicio.tsx`. Use `useRecurso` com a chave da lista, e `Tabela` com `aoEscolher` para abrir o item.
+**Lista vinda da API, com filtro e páginas:** copie `src/telas/ListaProcessos.tsx`. A chave do `useRecurso` leva o filtro e a página (`lista:${filtro}:${pagina}`); mudar o filtro volta à página 0; `Paginacao` embaixo. Lista guardada no navegador (sem endpoint de listagem): `src/telas/Inicio.tsx`.
 - **Abas ou filtros:** o `Tabs` do shadcn (`npx shadcn@4 add tabs`). Nunca botões fazendo papel de aba: sem `role="tab"`, não é aba para o teclado nem para o leitor de tela.
 - **Agrupar por situação** (ex.: em andamento × finalizados): o grupo é dado da jornada (ex.: `final: true` em `SITUACOES`), nunca uma lista de códigos na tela.
 - **Ações em cada linha:** a mesma receita do detalhe. Há um aviso só para a tela inteira, um diálogo de motivo só, e botões desabilitados durante a ação e a recarga.
 - **Cada estado vazio tem o seu texto**, o da especificação: a lista sem nenhum item, e cada aba vazia.
 
+**Assistente em passos, com envio de arquivo:** copie `src/telas/AnexarDocumento.tsx`. `Passos` em cima; cada passo só libera o "Continuar" quando tem o que precisa; o envio é no último passo, depois de conferir; arquivo com `EnvioDeArquivo` (confere formato e tamanho antes, o backend confere de novo); deu certo, volta para a tela de origem com um aviso de entrada.
+
+**Telas primeiro (o backend ainda não tem o endpoint):** é o caso comum no rascunho da jornada.
+1. Escreva a operação em `contrato/proposto.yaml`, com as regras da `contrato-openapi.md` (da skill `arquiteto-padrao`): erros com `ErroResponse`, corpo JSON (ou multipart para arquivo), nulo marcado, enum publicado. Pode citar os schemas do serviço por `$ref`.
+2. `npm run gerar:api`: a operação ganha tipos e entra em `propostas.gerado.ts` (as pendentes).
+3. Na api, a função passa por `proposta(pendente("GET /caminho"), () => resposta(api.GET(...)))`: no modo real, enquanto o serviço não publicar, devolve 501 sem chamar.
+4. No simulado (`src/simulado/servicoFalso.ts`), a rota com as mesmas regras, no bloco `PROPOSTA`.
+5. Na tela, `SeloProposta` no título, e o 501 mostrado como `Aviso tipo="info"` (o resto da tela segue).
+6. O e2e da jornada proposta fica em `test.describe(..., { tag: "@proposta" }, ...)`: roda no simulado e é pulado contra o serviço real.
+7. `npm run contrato:propostas` diz o que ainda é proposta e o que o serviço já publicou (igual ou diferente). Publicou: tire do `proposto.yaml`, rode `gerar:api` e ajuste a tela se mudou.
+
 **Endpoint novo, ou contrato mudou:**
 1. No backend, o contrato segue a referência `contrato-openapi.md` da skill `arquiteto-padrao`: erros declarados, corpo JSON, campo nulo marcado, enum publicado.
-2. `npm run gerar:api`.
+2. `npm run gerar:api` (lê as origens de `contrato.config.json`).
 3. Uma função em `src/api/<recurso>.ts`: `nome: (...) => resposta(api.GET("/caminho/{id}", { params: { path: { id } } }))`. O caminho é checado pelo TypeScript contra o contrato.
 4. `npm run typecheck` aponta quem precisa mudar.
 

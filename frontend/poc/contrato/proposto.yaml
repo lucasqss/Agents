@@ -1,0 +1,89 @@
+# CONTRATO PROPOSTO: endpoints que as telas usam e o serviço ainda NÃO tem ("telas primeiro").
+# É uma proposta para conversar com o negócio e com o backend: vira caso de uso (skill especificar-caso-de-uso) e
+# depois código (skill arquiteto-padrao, referência contrato-openapi.md). Segue as mesmas regras do contrato real:
+# erros declarados com ErroResponse, corpo JSON (ou multipart para arquivo), campo nulo marcado, enum publicado.
+# Os schemas do serviço (ProcessoResumo, EstadoProcesso, ErroResponse...) podem ser citados por $ref.
+# Quando o serviço publicar a operação, `npm run contrato:propostas` avisa, e ela sai daqui.
+openapi: 3.1.0
+info:
+  title: Proposta das telas
+  version: proposta
+paths:
+  /processos:
+    get:
+      operationId: listar
+      summary: Lista os processos, com filtro por situação, em páginas
+      parameters:
+        - { name: situacao, in: query, required: false, schema: { $ref: "#/components/schemas/EstadoProcesso" } }
+        - { name: pagina, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: tamanho, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+      responses:
+        "200":
+          description: Uma página de processos, do mais recente para o mais antigo
+          content: { application/json: { schema: { $ref: "#/components/schemas/PaginaDeProcessos" } } }
+        "400":
+          description: Filtro ou página inválidos
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErroResponse" } } }
+  /processos/{id}/documentos:
+    get:
+      operationId: documentos
+      summary: Os documentos anexados ao processo, do mais recente para o mais antigo
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        "200":
+          description: OK
+          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/DocumentoDoProcesso" } } } }
+        "404":
+          description: Processo não encontrado
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErroResponse" } } }
+    post:
+      operationId: anexarDocumento
+      summary: Anexa um documento (arquivo) ao processo
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+        - { name: X-Usuario, in: header, required: true, schema: { type: string, maxLength: 100 } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [tipo, arquivo]
+              properties:
+                tipo: { $ref: "#/components/schemas/TipoDocumento" }
+                arquivo: { type: string, format: binary }
+      responses:
+        "201":
+          description: Documento anexado
+          content: { application/json: { schema: { $ref: "#/components/schemas/DocumentoDoProcesso" } } }
+        "400":
+          description: Tipo ou arquivo inválido (formato não aceito, arquivo vazio)
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErroResponse" } } }
+        "404":
+          description: Processo não encontrado
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErroResponse" } } }
+        "413":
+          description: Arquivo maior que o limite
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErroResponse" } } }
+components:
+  schemas:
+    PaginaDeProcessos:
+      type: object
+      properties:
+        itens: { type: array, items: { $ref: "#/components/schemas/ProcessoResumo" } }
+        pagina: { type: integer }
+        tamanho: { type: integer }
+        total: { type: integer, description: Total de processos que atendem ao filtro }
+    TipoDocumento:
+      type: string
+      enum: [IDENTIDADE, COMPROVANTE_RESIDENCIA, MATRICULA_DO_IMOVEL, OUTRO]
+    DocumentoDoProcesso:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        tipo: { $ref: "#/components/schemas/TipoDocumento" }
+        nome: { type: string, description: Nome do arquivo enviado }
+        tamanho: { type: integer, format: int64, description: Tamanho em bytes }
+        quando: { type: string, format: date-time }
+        autor: { type: string }

@@ -1,7 +1,7 @@
 // O desenho da jornada do processo de pagamento: termos do negócio para cada código da API. É DADO: sem condição,
 // sem valor de regra (a alçada é do backend). As chaves são tipadas pelo contrato: se o serviço criar uma situação
 // ou ação nova, o typecheck exige o rótulo aqui. O vocabulário é o mesmo das especificações de aceitação.
-import type { Acao, Situacao, Tipo } from "@/api/processos";
+import type { Acao, Situacao, Tipo, TipoDocumento } from "@/api/processos";
 import type { Tom } from "@/componentes";
 
 export const SITUACOES: Record<Situacao, { texto: string; tom: Tom }> = {
@@ -49,12 +49,22 @@ export const PERSONAS = [
   { usuario: "tesouraria", nome: "Tesouraria", papel: "pagamento" },
 ] as const;
 
+/** PROPOSTA (contrato/proposto.yaml): os tipos de documento que se anexam ao processo. */
+export const TIPOS_DE_DOCUMENTO: Record<TipoDocumento, { texto: string; explicacao: string }> = {
+  IDENTIDADE: { texto: "Documento de identidade", explicacao: "RG, CNH ou passaporte de quem recebe." },
+  COMPROVANTE_RESIDENCIA: { texto: "Comprovante de residência", explicacao: "Conta de consumo dos últimos 3 meses." },
+  MATRICULA_DO_IMOVEL: { texto: "Matrícula do imóvel", explicacao: "Certidão atualizada do cartório." },
+  OUTRO: { texto: "Outro documento", explicacao: "Qualquer outro documento pedido na análise." },
+};
+
 /** Textos de ajuda da jornada (sem número de regra: o valor da alçada é do backend). */
 export const TEXTOS = {
   ajudaDoValor: "Acima da alçada, o processo precisa da aprovação de quem tem alçada.",
   motivo: "Esta ação exige um motivo. Ele fica registrado no histórico do processo.",
   semAcoes: "Nenhuma ação: o processo está numa situação final.",
   perfil: "Nesta versão todos veem as ações da situação; o perfil de cada pessoa ainda vai ser definido.",
+  arquivosAceitos: "PDF, JPG ou PNG, até 10 MB.",
+  semDocumentos: "Nenhum documento anexado ainda.",
 };
 
 // Tradução de código para o desenho. Alguns campos do contrato chegam como string (ex.: ProcessoResumo.estado):
@@ -62,4 +72,5 @@ export const TEXTOS = {
 export const situacao = (codigo: string) => SITUACOES[codigo as Situacao] ?? { texto: codigo, tom: "neutro" };
 export const acao = (codigo: string) => ACOES[codigo as Acao] ?? { texto: codigo };
 export const tipo = (codigo: string) => TIPOS[codigo as Tipo] ?? { texto: codigo, explicacao: "" };
+export const tipoDeDocumento = (codigo: string) => TIPOS_DE_DOCUMENTO[codigo as TipoDocumento] ?? { texto: codigo, explicacao: "" };
 export const caminho = (codigo: string) => CAMINHOS[codigo as Tipo] ?? [];
