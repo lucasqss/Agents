@@ -1,7 +1,7 @@
 import { Plus, Search } from "lucide-react";
 import { useState } from "react";
 import { processos, type Processo } from "@/api/processos";
-import { Cartao, Etiqueta, Tabela, Vazio } from "@/componentes";
+import { Carregando, Cartao, Etiqueta, Tabela, Vazio } from "@/componentes";
 import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { situacao, tipo } from "@/jornadas/processo-pagamento";
@@ -34,7 +34,7 @@ export function Inicio() {
       <Button asChild><a href="#/abrir"><Plus aria-hidden />Abrir processo</a></Button>
     </>}>
       {ids.length === 0 ? <Vazio>Nenhum processo ainda. Abra o primeiro, ou consulte um pelo número.</Vazio>
-        : lista.situacao !== "ok" ? <Vazio>Carregando...</Vazio>
+        : lista.situacao !== "ok" ? <Carregando linhas={ids.length + 1} />
         : <Tabela<Linha> linhas={lista.dados} chave={(l) => l.id} aoEscolher={(l) => ir(`/processo/${l.id}`)} colunas={[
             { titulo: "Número", valor: (l) => l.id, numero: true },
             { titulo: "Cota", valor: (l) => ("naoEncontrado" in l ? <span className="text-muted-foreground">não encontrado</span> : l.numeroCota) },

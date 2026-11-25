@@ -128,6 +128,11 @@ export function comoFormulario(corpo: unknown): FormData {
   return formulario;
 }
 
+/** Vale oferecer "Tentar de novo"? Sem resposta (rede) ou erro do servidor (5xx, menos o 501 de proposta). */
+export function podeTentarDeNovo(status: number) {
+  return status === 0 || (status >= 500 && status !== 501);
+}
+
 /** Várias chamadas de uma vez, numa Resposta só: falha se qualquer uma falhar (com o erro da primeira que falhou). */
 export async function todas<T extends Record<string, Promise<Resposta<unknown>>>>(
   chamadas: T,

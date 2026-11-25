@@ -32,7 +32,8 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
    - ou `"<Ação>: não foi possível. <mensagem da API>"`;
    - depois, `recurso.recarregar()`.
 5. **Caminho:** a etapa atual é a da API, e as feitas vêm do histórico. A etapa `talvez` fica "talvez" até aparecer no histórico; nunca é decidida por valor.
-6. **Erro ao carregar:** `<Aviso tipo="erro">` com a mensagem da API e um link de volta.
+6. **Carregando:** `<Carregando linhas={n} />` (esqueleto), nunca tela vazia nem só um texto.
+7. **Erro ao carregar:** `<Aviso tipo="erro">` com a mensagem da API e um link de volta. Se `podeTentarDeNovo(status)` (sem rede ou 5xx), o aviso ganha `acao={{ texto: "Tentar de novo", aoClicar: recurso.recarregar }}`. 404 não oferece "Tentar de novo".
 
 **Formulário:** copie `src/telas/AbrirProcesso.tsx`.
 - Valide no front só o formato que a API não consegue receber (texto onde vai número).
@@ -64,7 +65,9 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
 
 **Situação, ação, tipo ou etapa nova:** só em `src/jornadas/`. As chaves são do contrato, então o typecheck exige o rótulo de todo código novo.
 
-**Rota nova:** um caso em `src/App.tsx` (título, trilha e corpo) e, se for de primeiro nível, um item no menu da `Moldura`.
+**Rota nova:** um caso em `src/App.tsx` (título, trilha e corpo) e, se for de primeiro nível, um item no menu da `Moldura`. O que não casa com nenhuma rota já cai em "Página não encontrada", e a `Moldura` já envolve cada tela num `LimiteDeErro` (defeito ao desenhar vira aviso, não página em branco): não repita isso na tela.
+
+**Ver a tela sem rede (no simulado):** `localStorage.setItem("simulado:sem-rede", "1")` no console do navegador; para voltar, `removeItem`. Serve para mostrar ao negócio e para o e2e (`e2e/j05-estados.spec.ts`).
 
 **Elemento visual novo:**
 1. Procure primeiro no catálogo (`src/componentes/index.ts`) e nos `ui/` do shadcn.

@@ -7,11 +7,11 @@
 //  5. Etapa opcional do caminho ("talvez"): feita se aparece no histórico, nunca decidida pelo valor.
 import { useState } from "react";
 import { processos, type Acao, type Documento } from "@/api/processos";
-import { Aviso, Caminho, Cartao, DialogoTexto, Etiqueta, Indicadores, LinhaDoTempo, SeloProposta, Tabela, Vazio, type Passo, type TipoDeAviso } from "@/componentes";
+import { Aviso, Caminho, Carregando, Cartao, DialogoTexto, Etiqueta, Indicadores, LinhaDoTempo, SeloProposta, Tabela, type Passo, type TipoDeAviso } from "@/componentes";
 import { Button } from "@/componentes/ui/button";
 import { ACOES, TEXTOS, acao, caminho, situacao, tipo, tipoDeDocumento } from "@/jornadas/processo-pagamento";
 import { dataHora, reais, tamanhoDeArquivo } from "@/nucleo/formato";
-import { todas } from "@/nucleo/http";
+import { podeTentarDeNovo, todas } from "@/nucleo/http";
 import { useRecurso } from "@/nucleo/useRecurso";
 import { lembrar, useEu } from "./contexto";
 
@@ -44,11 +44,11 @@ export function Processo({ id, avisoDeEntrada }: { id: number; avisoDeEntrada?: 
     recurso.recarregar();
   }
 
-  if (recurso.situacao === "carregando") return <Cartao><Vazio>Carregando o processo {id}...</Vazio></Cartao>;
+  if (recurso.situacao === "carregando") return <Cartao><Carregando linhas={4} texto={`Carregando o processo ${id}...`} /></Cartao>;
   if (recurso.situacao === "erro") {
     return (
       <>
-        <Aviso tipo="erro">{recurso.erro.mensagem}</Aviso>
+        <Aviso tipo="erro" {...(podeTentarDeNovo(recurso.status) ? { acao: { texto: "Tentar de novo", aoClicar: recurso.recarregar } } : {})}>{recurso.erro.mensagem}</Aviso>
         <Button asChild variant="outline"><a href="#/">Voltar aos processos</a></Button>
       </>
     );
@@ -124,7 +124,7 @@ function DocumentosDoProcesso({ id }: { id: number }) {
       <SeloProposta />
       <Button asChild variant="secondary" size="sm"><a href={`#/processo/${id}/anexar`}>Anexar documento</a></Button>
     </>}>
-      {docs.situacao === "carregando" ? <Vazio>Carregando...</Vazio>
+      {docs.situacao === "carregando" ? <Carregando linhas={2} />
         : docs.situacao === "erro" ? <Aviso tipo={docs.status === 501 ? "info" : "erro"}>{docs.erro.mensagem}</Aviso>
         : docs.dados.length === 0 ? <p className="text-sm text-muted-foreground">{TEXTOS.semDocumentos}</p>
         : <Tabela<Documento> linhas={docs.dados} chave={(d) => d.id} colunas={[

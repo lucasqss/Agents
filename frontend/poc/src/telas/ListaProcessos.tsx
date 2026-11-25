@@ -2,10 +2,11 @@
 // o serviço não o tiver, a tela mostra que é proposta (a api devolve 501 sem chamar).
 import { useState } from "react";
 import { processos, type Processo, type Situacao } from "@/api/processos";
-import { Aviso, Cartao, Etiqueta, Paginacao, SeloProposta, SeletorNativo, Tabela, Vazio } from "@/componentes";
+import { Aviso, Carregando, Cartao, Etiqueta, Paginacao, SeloProposta, SeletorNativo, Tabela, Vazio } from "@/componentes";
 import { Label } from "@/componentes/ui/label";
 import { SITUACOES, situacao, tipo } from "@/jornadas/processo-pagamento";
 import { reais } from "@/nucleo/formato";
+import { podeTentarDeNovo } from "@/nucleo/http";
 import { ir } from "@/nucleo/rotas";
 import { useRecurso } from "@/nucleo/useRecurso";
 
@@ -31,8 +32,8 @@ export function ListaProcessos() {
           {(Object.keys(SITUACOES) as Situacao[]).map((s) => <option key={s} value={s} className="bg-popover">{SITUACOES[s].texto}</option>)}
         </SeletorNativo>
       </div>
-      {lista.situacao === "carregando" ? <Vazio>Carregando...</Vazio>
-        : lista.situacao === "erro" ? <Aviso tipo={lista.status === 501 ? "info" : "erro"}>{lista.erro.mensagem}</Aviso>
+      {lista.situacao === "carregando" ? <Carregando linhas={5} />
+        : lista.situacao === "erro" ? <Aviso tipo={lista.status === 501 ? "info" : "erro"} {...(podeTentarDeNovo(lista.status) ? { acao: { texto: "Tentar de novo", aoClicar: lista.recarregar } } : {})}>{lista.erro.mensagem}</Aviso>
         : lista.dados.total === 0 ? <Vazio>{filtro ? "Nenhum processo nesta situação." : "Nenhum processo ainda."}</Vazio>
         : <>
             <Tabela<Processo> linhas={lista.dados.itens} chave={(p) => p.id} aoEscolher={(p) => ir(`/processo/${p.id}`)} colunas={[

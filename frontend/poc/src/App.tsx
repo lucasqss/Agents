@@ -1,6 +1,6 @@
 import { FilePlus2, ListChecks, Rows3 } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
-import { Aviso, Moldura, SeletorNativo } from "@/componentes";
+import { Aviso, Cartao, Moldura, SeletorNativo } from "@/componentes";
 import { PERSONAS } from "@/jornadas/processo-pagamento";
 import { useRota } from "@/nucleo/rotas";
 import { AbrirProcesso } from "@/telas/AbrirProcesso";
@@ -36,8 +36,11 @@ export function App() {
         ? <Processo key={`${id}:${avisoDeEntrada ?? ""}`} id={id} {...(avisoDeEntrada ? { avisoDeEntrada } : {})} />
         : <Aviso tipo="erro">Número de processo inválido: {partes[1]}</Aviso>,
     };
-  } else {
+  } else if (partes.length === 0) {
     tela = { titulo: "Processos", menu: "inicio", trilha: [{ texto: "Processos" }], corpo: <Inicio /> };
+  } else {
+    tela = { titulo: "Página não encontrada", menu: "inicio", trilha: [{ texto: "Processos", href: "#/" }, { texto: "Página não encontrada" }],
+      corpo: <NaoEncontrada /> };
   }
   const titulo = tela.titulo;
   useEffect(() => {
@@ -66,5 +69,14 @@ export function App() {
       }>
       {tela.corpo}
     </Moldura>
+  );
+}
+
+function NaoEncontrada() {
+  return (
+    <Cartao>
+      <p className="text-sm text-muted-foreground">Esta página não existe. O endereço pode estar errado ou ter mudado.</p>
+      <a href="#/" className="mt-3 inline-block text-sm font-medium text-andamento underline-offset-4 hover:underline">Voltar aos processos</a>
+    </Cartao>
   );
 }

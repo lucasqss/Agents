@@ -2,6 +2,7 @@ import { FlaskConical } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "cn";
 import { MODO } from "@/nucleo/http";
+import { LimiteDeErro } from "./LimiteDeErro";
 import { PorTrasDaTela } from "./PorTrasDaTela";
 
 export interface ItemDeMenu { texto: string; href: string; ativo: boolean; icone?: ReactNode }
@@ -52,7 +53,7 @@ export function Moldura({ sigla, nome, menu, rodape, trilha, titulo, children }:
           </nav>
           <h1 className="text-2xl font-semibold tracking-tight">{titulo}</h1>
         </header>
-        <main aria-live="polite" className="space-y-5">{children}</main>
+        <main aria-live="polite" className="space-y-5"><LimiteDeErro key={titulo}>{children}</LimiteDeErro></main>
         <PorTrasDaTela />
       </div>
     </div>

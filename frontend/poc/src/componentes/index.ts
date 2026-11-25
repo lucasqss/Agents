@@ -2,11 +2,13 @@
 // quando nenhum serve: genérico, sem chamar a API, sem ler a jornada, com as cores do tema.
 export { Aviso, type TipoDeAviso } from "./Aviso";
 export { Caminho, type Passo, type SituacaoDoPasso } from "./Caminho";
+export { Carregando } from "./Carregando";
 export { Campo } from "./Campo";
 export { Cartao } from "./Cartao";
 export { DialogoTexto } from "./DialogoTexto";
 export { Etiqueta } from "./Etiqueta";
 export { Indicadores } from "./Indicadores";
+export { LimiteDeErro } from "./LimiteDeErro";
 export { LinhaDoTempo, type ItemDoTempo } from "./LinhaDoTempo";
 export { EnvioDeArquivo } from "./EnvioDeArquivo";
 export { Moldura, type ItemDeMenu } from "./Moldura";
