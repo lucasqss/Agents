@@ -22,6 +22,7 @@ O serviço de verdade é o `exemplo-testes` em modo dev (`cd ../../exemplo-teste
 | `npm run contrato:propostas` | O que as telas propõem e o serviço ainda não tem, e o que ele já publicou (igual ou diferente da proposta). |
 | `npm run verificar` | As barreiras rápidas, em ordem: contrato em dia (`conferir:api`), `typecheck`, `lint`, `arquitetura` (UI-001 a UI-006) e `test:unidade`. |
 | `npm run test:unidade` | Testes de unidade (Vitest) do núcleo e dos componentes: `useRecurso`, cliente HTTP, simulado, identidade, formato, `LimiteDeErro`. |
+| `npm run test:e2e:real` | Os mesmos percursos contra o **serviço de verdade** em dev (`VITE_API`, padrão `http://localhost:8080`; suba o `exemplo-testes` com `./mvnw quarkus:dev`). Pula `@proposta` (o serviço ainda não tem) e `@simulado`. Pega o simulado que divergiu do serviço. |
 | `npm run test:e2e` | Os percursos das jornadas no navegador (Playwright), contra o build em modo simulado, em computador e celular, com a checagem de acessibilidade (axe) em cada tela. `PW_PORTA` muda a porta (padrão 4174). |
 
 ## As pastas

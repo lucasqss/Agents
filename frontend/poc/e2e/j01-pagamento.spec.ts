@@ -3,7 +3,7 @@
 import { abrirProcesso, agir, aviso, bloco, expect, semProblemasDeAcessibilidade, souEu, test } from "./apoio";
 
 test("[J-01] Imobiliário acima da alçada: análise, vistoria, alçada e pagamento", async ({ page }) => {
-  await abrirProcesso(page, "Imobiliário", "COTA-80K", "80.000,00");
+  const id = await abrirProcesso(page, "Imobiliário", "COTA-80K", "80.000,00");
   await semProblemasDeAcessibilidade(page);
 
   await souEu(page, "ana");
@@ -25,7 +25,7 @@ test("[J-01] Imobiliário acima da alçada: análise, vistoria, alçada e pagame
   for (const autor of ["ana", "vitor", "carla", "tesouraria"]) await expect(bloco(page, "Histórico")).toContainText(`por ${autor}`);
 
   await page.getByText("Por trás da tela").click();
-  await expect(page.getByTestId("chamadas")).toContainText("POST (simulado) /processos/1/acoes/PAGAR\nX-Usuario: tesouraria");
+  await expect(page.getByTestId("chamadas")).toContainText(new RegExp(`POST \\S*\\s?\\S*/processos/${id}/acoes/PAGAR\\nX-Usuario: tesouraria`));
   await semProblemasDeAcessibilidade(page);
 });
 

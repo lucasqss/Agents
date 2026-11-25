@@ -16,7 +16,8 @@
     "verificar": "npm run -s conferir:api && npm run -s typecheck && npm run -s lint && npm run -s arquitetura && npm run -s test:unidade",
     "test:e2e": "playwright test",
     "contrato:propostas": "node scripts/contrato.mjs propostas",
-    "test:unidade": "vitest run"
+    "test:unidade": "vitest run",
+    "test:e2e:real": "node scripts/servico-no-ar.mjs && PW_MODO=real playwright test --grep-invert \"@proposta|@simulado\""
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

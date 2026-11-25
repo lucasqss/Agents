@@ -33,7 +33,8 @@ export function ListaProcessos() {
         </SeletorNativo>
       </div>
       {lista.situacao === "carregando" ? <Carregando linhas={5} />
-        : lista.situacao === "erro" ? <Aviso tipo={lista.status === 501 ? "info" : "erro"} {...(podeTentarDeNovo(lista.status) ? { acao: { texto: "Tentar de novo", aoClicar: lista.recarregar } } : {})}>{lista.erro.mensagem}</Aviso>
+        : lista.situacao === "erro" ? (lista.status === 501 ? <Vazio>{lista.erro.mensagem}</Vazio>
+          : <Aviso tipo="erro" {...(podeTentarDeNovo(lista.status) ? { acao: { texto: "Tentar de novo", aoClicar: lista.recarregar } } : {})}>{lista.erro.mensagem}</Aviso>)
         : lista.dados.total === 0 ? <Vazio>{filtro ? "Nenhum processo nesta situação." : "Nenhum processo ainda."}</Vazio>
         : <>
             <Tabela<Processo> linhas={lista.dados.itens} chave={(p) => p.id} aoEscolher={(p) => ir(`/processo/${p.id}`)} colunas={[

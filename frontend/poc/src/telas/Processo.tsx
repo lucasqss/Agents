@@ -7,7 +7,7 @@
 //  5. Etapa opcional do caminho ("talvez"): feita se aparece no histórico, nunca decidida pelo valor.
 import { useState } from "react";
 import { processos, type Acao, type Documento } from "@/api/processos";
-import { Aviso, Caminho, Carregando, Cartao, DialogoTexto, Etiqueta, Indicadores, LinhaDoTempo, SeloProposta, Tabela, type Passo, type TipoDeAviso } from "@/componentes";
+import { Aviso, Caminho, Carregando, Cartao, DialogoTexto, Etiqueta, Indicadores, LinhaDoTempo, SeloProposta, Tabela, Vazio, type Passo, type TipoDeAviso } from "@/componentes";
 import { Button } from "@/componentes/ui/button";
 import { ACOES, TEXTOS, acao, caminho, situacao, tipo, tipoDeDocumento } from "@/jornadas/processo-pagamento";
 import { dataHora, reais, tamanhoDeArquivo } from "@/nucleo/formato";
@@ -125,7 +125,7 @@ function DocumentosDoProcesso({ id }: { id: number }) {
       <Button asChild variant="secondary" size="sm"><a href={`#/processo/${id}/anexar`}>Anexar documento</a></Button>
     </>}>
       {docs.situacao === "carregando" ? <Carregando linhas={2} />
-        : docs.situacao === "erro" ? <Aviso tipo={docs.status === 501 ? "info" : "erro"}>{docs.erro.mensagem}</Aviso>
+        : docs.situacao === "erro" ? (docs.status === 501 ? <Vazio>{docs.erro.mensagem}</Vazio> : <Aviso tipo="erro">{docs.erro.mensagem}</Aviso>)
         : docs.dados.length === 0 ? <p className="text-sm text-muted-foreground">{TEXTOS.semDocumentos}</p>
         : <Tabela<Documento> linhas={docs.dados} chave={(d) => d.id} colunas={[
             { titulo: "Documento", valor: (d) => tipoDeDocumento(d.tipo).texto },

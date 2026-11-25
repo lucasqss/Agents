@@ -9,10 +9,10 @@ test("[E-01] Endereço que não existe mostra 'Página não encontrada' e o cami
   await expect(page.getByRole("heading", { name: "Processos", level: 1 })).toBeVisible();
 });
 
-test("[E-02] Sem rede, a tela diz o que houve e oferece 'Tentar de novo'", async ({ page }) => {
-  await abrirProcesso(page, "Serviço", "COTA-REDE", "1.000,00");
+test("[E-02] Sem rede, a tela diz o que houve e oferece 'Tentar de novo'", { tag: "@simulado" }, async ({ page }) => {
+  const id = await abrirProcesso(page, "Serviço", "COTA-REDE", "1.000,00");
   await page.evaluate(() => localStorage.setItem("simulado:sem-rede", "1"));
-  await page.goto("./#/processo/1");
+  await page.goto(`./#/processo/${id}`);
   await expect(page.getByRole("alert")).toContainText("Sem resposta");
   await semProblemasDeAcessibilidade(page);
 

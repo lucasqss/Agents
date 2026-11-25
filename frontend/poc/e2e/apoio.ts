@@ -11,7 +11,8 @@ export const test = base.extend({
   page: async ({ page }, usar) => {
     const erros: string[] = [];
     page.on("console", (m) => {
-      if (m.type() === "error" && !m.location().url.endsWith("/favicon.ico")) erros.push(m.text());
+      // "Failed to load resource" é o navegador registrando um 4xx/5xx que a tela tratou (ex.: 404 esperado): não é erro da tela.
+      if (m.type() === "error" && !m.location().url.endsWith("/favicon.ico") && !m.text().startsWith("Failed to load resource")) erros.push(m.text());
     });
     await page.goto("./");
     await page.evaluate(() => localStorage.clear());
@@ -37,14 +38,15 @@ export async function souEu(page: Page, usuario: string) {
   await page.getByLabel("Quem sou eu").selectOption(usuario);
 }
 
-/** Abre um processo pela tela "Abrir processo" e espera o aviso de aberto. */
-export async function abrirProcesso(page: Page, tipo: "Serviço" | "Imobiliário", cota: string, valor: string) {
+/** Abre um processo pela tela "Abrir processo", espera o aviso de aberto e devolve o número dele. */
+export async function abrirProcesso(page: Page, tipo: "Serviço" | "Imobiliário", cota: string, valor: string): Promise<number> {
   await page.goto("./#/abrir");
   await page.getByText(tipo, { exact: true }).click();
   await page.getByLabel("Número da cota").fill(cota);
   await page.getByLabel("Valor a pagar (R$)").fill(valor);
   await page.getByRole("button", { name: "Abrir processo" }).click();
   await expect(aviso(page)).toHaveText("Processo aberto.");
+  return Number(/#\/processo\/(\d+)/.exec(page.url())?.[1]);
 }
 
 /** Clica na ação (escrevendo o motivo no diálogo, se houver) e espera o aviso "<ação>: feito". */

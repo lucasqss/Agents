@@ -53,7 +53,7 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
 2. `npm run gerar:api`: a operação ganha tipos e entra em `propostas.gerado.ts` (as pendentes).
 3. Na api, a função passa por `proposta(pendente("GET /caminho"), () => resposta(api.GET(...)))`: no modo real, enquanto o serviço não publicar, devolve 501 sem chamar.
 4. No simulado (`src/simulado/servicoFalso.ts`), a rota com as mesmas regras, no bloco `PROPOSTA`.
-5. Na tela, `SeloProposta` no título, e o 501 mostrado como `Aviso tipo="info"` (o resto da tela segue).
+5. Na tela, `SeloProposta` no título, e o 501 mostrado como texto do bloco (`<Vazio>`), nunca como `Aviso`: o aviso (`role="status"`) é só para o resultado do que a pessoa fez, e dois avisos ao mesmo tempo confundem. O resto da tela segue.
 6. O e2e da jornada proposta fica em `test.describe(..., { tag: "@proposta" }, ...)`: roda no simulado e é pulado contra o serviço real.
 7. `npm run contrato:propostas` diz o que ainda é proposta e o que o serviço já publicou (igual ou diferente). Publicou: tire do `proposto.yaml`, rode `gerar:api` e ajuste a tela se mudou.
 
@@ -91,6 +91,8 @@ O teste no navegador é a única barreira que pega o que o lint e o typecheck n�
 6. **Fora do e2e:** regra de negócio (é da aceitação, com Cucumber, no backend) e cada combinação de campo. O e2e prova que a jornada é navegável e acessível, contra o serviço simulado.
 
 Para rodar dois projetos ao mesmo tempo, mude a porta: `PW_PORTA=4180 npm run test:e2e`.
+
+**O simulado é cópia: confira contra o serviço.** `npm run test:e2e:real` roda os mesmos specs contra o serviço de verdade em dev (os `@proposta` e os `@simulado` ficam de fora). Spec que passa no simulado e falha no real é o simulado que divergiu: corrija o simulado (quem está certo é o serviço). Por isso os specs não dependem de dados fixos: usam o número que `abrirProcesso` devolve, nunca "o processo 1".
 
 ## Armadilhas (vistas em agentes)
 
