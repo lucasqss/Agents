@@ -5,7 +5,7 @@ description: Use ao criar ou alterar telas, componentes, chamadas de API ou o de
 
 # Telas de jornada em React
 
-A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill `ui-jornada`. Esta skill diz **como fazer em React**, e o modelo de tudo é a POC em `frontend/poc/`. **Antes de escrever, abra o arquivo-modelo da tarefa e copie a estrutura.**
+A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill `ui-jornada`. Esta skill diz **como fazer em React**, e o modelo de tudo é a POC em `frontend/poc/`. **Antes de escrever, abra o arquivo-modelo da tarefa e copie a estrutura.** Copie a estrutura, **não os textos**: rótulos, avisos e mensagens de vazio são os da especificação da tarefa, ao pé da letra, mesmo que o modelo diga outra coisa.
 
 ## Onde fica cada coisa
 
@@ -39,6 +39,10 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
 - Depois de criar: `ir("/x/<id>?aberto=1")`.
 
 **Lista:** copie `src/telas/Inicio.tsx`. Use `useRecurso` com a chave da lista, e `Tabela` com `aoEscolher` para abrir o item.
+- **Abas ou filtros:** o `Tabs` do shadcn (`npx shadcn@4 add tabs`). Nunca botões fazendo papel de aba: sem `role="tab"`, não é aba para o teclado nem para o leitor de tela.
+- **Agrupar por situação** (ex.: em andamento × finalizados): o grupo é dado da jornada (ex.: `final: true` em `SITUACOES`), nunca uma lista de códigos na tela.
+- **Ações em cada linha:** a mesma receita do detalhe. Há um aviso só para a tela inteira, um diálogo de motivo só, e botões desabilitados durante a ação e a recarga.
+- **Cada estado vazio tem o seu texto**, o da especificação: a lista sem nenhum item, e cada aba vazia.
 
 **Endpoint novo, ou contrato mudou:**
 1. No backend, o contrato segue a referência `contrato-openapi.md` da skill `arquiteto-padrao`: erros declarados, corpo JSON, campo nulo marcado, enum publicado.
@@ -64,6 +68,8 @@ A arquitetura (o front descreve, o backend decide; cinco camadas) está na skill
 - Chamar `fetch`, ou o `api` do openapi-fetch, numa tela: a tela chama a função de `src/api/`.
 - Editar `src/api/esquema.d.ts` à mão: rode `npm run gerar:api`.
 - `<div onClick>` como botão: use `Button` (ou a `Tabela` com `aoEscolher`, que já trata o teclado). O lint de acessibilidade acusa.
+- Montar com `Button` o que o shadcn já tem com acessibilidade (abas, menu, seleção, diálogo). O lint **não** acusa: botões que trocam de aba passam no lint e quebram a navegação por teclado e o leitor de tela.
+- Copiar do modelo o texto junto com a estrutura (ex.: o "Nenhum processo ainda..." da tela inicial numa aba que pede "Nenhum processo em andamento.").
 
 ## Antes de terminar
 
