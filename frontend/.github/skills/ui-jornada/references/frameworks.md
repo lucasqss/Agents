@@ -1,6 +1,6 @@
 # A mesma arquitetura em cada framework
 
-As cinco camadas, as regras e o JSON da jornada não mudam. Muda só a forma de cada peça e a raiz do código (`js/` em JavaScript puro, `src/` em React e Vue, `src/app/` em Angular). O `scripts/verificar.sh` confere qualquer um, porque olha os caminhos das camadas (configuráveis por variável). O protótipo React deste repositório (`exemplo-testes/prototipo-telas`) é um exemplo de React com as camadas mapeadas para as pastas dele (tabela no `SKILL.md`).
+As cinco camadas, as regras e o JSON da jornada não mudam. Muda só a forma de cada peça e a raiz do código (`js/` em JavaScript puro, `src/` em React e Vue, `src/app/` em Angular). O `scripts/verificar.sh` confere qualquer um, porque olha os caminhos das camadas (configuráveis por variável). A referência em React é a POC `frontend/poc`, com os nomes padrão das camadas (receitas na skill `react-jornada`).
 
 | Peça | JavaScript puro (estrutura de referência) | React | Vue | Angular |
 |---|---|---|---|---|

@@ -1,6 +1,6 @@
 # ADR 002: protótipo de telas em React + Vite + Tailwind, com serviço simulado
 
-- Situação: aceita
+- Situação: substituída pela [ADR 001 do front](../../../frontend/docs/adr/ADR_001_stack_do_front.md) (2026-11-25): o protótipo deste exemplo virou a POC de referência em `frontend/poc`, com shadcn/ui, cliente gerado do OpenAPI e as barreiras do front. O que está abaixo é o registro da decisão original.
 - Data: 2026-11-21
 
 ## Contexto

@@ -10,7 +10,7 @@ A tela inicial escolhe uma de três jornadas, e cada jornada tem as suas telas e
 | 2. Enviar os documentos | Cada parte, pelo link do e-mail (sem login) | Caixa de e-mail simulada; página da parte, só com os documentos dela |
 | 3. Analisar | Ana e Carlos (backoffice), Bruno (aprovador), Tesouraria | Fila por situação; processo com documentos (ver, aceitar, recusar), ações, bens, partes e histórico |
 
-Feito a partir do modelo `exemplo-testes/prototipo-telas` (skill `prototipo-de-jornada`).
+Feito a partir do protótipo antigo do `exemplo-testes` (skill `prototipo-de-jornada`), na organização anterior. A referência atual do front, para tela nova, é a POC `frontend/poc` (skills `ui-jornada` e `react-jornada`).
 
 ## Como subir
 

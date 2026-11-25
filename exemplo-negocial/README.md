@@ -337,7 +337,7 @@ docker compose up --build     # app empacotada + PostgreSQL (rode ./mvnw package
 prototipo-telas/subir.sh      # telas de rascunho das jornadas em http://localhost:5173 (`falso`: sem a API)
 ```
 
-**Telas de rascunho.** O [protótipo de telas](prototipo-telas/) mostra três jornadas: criar o processo, enviar os documentos e analisar. Roda também sem a API, com um serviço simulado, e simula o que ainda não existe aqui (bens, partes, documentos): veja o [contrato proposto](prototipo-telas/src/jornada/contrato-proposto.md). Fica fora de `src/`, e o serviço só libera CORS para ele em `%dev`. Skill: `prototipo-de-jornada`.
+**Telas de rascunho.** O [protótipo de telas](prototipo-telas/) (na organização anterior; a referência atual do front é [`frontend/`](../frontend/README.md)) mostra três jornadas: criar o processo, enviar os documentos e analisar. Roda também sem a API, com um serviço simulado, e simula o que ainda não existe aqui (bens, partes, documentos): veja o [contrato proposto](prototipo-telas/src/jornada/contrato-proposto.md). Fica fora de `src/`, e o serviço só libera CORS para ele em `%dev`. Skill: `prototipo-de-jornada`.
 
 **Token de desenvolvimento.** Em `quarkus:dev` a aplicação confia na chave pública de `src/main/resources/jwt/publica-desenvolvimento.pem`, e `scripts/token-dev.sh` assina um token com o par privado (`docs/dev/privada-desenvolvimento.pem`, só para desenvolvimento):
 

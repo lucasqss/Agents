@@ -11,10 +11,10 @@
 #   UI_JORNADA       o desenho da jornada: único lugar com código da API (EM_ANALISE, e === "PAGO")
 #   UI_COMPONENTES   componentes visuais puros
 #   UI_TELAS         telas
-# Exemplo para o protótipo React deste repositório (skill prototipo-de-jornada):
+# Exemplo para o protótipo React antigo deste repositório (exemplo-negocial; a POC atual usa os nomes padrão):
 #   UI_NUCLEO="src/api src/apoio" UI_API="src/api src/jornada/api.ts" \
 #   UI_JORNADA="src/jornada/vocabulario.ts src/jornada/servicoFalso.ts" \
-#   UI_COMPONENTES="src/componentes" UI_TELAS="src/telas src/App.tsx" verificar.sh exemplo-testes/prototipo-telas
+#   UI_COMPONENTES="src/componentes" UI_TELAS="src/telas src/App.tsx" verificar.sh exemplo-negocial/prototipo-telas
 # Exemplo para Angular standalone (src/app/...):
 #   UI_NUCLEO="src/app/api src/app/apoio" UI_API="src/app/api src/app/jornada/api.ts" \
 #   UI_JORNADA="src/app/jornada/vocabulario.ts src/app/jornada/servicoFalso.ts" \
