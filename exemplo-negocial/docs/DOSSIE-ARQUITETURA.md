@@ -127,5 +127,5 @@ Dependências dentro do domínio, sem ciclo: `fluxo` ← `tipo` ← `processo`. 
 
 - Fluxo configurável em banco e engines de BPM: descartados, pois os tipos são poucos e estáveis.
 - Outbox para a chamada à tesouraria: o trade-off já está documentado em `PagarProcessoUseCase`; segue valendo.
-- As cópias das regras ArchUnit e das receitas dentro de `.github/skills/` precisarão acompanhar a mudança quando ela for implementada.
+- As cópias das regras ArchUnit e das receitas dentro de `../.claude/skills/` precisarão acompanhar a mudança quando ela for implementada.
 

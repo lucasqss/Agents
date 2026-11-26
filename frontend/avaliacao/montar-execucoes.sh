@@ -16,7 +16,7 @@ for grupo in sem com; do
     sed "s|npm run test:e2e\`|npm run test:e2e\` (use \`PW_PORTA=$porta\`)|" "$AQUI/$TAREFA/AGENTS.$grupo.md" > "$d/AGENTS.md"
     if [ "$grupo" = com ]; then
       mkdir -p "$d/.claude/skills"
-      cp -rL "$AQUI/../.github/skills/ui-jornada" "$AQUI/../.github/skills/react-jornada" "$d/.claude/skills/"
+      cp -r "$AQUI/../../.claude/skills/ui-jornada" "$AQUI/../../.claude/skills/react-jornada" "$d/.claude/skills/"
     fi
   done
 done

@@ -12,7 +12,7 @@
     "conferir:api": "node scripts/contrato.mjs conferir",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --max-warnings 0 .",
-    "arquitetura": "UI_TELAS=\"src/telas src/App.tsx\" bash ../.github/skills/ui-jornada/scripts/verificar.sh .",
+    "arquitetura": "UI_TELAS=\"src/telas src/App.tsx\" bash ../../.claude/skills/ui-jornada/scripts/verificar.sh .",
     "verificar": "npm run -s conferir:api && npm run -s typecheck && npm run -s lint && npm run -s arquitetura && npm run -s test:unidade",
     "test:e2e": "playwright test",
     "contrato:propostas": "node scripts/contrato.mjs propostas",

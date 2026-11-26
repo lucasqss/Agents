@@ -19,6 +19,6 @@ d = sys.argv[1]
 c = json.load(open(f"{d}/contrato.config.json")); c["servico"] = "contrato/servico.json"; json.dump(c, open(f"{d}/contrato.config.json", "w"), indent=2)
 p = json.load(open(f"{d}/package.json")); p["scripts"]["arquitetura"] = 'UI_TELAS="src/telas src/App.tsx" bash scripts/verificar-arquitetura.sh .'; json.dump(p, open(f"{d}/package.json", "w"), indent=2)
 EOF
-cp "$AQUI/../.github/skills/ui-jornada/scripts/verificar.sh" "$DESTINO/scripts/verificar-arquitetura.sh"
+cp "$AQUI/../../.claude/skills/ui-jornada/scripts/verificar.sh" "$DESTINO/scripts/verificar-arquitetura.sh"
 cp "$AQUI/$TAREFA/TAREFA.md" "$DESTINO/TAREFA.md"
 (cd "$DESTINO" && npm run -s verificar >/dev/null) && echo "Base pronta e verde: $DESTINO"

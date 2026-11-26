@@ -54,7 +54,7 @@ Em 4 e 5 a tabela confere primeiro se a linha existe (409) e depois quem pede (4
 
 ## 5. Como é verificado
 
-- **Regra ArchUnit `TEC-012`** (`RegrasTecnologia`, instalada junto com a cópia em `.github/skills/arquiteto-padrao/assets/arquitetura/comum/`): tipos e anotações de segurança só no entrypoint.
+- **Regra ArchUnit `TEC-012`** (`RegrasTecnologia`, instalada junto com a cópia em `../.claude/skills/arquiteto-padrao/assets/arquitetura/comum/`): tipos e anotações de segurança só no entrypoint.
 - Testes de aceitação `PapeisEAutoriaAceitacaoTest` (tabela papel × ação, dono pelo `clienteId`, R17, ordem das recusas, autor no histórico), contra a aplicação e contra o artefato empacotado.
 - JUnit puro: `PapeisDoFluxoTest` (papel por linha da tabela), `AutoriaEPapeisDoProcessoTest` (permissão por linha, R17: mesma pessoa, outra pessoa, devolveu e outra concluiu, imobiliário; autor do histórico), `ClienteCotaTest` (dono da cota); integração `AutoriaPersistenciaTest` (autor e R17 pelo banco, 401 e 403 no formato de erro).
 - Revisão: a tabela do fluxo e a lista de `@RolesAllowed` são conferidas contra o quadro "Quem pode executar cada ação" do caso de uso.

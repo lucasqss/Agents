@@ -2,7 +2,7 @@
 
 Convenções de front para os serviços deste repositório: telas que **desenham a jornada e acionam os endpoints do backend** (thin client). A stack é **React 19 + Vite + TypeScript strict + Tailwind 4 + shadcn/ui**, com o cliente gerado do OpenAPI. A referência de tudo é a POC em `poc/`.
 
-**Use as skills:** `ui-jornada` para a arquitetura (o front descreve, o backend decide; as cinco camadas; as regras UI-001 a UI-009) e `react-jornada` para a receita de cada tarefa em React, com o arquivo da POC que serve de modelo.
+**Use as skills** (ficam em `../.claude/skills/`, na raiz do repositório: abra a sessão do agente lá): `ui-jornada` para a arquitetura (o front descreve, o backend decide; as cinco camadas; as regras UI-001 a UI-009) e `react-jornada` para a receita de cada tarefa em React, com o arquivo da POC que serve de modelo.
 
 ## Como trabalhar
 

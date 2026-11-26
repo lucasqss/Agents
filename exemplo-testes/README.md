@@ -88,7 +88,7 @@ Funcionalidade: Ações sobre o processo (R2 a R7)
 - **Esperado divergente:** a falha fala a língua da tabela, por exemplo `expected: <Aprovado> but was: <Aguardando alçada>`.
 - **Vocabulário único** (`src/test/java/cucumber/passos/Vocabulario.java`): situações, ações, tipos e valores como o negócio os diz, ligados ao código da API.
 - **Relatórios:** `target/cucumber/ProcessoAceitacaoTest.html` (e `...IT.html`), com cada cenário e passo. Nos relatórios do surefire e do failsafe, cada teste tem o nome do cenário (`02-acoes.feature | 4.2 Valor um centavo acima...`).
-- **Como preencher:** [skill teste-aceitacao, como preencher](.github/skills/teste-aceitacao/references/escrita.md).
+- **Como preencher:** [skill teste-aceitacao, como preencher](../.claude/skills/teste-aceitacao/references/escrita.md).
 
 O Cucumber está no lugar do Karate porque as palavras-chave do Karate são fixas em inglês (`# language: pt` não é aceito pelo parser dele) e os passos são a DSL dele, não frases do negócio.
 
@@ -126,7 +126,7 @@ A aceitação roda num sandbox, e o isolamento está garantido por construção,
 
 Verificado: o build passa também com a ordem invertida (`-Dsurefire.runOrder=reversealphabetical -Dfailsafe.runOrder=reversealphabetical`), com os mesmos IDs. Sem o `@WithTestResource`, a sentinela barra antes do primeiro cenário.
 
-Detalhes e armadilhas: [skill teste-aceitacao, IDs fixos](.github/skills/teste-aceitacao/references/ids-fixos.md).
+Detalhes e armadilhas: [skill teste-aceitacao, IDs fixos](../.claude/skills/teste-aceitacao/references/ids-fixos.md).
 
 ## Barreiras do build (da mais barata para a mais cara)
 
@@ -139,7 +139,7 @@ Detalhes e armadilhas: [skill teste-aceitacao, IDs fixos](.github/skills/teste-a
 | verify | `*IT` contra o jar, openapi-diff | Empacotamento e quebra de contrato |
 | `-Pauditoria` | PITest | Teste que não afirma a regra |
 
-Para o agente de IA: `AGENTS.md` (sempre ativo), as skills em `.github/skills/` (com o link em `.claude/skills/`) e os hooks em `.github/hooks/`. Os hooks negam a edição de `arquitetura/`, das migrations aplicadas e dos próprios hooks, e só deixam o turno terminar com a arquitetura e o domínio verdes (cerca de 10 s, sem Docker). O `CODEOWNERS` exige revisão do dono nessas partes e na tabela dos fluxos.
+Para o agente de IA: `AGENTS.md` (sempre ativo), as skills em `../.claude/skills/` (na raiz do repositório: abra a sessão do agente lá) e os hooks em `.github/hooks/`. Os hooks negam a edição de `arquitetura/`, das migrations aplicadas e dos próprios hooks, e só deixam o turno terminar com a arquitetura e o domínio verdes (cerca de 10 s, sem Docker). O `CODEOWNERS` exige revisão do dono nessas partes e na tabela dos fluxos.
 
 ### Prova de que as barreiras pegam
 

@@ -66,7 +66,7 @@ Os combinados acima são verificados a cada build, em `src/test/java/<pacote rai
 
 **Tipo Negocial** porque o componente tem as regras e é dono dos dados de cliente, cota e processo de pagamento (veja o ADR 001 na skill `arquiteto-padrao`). O tipo está declarado em `Tipo.java`, que define as pastas permitidas.
 
-**Para usar em outro projeto, é só copiar e colar.** A origem são as pastas `comum/` e a do tipo (`negocial/`, `acl/` ou `bff/`) em `.github/skills/arquiteto-padrao/assets/arquitetura/`. Copie os arquivos das duas para `src/test/java/<pacote raiz do projeto>/arquitetura/` e troque `PACOTE_RAIZ` pelo pacote raiz. Fora o `Tipo` e o `ClassesExternas`, nenhum arquivo muda de projeto para projeto:
+**Para usar em outro projeto, é só copiar e colar.** A origem são as pastas `comum/` e a do tipo (`negocial/`, `acl/` ou `bff/`) em `../.claude/skills/arquiteto-padrao/assets/arquitetura/`. Copie os arquivos das duas para `src/test/java/<pacote raiz do projeto>/arquitetura/` e troque `PACOTE_RAIZ` pelo pacote raiz. Fora o `Tipo` e o `ClassesExternas`, nenhum arquivo muda de projeto para projeto:
 - `Raiz` descobre o pacote raiz pelo lugar da pasta (`<raiz>.arquitetura`) e ancora todos os padrões nele. `"persistence"` casa só com `<raiz>.persistence`, nunca com pacotes de bibliotecas como `jakarta.persistence`.
 - Regras de pastas que o projeto ainda não tem (sem canal, sem gateway, sem `*GatewayAdapter`) passam vazias até a primeira classe aparecer.
 - `ClassesExternas` é o único arquivo que se edita por projeto: a lista de `CONFIGURACAO` tem um `groupId` Maven por sistema externo (o exemplo é `org.acme.sistema`), além do `groupId` do próprio componente, lido do `pom.xml`. Classe que vem de jar desses `groupId`s só pode aparecer em `gateway` e `entrypoint`.
@@ -253,10 +253,10 @@ O ArchUnit detecta o erro no build. Estas peças evitam que ele aconteça e impe
 |---|---|---|
 | Orientar | Regras sempre ativas para qualquer agente de IA | `AGENTS.md` |
 | Impor | Hooks do agente (Copilot CLI): arquivo protegido não é alterado e o turno só termina com a verificação rápida passando | `.github/hooks/` |
-| Orientar | Do pedido de negócio ao caso de uso confirmado, antes do código: `/especificar-caso-de-uso` | `.github/skills/especificar-caso-de-uso/` |
-| Orientar | O padrão de arquitetura, o ADR e as receitas de código novo: `/arquiteto-padrao` | `.github/skills/arquiteto-padrao/` |
-| Orientar | Como trazer um projeto legado para o padrão: `/adequar-ao-padrao` | `.github/skills/adequar-ao-padrao/` |
-| Orientar | Testes por nível: `/teste-unidade` (regra, exaustiva), `/teste-componente` (serviço montado), `/teste-aceitacao` (especificações em português, com Cucumber) | `.github/skills/teste-unidade/`, `.github/skills/teste-componente/`, `.github/skills/teste-aceitacao/` |
+| Orientar | Do pedido de negócio ao caso de uso confirmado, antes do código: `/especificar-caso-de-uso` | `../.claude/skills/especificar-caso-de-uso/` |
+| Orientar | O padrão de arquitetura, o ADR e as receitas de código novo: `/arquiteto-padrao` | `../.claude/skills/arquiteto-padrao/` |
+| Orientar | Como trazer um projeto legado para o padrão: `/adequar-ao-padrao` | `../.claude/skills/adequar-ao-padrao/` |
+| Orientar | Testes por nível: `/teste-unidade` (regra, exaustiva), `/teste-componente` (serviço montado), `/teste-aceitacao` (especificações em português, com Cucumber) | `../.claude/skills/teste-unidade/`, `../.claude/skills/teste-componente/`, `../.claude/skills/teste-aceitacao/` |
 | Orientar | O papel e as proibições de cada pacote, lidos pela IA ao abrir a pasta | `package-info.java` |
 | Detectar | Enforcer, ErrorProne + NullAway e HQL validado na compilação; regras ArchUnit, testes de propriedade e de contrato REST no teste ([barreiras](#barreiras-de-qualidade-no-build)) | `pom.xml`, `src/test/...` |
 | Bloquear | Donos das partes sensíveis | `.github/CODEOWNERS` |
@@ -271,7 +271,7 @@ O CODEOWNERS sozinho só **pede** revisão. Para que ele e a esteira **bloqueiem
 
 ### Testes por nível
 
-Cada comportamento é provado no nível mais baixo que consegue prová-lo ([índice](.github/skills/arquiteto-padrao/references/testes.md)): regra de negócio na **unidade** (`domain/`, `application/`), serviço montado no **componente** (`componente/`) e cenários de negócio na **aceitação**, com especificações em português (`.feature`) executadas pelo Cucumber (skill `teste-aceitacao`).
+Cada comportamento é provado no nível mais baixo que consegue prová-lo ([índice](../.claude/skills/arquiteto-padrao/references/testes.md)): regra de negócio na **unidade** (`domain/`, `application/`), serviço montado no **componente** (`componente/`) e cenários de negócio na **aceitação**, com especificações em português (`.feature`) executadas pelo Cucumber (skill `teste-aceitacao`).
 
 **Migração pendente:** os testes de aceitação deste exemplo (`src/test/java/.../aceitacao/`) ainda estão no formato anterior, em Java com RestAssured e matrizes exaustivas por HTTP (cerca de 1290 testes, a maior parte do tempo do build). Eles serão migrados para o formato das skills: as matrizes descem para a unidade e os cenários de negócio viram especificações em português (`.feature`). Até lá, não os use como modelo; o modelo é o [`exemplo-testes`](../exemplo-testes/).
 

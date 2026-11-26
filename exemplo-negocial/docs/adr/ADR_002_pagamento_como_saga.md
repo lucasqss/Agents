@@ -6,7 +6,7 @@
 
 ## 1. Contexto
 
-Pagar um processo grava no nosso banco e registra uma ordem na tesouraria, que é um sistema externo: o banco desfaz o que gravou, a tesouraria não. A skill `arquiteto-padrao` ([transação e sistema externo](../../.github/skills/arquiteto-padrao/references/transacao-e-sistema-externo.md)) pede que a escolha entre as três formas fique em ADR. O primeiro desenho (chamada dentro da transação, com `POST /processos/{id}/pagar`) prendia a conexão e o bloqueio enquanto a tesouraria respondia, recusava o pagamento quando ela estava fora do ar (503) e dependia de ela estar disponível no instante do pedido. O dono pediu: "criar estado intermediário e só sair dele mediante evento temporal", seguindo a saga "Fairy Tale".
+Pagar um processo grava no nosso banco e registra uma ordem na tesouraria, que é um sistema externo: o banco desfaz o que gravou, a tesouraria não. A skill `arquiteto-padrao` ([transação e sistema externo](../../../.claude/skills/arquiteto-padrao/references/transacao-e-sistema-externo.md)) pede que a escolha entre as três formas fique em ADR. O primeiro desenho (chamada dentro da transação, com `POST /processos/{id}/pagar`) prendia a conexão e o bloqueio enquanto a tesouraria respondia, recusava o pagamento quando ela estava fora do ar (503) e dependia de ela estar disponível no instante do pedido. O dono pediu: "criar estado intermediário e só sair dele mediante evento temporal", seguindo a saga "Fairy Tale".
 
 ## 2. Decisão
 

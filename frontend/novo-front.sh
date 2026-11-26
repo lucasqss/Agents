@@ -12,7 +12,7 @@
 #     (jornada, simulado, telas Início e "Página não encontrada") que já passa no `npm run verificar`;
 #   - modelo/: as telas, a jornada, o simulado e os specs da POC, SÓ PARA CONSULTA (fora do build e do lint):
 #     é o "vizinho" que o agente copia;
-#   - .github/skills (ui-jornada e react-jornada), .claude/skills, AGENTS.md e CLAUDE.md: o front funciona com
+#   - .claude/skills (ui-jornada e react-jornada), AGENTS.md e CLAUDE.md: o front funciona com
 #     agentes mesmo fora deste repositório.
 set -euo pipefail
 
@@ -215,7 +215,7 @@ test("[I-02] Endereço que não existe mostra 'Página não encontrada'", async 
 EOF
 
 # 4. O projeto fica de pé sozinho: a verificação de arquitetura vem junto, e modelo/ fica fora de tudo.
-cp "$AQUI/.github/skills/ui-jornada/scripts/verificar.sh" "$DESTINO/scripts/verificar-arquitetura.sh"
+cp "$AQUI/../.claude/skills/ui-jornada/scripts/verificar.sh" "$DESTINO/scripts/verificar-arquitetura.sh"
 python3 - "$DESTINO" "$(basename "$DESTINO")" <<'EOF'
 import json, re, sys
 destino, nome = sys.argv[1], sys.argv[2]
@@ -232,12 +232,12 @@ open(p, "w").write(s)
 EOF
 
 # 5. As skills e as instruções para agentes.
-mkdir -p "$DESTINO/.github/skills" "$DESTINO/.claude/skills"
-cp -r "$AQUI/.github/skills/ui-jornada" "$AQUI/.github/skills/react-jornada" "$DESTINO/.github/skills/"
-ln -s ../../.github/skills/ui-jornada "$DESTINO/.claude/skills/ui-jornada"
-ln -s ../../.github/skills/react-jornada "$DESTINO/.claude/skills/react-jornada"
+# O front novo é um projeto avulso: leva as suas cópias das skills (no repositório, elas ficam em Agents/.claude/skills).
+mkdir -p "$DESTINO/.claude/skills"
+cp -r "$AQUI/../.claude/skills/ui-jornada" "$AQUI/../.claude/skills/react-jornada" "$DESTINO/.claude/skills/"
 sed -e 's|A referência de tudo é a POC em `poc/`.|O modelo para copiar está em `modelo/` (as telas, a jornada, o simulado e os specs da POC de referência), fora do build.|' \
     -e 's|abra o modelo na POC (a `react-jornada` diz qual)|abra o modelo em `modelo/` (a `react-jornada` diz qual; onde ela diz `frontend/poc`, leia `modelo/`)|' \
+    -e 's|ficam em `../.claude/skills/`, na raiz do repositório: abra a sessão do agente lá|ficam em `.claude/skills/` deste projeto|' \
     "$AQUI/AGENTS.md" > "$DESTINO/AGENTS.md"
 echo '@AGENTS.md' > "$DESTINO/CLAUDE.md"
 
@@ -245,7 +245,8 @@ echo '@AGENTS.md' > "$DESTINO/CLAUDE.md"
 mkdir -p "$DESTINO/.github/hooks"
 cp "$AQUI"/.github/hooks/*.sh "$AQUI/.github/hooks/harness.json" "$AQUI/.github/hooks/README.md" "$DESTINO/.github/hooks/"
 sed -e 's|^VERIFICACAO="cd poc \&\& npm run -s verificar"|VERIFICACAO="npm run -s verificar"|' \
-    -e 's|\^poc/|^|g' -e 's|^\^\\.github/skills/ui-jornada/scripts/verificar\\.sh\$|^scripts/verificar-arquitetura\\.sh$|' \
+    -e 's|\^poc/|^|g' \
+    -e 's|^\^\\.github/hooks/$|&\n^scripts/verificar-arquitetura\\.sh$\n^\\.claude/skills/|' \
     "$AQUI/.github/hooks/harness.conf" > "$DESTINO/.github/hooks/harness.conf"
 cp "$AQUI/.claude/settings.json" "$DESTINO/.claude/settings.json"
 cat > "$DESTINO/README.md" <<EOF

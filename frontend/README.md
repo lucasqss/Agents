@@ -6,12 +6,12 @@ Aqui ficam as convenções de front do repositório: a arquitetura, a stack e as
 
 | O quê | Onde |
 |---|---|
-| Arquitetura, agnóstica de framework: o front descreve, o backend decide; as cinco camadas; UI-001 a UI-009; `verificar.sh` | skill [`ui-jornada`](.github/skills/ui-jornada/SKILL.md) |
-| Receitas em React, por tarefa, apontando para o modelo na POC | skill [`react-jornada`](.github/skills/react-jornada/SKILL.md) |
+| Arquitetura, agnóstica de framework: o front descreve, o backend decide; as cinco camadas; UI-001 a UI-009; `verificar.sh` | skill [`ui-jornada`](../.claude/skills/ui-jornada/SKILL.md) |
+| Receitas em React, por tarefa, apontando para o modelo na POC | skill [`react-jornada`](../.claude/skills/react-jornada/SKILL.md) |
 | A aplicação de referência: React 19 + Vite + TS strict + Tailwind 4 + shadcn/ui, cliente gerado do OpenAPI, serviço simulado, ESLint (hooks e acessibilidade) e Playwright | [`poc/`](poc/README.md) |
 | Regras do contrato OpenAPI que o backend publica para o front gerar o cliente | `contrato-openapi.md`, na skill `arquiteto-padrao` (`exemplo-negocial`) |
 
-As skills ficam em `.github/skills/` (Copilot), com links em `.claude/skills/` (Claude Code). O `exemplo-testes/.github/skills/ui-jornada` é um link para a daqui.
+As skills ficam em `.claude/skills/`, na raiz do repositório, junto com as do backend: abra a sessão do agente na raiz. Um front criado pelo `novo-front.sh` leva as suas cópias.
 
 ## Começar um front novo
 
