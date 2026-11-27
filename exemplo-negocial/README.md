@@ -351,4 +351,21 @@ Em produção, o provedor de identidade emite os tokens e a aplicação recebe a
 
 A alçada de aprovação é `processo.alcada` (padrão `50000.00`); em produção pode ser trocada por `PROCESSO_ALCADA`. Em produção, informe o banco com `DB_URL`, `DB_USER` e `DB_PASSWORD`, e a tesouraria com `TESOURARIA_URL`. A rotina de pagamento roda a cada `pagamento.rotina.intervalo` (padrão `5m`; `off` desliga). Em `quarkus:dev`, sem uma tesouraria em `http://localhost:8089`, os processos ficam em PAGAMENTO_SOLICITADO e cada rodada registra uma tentativa no histórico. Nos testes de integração o agendamento está desligado (`%test.pagamento.rotina.intervalo=off`) e o caso de uso é chamado direto; nos de aceitação o intervalo é de 100 ms. O agendador é o Quartz (`quarkus-quartz`, store em memória, sem cluster e sem tabelas), porque o agendador simples não aceita intervalo abaixo de 1 s ([ADR 002](docs/adr/ADR_002_pagamento_como_saga.md)).
 
+### Startup e memória (JVM, sem compilação nativa)
+
+A imagem de `src/main/docker/Dockerfile.jvm` traz um **AOT cache do JDK 25** (`/deployments/app.aot`, JEP 483/514/515): classes já carregadas e linkadas, gravadas num treino que roda no próprio `docker build`, com a JVM da imagem (o cache só vale para a mesma JVM e o mesmo classpath, por isso não sai do Maven). O treino é só a subida, sem banco, então não pesa no build nem na memória.
+
+Medido com `scripts/medir-startup.sh` (container com 512 MB, PostgreSQL 18, média de 3 rodadas):
+
+| | 1 CPU: subida | 1 CPU: 1ª resposta | 2 CPUs: subida | RSS após 200 chamadas |
+|---|---|---|---|---|
+| Sem cache | ~5,0 s | ~6,4 s | ~2,5 s | ~225 MB |
+| Com AOT cache | ~4,3 s | ~5,8 s | ~2,3 s | ~215 MB |
+
+Para medir de novo: `./mvnw package -DskipTests`, `docker build -f src/main/docker/Dockerfile.jvm -t negocial .` e `IMAGEM=negocial scripts/medir-startup.sh` (`CPUS` e `MEMORIA` mudam o limite; sem `IMAGEM`, mede o jar local com as opções de JVM passadas).
+
+O que foi medido e **não** compensou aqui: `-XX:+UseCompactObjectHeaders`, `-XX:+UseSerialGC`, `-Xss512k`, limites de metaspace e code cache (RSS igual, ±5 MB; SerialGC subiu mais devagar) e `quarkus.hibernate-orm.database.version-check.enabled=false` (sem diferença). A maior parte do RSS não é heap (metaspace, código e estruturas da JVM, ~140 MB). Treinar o cache com a aplicação servindo requisições reais dá mais startup (~40% no jar local), mas exige banco no build e custa 40–90 MB a mais de RSS, porque o cache maior fica mapeado em memória.
+
+**Limite de memória do container:** o piso é ~256 MB (com 192 MB o container é morto ao subir). O `run-java.sh` da imagem põe o heap máximo em 80% do limite (`MaxRAMPercentage=80`); com 256 MB isso deixa o heap crescer até ~205 MB, que somados aos ~140 MB fora do heap passam do limite sob carga, e o kernel mata o processo. Em limites pequenos, reduza o heap: `JAVA_MAX_MEM_RATIO=40` (ou `-Xmx` em `JAVA_OPTS_APPEND`) e dimensione `limite ≈ 150 MB + heap máximo`.
+
 Cópia do exemplo mantido em um repositório privado (branch `exemplo-negocial`). Rode os comandos acima de dentro desta pasta.

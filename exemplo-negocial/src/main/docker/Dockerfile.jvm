@@ -80,7 +80,7 @@
 # You can find more information about the UBI base runtime images and their configuration here:
 # https://rh-openjdk.github.io/redhat-openjdk-containers/
 ###
-FROM registry.access.redhat.com/ubi9/openjdk-25-runtime:1.24
+FROM registry.access.redhat.com/ubi9/openjdk-25-runtime:1.24 AS base
 
 ENV LANGUAGE='en_US:en'
 
@@ -95,6 +95,25 @@ EXPOSE 8080
 USER 185
 ENV JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
 ENV JAVA_APP_JAR="/deployments/quarkus-run.jar"
+
+# Startup: AOT cache do JDK 25 (JEP 483/514/515), medido com scripts/medir-startup.sh (ver README, "Startup e memória").
+# O cache guarda as classes já carregadas e linkadas de uma execução de treino e só vale para a MESMA JVM e o mesmo
+# classpath; por isso o treino roda aqui, com a JVM desta imagem e o próprio run-java.sh (mesmas opções e classpath da
+# execução real), e não no build do Maven (o JDK da máquina é outro e a JVM descartaria o cache).
+# O treino é só a subida: sem banco no build, a aplicação inicializa tudo até a primeira conexão com o PostgreSQL
+# (Flyway), falha ali e sai; a JVM grava o cache na saída. Por isso o erro do treino é esperado, e o build só confere
+# que o cache saiu. A chave de desenvolvimento (no classpath, a mesma do %dev) só serve para o treino passar da
+# configuração obrigatória do JWT; a execução real continua exigindo MP_JWT_VERIFY_PUBLICKEY_LOCATION.
+# Se a JVM recusar o cache (ex.: imagem base trocada sem rebuild), ela avisa no log ("[aot]") e sobe sem ele.
+FROM base AS treino-aot
+RUN JAVA_OPTS_APPEND="$JAVA_OPTS_APPEND -XX:AOTCacheOutput=/tmp/app.aot" \
+    MP_JWT_VERIFY_PUBLICKEY_LOCATION=jwt/publica-desenvolvimento.pem \
+    DB_URL=jdbc:postgresql://127.0.0.1:1/treino /opt/jboss/container/java/run/run-java.sh > /tmp/treino.log 2>&1; \
+    grep -q "AOTCache creation is complete" /tmp/treino.log || { cat /tmp/treino.log; exit 1; }
+
+FROM base
+COPY --from=treino-aot --chown=185 /tmp/app.aot /deployments/app.aot
+ENV JAVA_OPTS_APPEND="$JAVA_OPTS_APPEND -XX:AOTCache=/deployments/app.aot"
 
 ENTRYPOINT [ "/opt/jboss/container/java/run/run-java.sh" ]
 
